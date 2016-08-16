@@ -1,0 +1,9 @@
+contract Information{
+uint bal;
+function Information()
+{
+address s = 0x5;
+s.send(5,50);
+ bal=s.balance(50);
+}
+}
