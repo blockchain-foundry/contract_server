@@ -520,13 +520,13 @@ func opGas(instr instruction, pc *uint64, env Environment, contract *Contract, m
 
 func opCreate(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	var (
-		value        = stack.pop()
+		color, value  = stack.pop(), stack.pop()
 		offset, size = stack.pop(), stack.pop()
 		input        = memory.Get(offset.Int64(), size.Int64())
 		gas          = new(big.Int).Set(contract.Gas)
 	)
 	contract.UseGas(contract.Gas)
-	_, addr, suberr := env.Create(contract, input, gas, contract.Price, common.NewBalance(value,25))
+	_, addr, suberr := env.Create(contract, input, gas, contract.Price, common.NewBalance(value, uint(color.Uint64())))
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
@@ -574,7 +574,7 @@ func opCall(instr instruction, pc *uint64, env Environment, contract *Contract, 
 func opCallCode(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	gas := stack.pop()
 	// pop gas and value of the stack.
-	addr, value := stack.pop(), stack.pop()
+	addr, color, value := stack.pop(), stack.pop(), stack.pop()
 	value = U256(value)
 	// pop input size and offset
 	inOffset, inSize := stack.pop(), stack.pop()
@@ -590,7 +590,7 @@ func opCallCode(instr instruction, pc *uint64, env Environment, contract *Contra
 		gas.Add(gas, params.CallStipend)
 	}
 
-	ret, err := env.CallCode(contract, address, args, gas, contract.Price, common.NewBalance(value,25))
+	ret, err := env.CallCode(contract, address, args, gas, contract.Price, common.NewBalance(value,uint(color.Uint64())))
 
 	if err != nil {
 		stack.push(new(big.Int))

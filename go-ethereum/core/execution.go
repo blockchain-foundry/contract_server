@@ -18,7 +18,6 @@ package core
 
 import (
 	"math/big"
-//	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -42,7 +41,7 @@ func CallCode(env vm.Environment, caller vm.ContractRef, addr common.Address, in
 func DelegateCall(env vm.Environment, caller vm.ContractRef, addr common.Address, input []byte, gas, gasPrice *big.Int) (ret []byte, err error) {
 	callerAddr := caller.Address()
 	originAddr := env.Origin()
-	callerValue := caller.Value()
+	callerValue := common.BalanceCopy(caller.Value())
 	ret, _, err = execDelegateCall(env, caller, &originAddr, &callerAddr, &addr, input, env.Db().GetCode(addr), gas, gasPrice, callerValue)
 	return ret, err
 }
