@@ -113,41 +113,45 @@ class Contracts(APIView):
 
 class ContractFunc(APIView):
 	def post(self, request, multisig_address):
-		def FuncParam(function):
-			function = eval(function)
+		def FuncParam(function, func_id, val):
 			function = function[int(func_id)-1]
-			functionName = function['name']
+			functionName = function['name'] + '('
 			inputs = function['inputs']
-			inputtype = inputs[0]['type']
-			functionName = functionName+'('+inputtype+')'
+			for inp in inputs:
+				try:		
+					inputtype = inp['type']
+					functionName = functionName+inputtype+','
+				except:
+					pass
+			functionName = functionName[:-1]+')'
 			functionName = functionName.encode()
 			k = sha3.keccak_256()
-			k.update(functionName)	
+			k.update(functionName)
 			input_param = k.hexdigest()
 			input_param = input_param[:8]
-			input_param = input_param + '0'*(56-len(val)) + val
+			input_param = ' --input ' + input_param
+			for v in val :
+				input_param = input_param + '0'*(64-len(v)) + v
 			return input_param
 			
 		body_unicode = request.body.decode('utf-8')
 		json_data = json.loads(body_unicode)
-
 		try:
 			contract = Contract.objects.get(multisig_address=multisig_address)
 			serializer=ContractSerializer(contract)
 		except:
 			response = {'status': 'contract not found.'}
 			return HttpResponse(json.dumps(response),status=status.HTTP_404_NOT_FOUND, content_type="application/json")
-
+		val = []
 		try:
 			func_id = json_data['function_id']
 			value = json_data['function_inputs']
-			##only one input 
-			##multi input not yet implement
 			for v in value:
 				try:
-					val = v['value']
+					val.append(v['value'])
 				except:
-					pass
+					response = {'status': 'wrong arguments.'}
+					return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
 		except:
 			pass
 	
@@ -155,8 +159,9 @@ class ContractFunc(APIView):
 			#get function
 			#keccak hash
 			function = serializer.data['interface']
-			input_param = FuncParam(function)
-			command = "../go-ethereum/build/bin/evm --read "+multisig_address+" --input "+ input_param + " --dump --receiver " + multisig_address
+			function = eval(function)
+			input_param = FuncParam(function, func_id, val)
+			command = "../go-ethereum/build/bin/evm --read "+multisig_address+ input_param + " --dump --receiver " + multisig_address
 			subprocess.check_output(command, shell = True)
 		except:
 			response = {'status': 'wrong arguments.'}
