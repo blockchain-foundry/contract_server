@@ -1,5 +1,5 @@
-from oracles.models import Oracle, Contract
-from oracles.serializers import OracleSerializer, ContractSerializer
+from oracles.models import *
+from oracles.serializers import *
 from django.shortcuts import render
 from rest_framework.views import status
 from rest_framework.views import APIView
@@ -10,6 +10,7 @@ import requests
 import subprocess
 import json
 import gcoinrpc
+import sha3 # keccak_256
 
 # Create your views here.
 
@@ -43,13 +44,28 @@ class Contracts(APIView):
 		json_data = json.loads(body_unicode)	
 		min_authority = 1
 		oracles_num = 1
-		#serverlist = OracleSerializer(ser, many=True)
 		serverlist = list(Oracle.objects.all())
 		try: 
-			source_code = json_data['source_code']
+			source_code = str(json_data['source_code'])
+			
+			#compile soure code
+			# return : binary, ABI 
+			
+			#1. store source code to file
+			file = open('compile','w') 
+			file.write(source_code)
+			file.close()
+	
+			#2. compile: solc filename --abi --bin
+			command = "../solidity/solc/solc compile --abi --bin"
+			r = str(subprocess.check_output(command, shell = True), "utf8").strip()			
+			str1 = r.split('Binary:')
+			str2 = str1[1].split('\n')
+			binary = str2[1]
+			abi = str2[3]
 		except:
 			response = {'status':'worng arguments.'}
-			return HttpResponse(json.dumps(reponse), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+			return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
 		
 		try:
 			for oracle in json_data['oracles']:
@@ -73,26 +89,75 @@ class Contracts(APIView):
 		try:
 			multisig = c.createmultisig(min_authority, keys)
 		except:
+			#createmultisig failed
 			pass
-		contract = Contract(source_code=source_code,multisig_address=multisig['address'], oracles=serverlist[:oracles_num])
-		contract.save()
 
-		serializer = OracleSerializer(contract.oracles, many=True)
-		response = {'multisig_address': multisig['address'], 'oracles':serializer.data}
+		command = "../go-ethereum/build/bin/evm --jonah --write " + multisig['address'] + " --code " + binary +" --receiver " + multisig['address']
+		subprocess.check_output(command, shell = True)
+		abi = json.loads(abi)
+		interface = []
+		ids = 1
+		for func in abi:
+			try:
+				func['id'] = ids
+				interface.append(func)
+				ids = ids + 1
+			except:
+				pass
+		
+		contract = Contract(source_code=source_code,multisig_address=multisig['address'], oracles=serverlist[:oracles_num], interface=interface)
+		contract.save()
+		seri_oracle = OracleSerializer(contract.oracles, many=True)
+		response = {'multisig_address': multisig['address'], 'oracles':seri_oracle.data, 'interface':interface}
 		return HttpResponse(json.dumps(response), content_type="application/json")
-	
 
 class ContractFunc(APIView):
 	def post(self, request, multisig_address):
+		def FuncParam(function):
+			function = eval(function)
+			function = function[int(func_id)-1]
+			functionName = function['name']
+			inputs = function['inputs']
+			inputtype = inputs[0]['type']
+			functionName = functionName+'('+inputtype+')'
+			functionName = functionName.encode()
+			k = sha3.keccak_256()
+			k.update(functionName)	
+			input_param = k.hexdigest()
+			input_param = input_param[:8]
+			input_param = input_param + '0'*(56-len(val)) + val
+			return input_param
+			
+		body_unicode = request.body.decode('utf-8')
+		json_data = json.loads(body_unicode)
+
 		try:
 			contract = Contract.objects.get(multisig_address=multisig_address)
+			serializer=ContractSerializer(contract)
 		except:
 			response = {'status': 'contract not found.'}
 			return HttpResponse(json.dumps(response),status=status.HTTP_404_NOT_FOUND, content_type="application/json")
-		
+
+		try:
+			func_id = json_data['function_id']
+			value = json_data['function_inputs']
+			##only one input 
+			##multi input not yet implement
+			for v in value:
+				try:
+					val = v['value']
+				except:
+					pass
+		except:
+			pass
+	
 		try:
 			#get function
-			r = 'r'
+			#keccak hash
+			function = serializer.data['interface']
+			input_param = FuncParam(function)
+			command = "../go-ethereum/build/bin/evm --read "+multisig_address+" --input "+ input_param + " --dump --receiver " + multisig_address
+			subprocess.check_output(command, shell = True)
 		except:
 			response = {'status': 'wrong arguments.'}
 			return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
@@ -106,4 +171,6 @@ class ContractList(APIView):
                 contracts = Contract.objects.all()
                 serializer = ContractSerializer(contracts, many=True)
                 response = {'contracts':serializer.data}
-                return HttpResponse(json.dumps(response), content_type="application/json")	
+                return HttpResponse(json.dumps(response), content_type="application/json")
+
+

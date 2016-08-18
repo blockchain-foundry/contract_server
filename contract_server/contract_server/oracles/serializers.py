@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from oracles.models import Oracle, Contract
+from oracles.models import *
 
 class OracleSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -9,4 +9,5 @@ class OracleSerializer(serializers.ModelSerializer):
 class ContractSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = Contract
-		fields = ('created', 'source_code', 'multisig_address', 'oracles')
+		fields = ('created', 'source_code', 'multisig_address', 'interface', 'oracles')
+
