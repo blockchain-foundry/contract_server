@@ -1,0 +1,9 @@
+/home/jonah1005/summer/solidity/test/CMakeFiles/soltest.dir
+/home/jonah1005/summer/solidity/libdevcore/CMakeFiles/soldevcore.dir
+/home/jonah1005/summer/solidity/solc/CMakeFiles/solc.dir
+/home/jonah1005/summer/solidity/CMakeFiles/solidity_BuildInfo.h.dir
+/home/jonah1005/summer/solidity/lllc/CMakeFiles/lllc.dir
+/home/jonah1005/summer/solidity/solc/CMakeFiles/soljson.dir
+/home/jonah1005/summer/solidity/libsolidity/CMakeFiles/solidity.dir
+/home/jonah1005/summer/solidity/liblll/CMakeFiles/lll.dir
+/home/jonah1005/summer/solidity/libevmasm/CMakeFiles/solevmasm.dir
