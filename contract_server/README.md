@@ -16,3 +16,7 @@ and to check the result
 		$ curl localhost:8000/oracles/
 		
 you'll get the result
+
+## Install sha3
+	
+	https://pypi.python.org/pypi/pysha3
