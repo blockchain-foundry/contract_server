@@ -57,7 +57,7 @@ func New(env Environment, cfg Config) *EVM {
 
 	return &EVM{
 		env:       env,
-		jumpTable: newJumpTable(env.RuleSet(), env.BlockNumber()),
+		jumpTable: newJumpTable(),
 		cfg:       cfg,
 		logger:    logger,
 	}

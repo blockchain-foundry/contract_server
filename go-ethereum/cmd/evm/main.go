@@ -21,18 +21,18 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-//	"runtime"
+	//"runtime"
 	"time"
 	"io/ioutil"
 	"encoding/json"
-//	"strings"
+	//"strings"
 	"strconv"
-	//	"github.com/ethereum/go-ethereum/cmd/utils"
+	//"github.com/ethereum/go-ethereum/cmd/utils"
 	"path/filepath"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
+	//"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger/glog"
@@ -179,7 +179,7 @@ func run(ctx *cli.Context) error {
 
 	db, _ := ethdb.NewMemDatabase()
 	statedb, _ := state.New(common.Hash{}, db)
-//	fmt.Println("Sender",common.StringToAddress("sender"))
+	//fmt.Println("Sender",common.StringToAddress("sender"))
 	sender := statedb.CreateAccount(common.StringToAddress("sender"))
 	//morris' testing
 	//get sender from outside
@@ -190,18 +190,19 @@ func run(ctx *cli.Context) error {
 		} else {
 			sender = statedb.CreateAccount(SenderFlagAdr)
 		}
-		fmt.Println(sender)
+		//fmt.Println(sender)
 	}
 
 
 
 	vmenv := NewEnv(statedb, common.StringToAddress("evmuser"), common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
+	//vmenv := NewEnv(statedb, common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
 		Debug:     ctx.GlobalBool(DebugFlag.Name),
 		ForceJit:  ctx.GlobalBool(ForceJitFlag.Name),
 		EnableJit: !ctx.GlobalBool(DisableJitFlag.Name),
 	})
 
-//	tstart := time.Now()   removing runtime
+	//tstart := time.Now()   removing runtime
 
 	var (
 		ret []byte
@@ -294,15 +295,15 @@ func run(ctx *cli.Context) error {
 	//	runtime.ReadMemStats(&mem)
 	//	fmt.Printf("vm took %v\n", vmdone)
 	//	fmt.Printf(`alloc:      %d
-//tot alloc:  %d
+	//tot alloc:  %d
 	}
 
-	fmt.Printf("OUT: 0x%x", ret)
+	//fmt.Printf("OUT: 0x%x", ret)
 
 	if err != nil {
 		fmt.Printf(" error: %v", err)
 	}
-	fmt.Println()
+	//fmt.Println()
 
 
 	//morris' testing
@@ -330,7 +331,7 @@ func main() {
 
 type VMEnv struct {
 	state *state.StateDB
-	block *types.Block
+	//block *types.Block
 
 	transactor *common.Address
 	value      *big.Int
@@ -357,33 +358,36 @@ func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg
 }
 
 // ruleSet implements vm.RuleSet and will always default to the homestead rule set.
-type ruleSet struct{}
+//type ruleSet struct{}
 
-func (ruleSet) IsHomestead(*big.Int) bool { return true }
+//func (ruleSet) IsHomestead(*big.Int) bool { return true }
+//set all IsHomestead to be true
 
 func (self *VMEnv) MarkCodeHash(common.Hash)   {}
-func (self *VMEnv) RuleSet() vm.RuleSet        { return ruleSet{} }
+//func (self *VMEnv) RuleSet() vm.RuleSet        { return ruleSet{} }
 func (self *VMEnv) Vm() vm.Vm                  { return self.evm }
 func (self *VMEnv) Db() vm.Database            { return self.state }
 func (self *VMEnv) MakeSnapshot() vm.Database  { return self.state.Copy() }
 func (self *VMEnv) SetSnapshot(db vm.Database) { self.state.Set(db.(*state.StateDB)) }
 func (self *VMEnv) Origin() common.Address     { return *self.transactor }
-func (self *VMEnv) BlockNumber() *big.Int      { return common.Big0 }
-func (self *VMEnv) Coinbase() common.Address   { return *self.transactor }
+//func (self *VMEnv) BlockNumber() *big.Int      { return common.Big0 }
+//func (self *VMEnv) Coinbase() common.Address   { return *self.transactor }
 func (self *VMEnv) Time() *big.Int             { return self.time }
-func (self *VMEnv) Difficulty() *big.Int       { return common.Big1 }
-func (self *VMEnv) BlockHash() []byte          { return make([]byte, 32) }
+//func (self *VMEnv) Difficulty() *big.Int       { return common.Big1 }
+//func (self *VMEnv) BlockHash() []byte          { return make([]byte, 32) }
 func (self *VMEnv) Value() *big.Int            { return self.value }
 func (self *VMEnv) GasLimit() *big.Int         { return big.NewInt(1000000000) }
 func (self *VMEnv) VmType() vm.Type            { return vm.StdVmTy }
 func (self *VMEnv) Depth() int                 { return 0 }
 func (self *VMEnv) SetDepth(i int)             { self.depth = i }
+/*
 func (self *VMEnv) GetHash(n uint64) common.Hash {
 	if self.block.Number().Cmp(big.NewInt(int64(n))) == 0 {
 		return self.block.Hash()
 	}
 	return common.Hash{}
 }
+*/
 func (self *VMEnv) AddStructLog(log vm.StructLog) {
 	self.logs = append(self.logs, log)
 }

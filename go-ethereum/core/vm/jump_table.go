@@ -25,14 +25,17 @@ type jumpPtr struct {
 
 type vmJumpTable [256]jumpPtr
 
-func newJumpTable(ruleset RuleSet, blockNumber *big.Int) vmJumpTable {
+//func newJumpTable(ruleset RuleSet, blockNumber *big.Int) vmJumpTable {
+func newJumpTable() vmJumpTable {
 	var jumpTable vmJumpTable
 
 	// when initialising a new VM execution we must first check the homestead
 	// changes.
-	if ruleset.IsHomestead(blockNumber) {
-		jumpTable[DELEGATECALL] = jumpPtr{opDelegateCall, true}
-	}
+	//if ruleset.IsHomestead(blockNumber) {
+	//	jumpTable[DELEGATECALL] = jumpPtr{opDelegateCall, true}
+	//}
+	//set all "ruleset.IsHomestead(blockNumber)" to be true
+	jumpTable[DELEGATECALL] = jumpPtr{opDelegateCall, true}
 
 	jumpTable[ADD] = jumpPtr{opAdd, true}
 	jumpTable[SUB] = jumpPtr{opSub, true}
@@ -70,11 +73,12 @@ func newJumpTable(ruleset RuleSet, blockNumber *big.Int) vmJumpTable {
 	jumpTable[CODECOPY] = jumpPtr{opCodeCopy, true}
 	jumpTable[EXTCODECOPY] = jumpPtr{opExtCodeCopy, true}
 	jumpTable[GASPRICE] = jumpPtr{opGasprice, true}
-	jumpTable[BLOCKHASH] = jumpPtr{opBlockhash, true}
-	jumpTable[COINBASE] = jumpPtr{opCoinbase, true}
+	//jumpTable[BLOCKHASH] = jumpPtr{opBlockhash, true}
+	//jumpTable[COINBASE] = jumpPtr{opCoinbase, true}
 	jumpTable[TIMESTAMP] = jumpPtr{opTimestamp, true}
-	jumpTable[NUMBER] = jumpPtr{opNumber, true}
-	jumpTable[DIFFICULTY] = jumpPtr{opDifficulty, true}
+	//jumpTable[NUMBER] = jumpPtr{opNumber, true}
+	//jumpTable[DIFFICULTY] = jumpPtr{opDifficulty, true}
+	//Do not need this
 	jumpTable[GASLIMIT] = jumpPtr{opGasLimit, true}
 	jumpTable[POP] = jumpPtr{opPop, true}
 	jumpTable[MLOAD] = jumpPtr{opMload, true}

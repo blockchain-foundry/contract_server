@@ -139,11 +139,14 @@ func (self *StateTransition) from() (vm.Account, error) {
 		f   common.Address
 		err error
 	)
-	if self.env.RuleSet().IsHomestead(self.env.BlockNumber()) {
-		f, err = self.msg.From()
-	} else {
-		f, err = self.msg.FromFrontier()
-	}
+	//if self.env.RuleSet().IsHomestead(self.env.BlockNumber()) {
+	//	f, err = self.msg.From()
+	//} else {
+	//	f, err = self.msg.FromFrontier()
+	//}
+	//set all "RuleSet().IsHomestead(self.env.BlockNumber())" to be true
+	f, err = self.msg.From()
+
 	if err != nil {
 		return nil, err
 	}
@@ -202,18 +205,19 @@ func (self *StateTransition) buyGas() error {
 }
 
 func (self *StateTransition) preCheck() (err error) {
-	msg := self.msg
+	//msg := self.msg
 	sender, err := self.from()
 	if err != nil {
+		fmt.Println(sender)
 		return err
 	}
 
 	// Make sure this transaction's nonce is correct
-	if msg.CheckNonce() {
-		if n := self.state.GetNonce(sender.Address()); n != msg.Nonce() {
-			return NonceError(msg.Nonce(), n)
-		}
-	}
+	//if msg.CheckNonce() {
+	//	if n := self.state.GetNonce(sender.Address()); n != msg.Nonce() {
+	//		return NonceError(msg.Nonce(), n)
+	//	}
+	//}
 
 	// Pre-pay gas
 	if err = self.buyGas(); err != nil {
@@ -234,7 +238,8 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	msg := self.msg
 	sender, _ := self.from() // err checked in preCheck
 
-	homestead := self.env.RuleSet().IsHomestead(self.env.BlockNumber())
+	//homestead := self.env.RuleSet().IsHomestead(self.env.BlockNumber())
+	homestead := true	//set homesteat to true
 	contractCreation := MessageCreatesContract(msg)
 	// Pay intrinsic gas
 	if err = self.useGas(IntrinsicGas(self.data, contractCreation, homestead)); err != nil {
@@ -274,7 +279,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	requiredGas = new(big.Int).Set(self.gasUsed())
 
 	self.refundGas()
-	self.state.AddBalance(0,self.env.Coinbase(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
+	self.state.AddBalance(0,self.env.Origin(), new(big.Int).Mul(self.gasUsed(), self.gasPrice))
 
 	return ret, requiredGas, self.gasUsed(), err
 }

@@ -407,9 +407,9 @@ func opGasprice(instr instruction, pc *uint64, env Environment, contract *Contra
 	stack.push(new(big.Int).Set(contract.Price))
 }
 
-func opBlockhash(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
-	_ = stack.pop()
-	stack.push(new(big.Int))
+//func opBlockhash(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+//	_ = stack.pop()
+//	stack.push(new(big.Int))
 	/*
 	n := new(big.Int).Sub(env.BlockNumber(), common.Big257)
 	
@@ -419,24 +419,25 @@ func opBlockhash(instr instruction, pc *uint64, env Environment, contract *Contr
 		stack.push(new(big.Int))
 	}
 	/* do not support this in Gcoin*/
-}
+//}
 
-func opCoinbase(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
-	stack.push(env.Coinbase().Big())
-}
+//func opCoinbase(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+//	stack.push(env.Coinbase().Big())
+//}
+//Do not need this
 
 func opTimestamp(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	stack.push(U256(new(big.Int).Set(env.Time())))
 }
 
-func opNumber(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
-	stack.push(U256(new(big.Int).Set(env.BlockNumber())))
-}
-
-func opDifficulty(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
-	stack.push(U256(new(big.Int).Set(env.Difficulty())))
-}
-
+//func opNumber(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+//	stack.push(U256(new(big.Int).Set(env.BlockNumber())))
+//}
+//Do not need this
+//func opDifficulty(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+//	stack.push(U256(new(big.Int).Set(env.Difficulty())))
+//}
+//Do not need this
 func opGasLimit(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	stack.push(U256(new(big.Int).Set(env.GasLimit())))
 }
@@ -466,7 +467,8 @@ func opLog(instr instruction, pc *uint64, env Environment, contract *Contract, m
 	}
 
 	d := memory.Get(mStart.Int64(), mSize.Int64())
-	log := NewLog(contract.Address(), topics, d, env.BlockNumber().Uint64())
+	//log := NewLog(contract.Address(), topics, d, env.BlockNumber().Uint64())
+	log := NewLog(contract.Address(), topics, d, new(big.Int).Uint64())
 	env.AddLog(log)
 }
 
@@ -531,7 +533,8 @@ func opCreate(instr instruction, pc *uint64, env Environment, contract *Contract
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
-	if env.RuleSet().IsHomestead(env.BlockNumber()) && suberr == CodeStoreOutOfGasError {
+	//if env.RuleSet().IsHomestead(env.BlockNumber()) && suberr == CodeStoreOutOfGasError {
+	if suberr == CodeStoreOutOfGasError {
 		stack.push(new(big.Int))
 	} else if suberr != nil && suberr != CodeStoreOutOfGasError {
 		stack.push(new(big.Int))
@@ -640,7 +643,7 @@ func makeLog(size int) instrFn {
 		}
 
 		d := memory.Get(mStart.Int64(), mSize.Int64())
-		log := NewLog(contract.Address(), topics, d, env.BlockNumber().Uint64())
+		log := NewLog(contract.Address(), topics, d, new(big.Int).Uint64())
 		env.AddLog(log)
 	}
 }

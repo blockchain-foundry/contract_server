@@ -24,15 +24,16 @@ import (
 
 // RuleSet is an interface that defines the current rule set during the
 // execution of the EVM instructions (e.g. whether it's homestead)
-type RuleSet interface {
-	IsHomestead(*big.Int) bool
-}
+//type RuleSet interface {
+//	IsHomestead(*big.Int) bool
+//}
+//Do not need this
 
 // Environment is an EVM requirement and helper which allows access to outside
 // information such as states.
 type Environment interface {
 	// The current ruleset
-	RuleSet() RuleSet
+	//RuleSet() RuleSet
 	// The state database
 	Db() Database
 	// Creates a restorable snapshot
@@ -42,16 +43,16 @@ type Environment interface {
 	// Address of the original invoker (first occurrence of the VM invoker)
 	Origin() common.Address
 	// The block number this VM is invoked on
-	BlockNumber() *big.Int
+	//BlockNumber() *big.Int
 	// The n'th hash ago from this block number
 	//do not support this
 	//GetHash(uint64) common.Hash
 	// The handler's address
-	Coinbase() common.Address
+	//Coinbase() common.Address
 	// The current time (block time)
 	Time() *big.Int
 	// Difficulty set on the current block
-	Difficulty() *big.Int
+	//Difficulty() *big.Int
 	// The gas limit of the block
 	GasLimit() *big.Int
 	// Determines whether it's possible to transact

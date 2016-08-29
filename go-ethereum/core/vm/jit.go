@@ -219,16 +219,17 @@ func CompileProgram(program *Program) (err error) {
 			program.addInstr(op, pc, opExtCodeCopy, nil)
 		case GASPRICE:
 			program.addInstr(op, pc, opGasprice, nil)
-		case BLOCKHASH:
-			program.addInstr(op, pc, opBlockhash, nil)
-		case COINBASE:
-			program.addInstr(op, pc, opCoinbase, nil)
+		//case BLOCKHASH:
+		//	program.addInstr(op, pc, opBlockhash, nil)
+		//case COINBASE:
+		//	program.addInstr(op, pc, opCoinbase, nil)
 		case TIMESTAMP:
 			program.addInstr(op, pc, opTimestamp, nil)
-		case NUMBER:
-			program.addInstr(op, pc, opNumber, nil)
-		case DIFFICULTY:
-			program.addInstr(op, pc, opDifficulty, nil)
+		//case NUMBER:
+		//	program.addInstr(op, pc, opNumber, nil)
+		//case DIFFICULTY:
+		//	program.addInstr(op, pc, opDifficulty, nil)
+		//Do not need this
 		case GASLIMIT:
 			program.addInstr(op, pc, opGasLimit, nil)
 		case PUSH1, PUSH2, PUSH3, PUSH4, PUSH5, PUSH6, PUSH7, PUSH8, PUSH9, PUSH10, PUSH11, PUSH12, PUSH13, PUSH14, PUSH15, PUSH16, PUSH17, PUSH18, PUSH19, PUSH20, PUSH21, PUSH22, PUSH23, PUSH24, PUSH25, PUSH26, PUSH27, PUSH28, PUSH29, PUSH30, PUSH31, PUSH32:
@@ -319,7 +320,7 @@ func runProgram(program *Program, pcstart uint64, mem *Memory, stack *stack, env
 		}()
 	}
 
-	homestead := env.RuleSet().IsHomestead(env.BlockNumber())
+	homestead := true	//env.RuleSet().IsHomestead(env.BlockNumber())
 	for pc < uint64(len(program.instructions)) {
 		instrCount++
 
