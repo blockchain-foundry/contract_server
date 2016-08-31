@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"os"
 	//"runtime"
-	"time"
+//	"time"
 	"io/ioutil"
 	"encoding/json"
 	//"strings"
@@ -117,6 +117,10 @@ var (
 		Name:  "create",
 		Usage: "indicates the action should be create rather than call",
 	}
+	TimeFlag = cli.IntFlag{
+		Name:  "time",
+		Usage: "The current block time",
+	}
 )
 
 
@@ -159,6 +163,7 @@ func init() {
 		InputFlag,
 		JonahFlag,
 		MorrisFlag,
+		TimeFlag,
 	}
 	app.Action = run
 }
@@ -195,12 +200,14 @@ func run(ctx *cli.Context) error {
 
 
 
+	//MyTime := big.NewInt(time.Now().Unix())
+	MyTime := big.NewInt(int64(ctx.GlobalInt(TimeFlag.Name)))
 	vmenv := NewEnv(statedb, common.StringToAddress("evmuser"), common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
 	//vmenv := NewEnv(statedb, common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
 		Debug:     ctx.GlobalBool(DebugFlag.Name),
 		ForceJit:  ctx.GlobalBool(ForceJitFlag.Name),
 		EnableJit: !ctx.GlobalBool(DisableJitFlag.Name),
-	})
+	}, MyTime)
 
 	//tstart := time.Now()   removing runtime
 
@@ -344,12 +351,15 @@ type VMEnv struct {
 	evm *vm.EVM
 }
 
-func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg vm.Config) *VMEnv {
+func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg vm.Config, myTime *big.Int) *VMEnv {
+
+
+	
 	env := &VMEnv{
 		state:      state,
 		transactor: &transactor,
 		value:      value,
-		time:       big.NewInt(time.Now().Unix()),
+		time:       myTime,
 	}
 	cfg.Logger.Collector = env
 
