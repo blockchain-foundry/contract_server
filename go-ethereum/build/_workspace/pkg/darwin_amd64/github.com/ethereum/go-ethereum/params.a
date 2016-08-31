@@ -1,877 +1,0 @@
-!<arch>
-__.PKGDEF       0           0     0     644     40578     `
-go object darwin amd64 go1.5.2 X:none
-build id "47beb1d9d7e7c14ad6185b3aa8e4f699368d060f"
-
-$$
-package params
-	import runtime "runtime"
-	import json "encoding/json"
-	import fmt "fmt"
-	import big "math/big"
-	import common "github.com/ethereum/go-ethereum/common"
-	type @"math/big".Word uintptr
-	type @"math/big".divisor struct { @"math/big".bbb @"math/big".nat; @"math/big".nbits int; @"math/big".ndigits int }
-	import rand "math/rand" // indirect
-	type @"math/rand".Source interface { Int63() (? int64); Seed(@"math/rand".seed int64) }
-	type @"math/rand".Rand struct { @"math/rand".src @"math/rand".Source }
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") ExpFloat64 () (? float64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Float32 () (? float32)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Float64 () (? float64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Int () (? int)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Int31 () (? int32)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Int31n (@"math/rand".nÂ·3 int32) (? int32)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Int63 () (? int64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Int63n (@"math/rand".nÂ·3 int64) (? int64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Intn (@"math/rand".nÂ·3 int) (? int)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") NormFloat64 () (? float64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Perm (@"math/rand".nÂ·3 int) (? []int)
-	func (@"math/rand".rÂ·1 *@"math/rand".Rand "esc:0x9") Seed (@"math/rand".seedÂ·2 int64)
-	func (@"math/rand".rÂ·2 *@"math/rand".Rand "esc:0x9") Uint32 () (? uint32)
-	import io "io" // indirect
-	type @"io".ByteScanner interface { ReadByte() (@"io".c byte, @"io".err error); UnreadByte() (? error) }
-	type @"math/big".nat []@"math/big".Word
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".add (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".and (@"math/big".xÂ·3 @"math/big".nat "esc:0x1", @"math/big".yÂ·4 @"math/big".nat "esc:0x1") (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".andNot (@"math/big".xÂ·3 @"math/big".nat "esc:0x9", @"math/big".yÂ·4 @"math/big".nat "esc:0x1") (? @"math/big".nat)
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x1") @"math/big".bit (@"math/big".iÂ·3 uint) (? uint) { var @"math/big".jÂ·4 uint; ; @"math/big".jÂ·4 = @"math/big".iÂ·3 / 0x40; if @"math/big".jÂ·4 >= uint(len(@"math/big".xÂ·2)) { return 0x0 }; return uint(@"math/big".xÂ·2[@"math/big".jÂ·4] >> (@"math/big".iÂ·3 % 0x40) & @"math/big".Word(0x1)) }
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x1") @"math/big".bitLen () (? int)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x1") @"math/big".bytes (@"math/big".bufÂ·3 []byte "esc:0x1") (@"math/big".iÂ·1 int)
-	func (@"math/big".zÂ·1 @"math/big".nat "esc:0x1") @"math/big".clear ()
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x1") @"math/big".cmp (@"math/big".yÂ·3 @"math/big".nat "esc:0x1") (@"math/big".rÂ·1 int)
-	func (@"math/big".qÂ·1 @"math/big".nat) @"math/big".convertWords (@"math/big".sÂ·2 []byte "esc:0x1", @"math/big".charsetÂ·3 string "esc:0x1", @"math/big".bÂ·4 @"math/big".Word, @"math/big".ndigitsÂ·5 int, @"math/big".bbÂ·6 @"math/big".Word, @"math/big".tableÂ·7 []@"math/big".divisor "esc:0x9")
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x9") @"math/big".decimalString () (? string)
-	func (@"math/big".zÂ·3 @"math/big".nat) @"math/big".div (@"math/big".z2Â·4 @"math/big".nat, @"math/big".uÂ·5 @"math/big".nat, @"math/big".vÂ·6 @"math/big".nat) (@"math/big".qÂ·1 @"math/big".nat, @"math/big".rÂ·2 @"math/big".nat)
-	func (@"math/big".zÂ·3 @"math/big".nat "esc:0x12") @"math/big".divLarge (@"math/big".uÂ·4 @"math/big".nat, @"math/big".uInÂ·5 @"math/big".nat, @"math/big".vÂ·6 @"math/big".nat) (@"math/big".qÂ·1 @"math/big".nat, @"math/big".rÂ·2 @"math/big".nat)
-	func (@"math/big".zÂ·3 @"math/big".nat) @"math/big".divW (@"math/big".xÂ·4 @"math/big".nat, @"math/big".yÂ·5 @"math/big".Word) (@"math/big".qÂ·1 @"math/big".nat, @"math/big".rÂ·2 @"math/big".Word)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".expNN (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat "esc:0x1", @"math/big".mÂ·5 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".expNNMontgomery (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat "esc:0x1", @"math/big".mÂ·5 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".expNNWindowed (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat "esc:0x1", @"math/big".mÂ·5 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".expWW (@"math/big".xÂ·3 @"math/big".Word, @"math/big".yÂ·4 @"math/big".Word) (? @"math/big".nat)
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x9") @"math/big".hexString () (? string)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".make (@"math/big".nÂ·3 int) (? @"math/big".nat)
-	func (@"math/big".xÂ·2 @"math/big".nat) @"math/big".modW (@"math/big".dÂ·3 @"math/big".Word) (@"math/big".rÂ·1 @"math/big".Word)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".montgomery (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat "esc:0x1", @"math/big".mÂ·5 @"math/big".nat, @"math/big".kÂ·6 @"math/big".Word, @"math/big".nÂ·7 int) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".mul (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".mulAddWW (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".Word, @"math/big".rÂ·5 @"math/big".Word) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".mulRange (@"math/big".aÂ·3 uint64, @"math/big".bÂ·4 uint64) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".norm () (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".or (@"math/big".xÂ·3 @"math/big".nat "esc:0x9", @"math/big".yÂ·4 @"math/big".nat "esc:0x9") (? @"math/big".nat)
-	func (@"math/big".nÂ·2 @"math/big".nat) @"math/big".probablyPrime (@"math/big".repsÂ·3 int) (? bool)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".random (@"math/big".randÂ·3 *@"math/rand".Rand "esc:0x9", @"math/big".limitÂ·4 @"math/big".nat "esc:0x1", @"math/big".nÂ·5 int) (? @"math/big".nat)
-	func (@"math/big".zÂ·5 @"math/big".nat) @"math/big".scan (@"math/big".rÂ·6 @"io".ByteScanner, @"math/big".baseÂ·7 int, @"math/big".fracOkÂ·8 bool) (@"math/big".resÂ·1 @"math/big".nat, @"math/big".bÂ·2 int, @"math/big".countÂ·3 int, @"math/big".errÂ·4 error)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".set (@"math/big".xÂ·3 @"math/big".nat "esc:0x9") (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".setBit (@"math/big".xÂ·3 @"math/big".nat "esc:0x9", @"math/big".iÂ·4 uint, @"math/big".bÂ·5 uint) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".setBytes (@"math/big".bufÂ·3 []byte "esc:0x1") (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".setUint64 (@"math/big".xÂ·3 uint64) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".setWord (@"math/big".xÂ·3 @"math/big".Word) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".shl (@"math/big".xÂ·3 @"math/big".nat, @"math/big".sÂ·4 uint) (? @"math/big".nat)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".shr (@"math/big".xÂ·3 @"math/big".nat, @"math/big".sÂ·4 uint) (? @"math/big".nat)
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x1") @"math/big".sticky (@"math/big".iÂ·3 uint) (? uint)
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x9") @"math/big".string (@"math/big".charsetÂ·3 string "esc:0x1") (? string)
-	func (@"math/big".zÂ·2 @"math/big".nat) @"math/big".sub (@"math/big".xÂ·3 @"math/big".nat, @"math/big".yÂ·4 @"math/big".nat) (? @"math/big".nat)
-	func (@"math/big".xÂ·2 @"math/big".nat "esc:0x1") @"math/big".trailingZeroBits () (? uint)
-	func (@"math/big".zÂ·2 @"math/big".nat "esc:0x12") @"math/big".xor (@"math/big".xÂ·3 @"math/big".nat "esc:0x9", @"math/big".yÂ·4 @"math/big".nat "esc:0x9") (? @"math/big".nat)
-	type @"fmt".State interface { Flag(@"fmt".c int) (? bool); Precision() (@"fmt".prec int, @"fmt".ok bool); Width() (@"fmt".wid int, @"fmt".ok bool); Write(@"fmt".b []byte) (@"fmt".ret int, @"fmt".err error) }
-	type @"fmt".ScanState interface { Read(@"fmt".buf []byte) (@"fmt".n int, @"fmt".err error); ReadRune() (@"fmt".r rune, @"fmt".size int, @"fmt".err error); SkipSpace(); Token(@"fmt".skipSpace bool, @"fmt".f func(? rune) (? bool)) (@"fmt".token []byte, @"fmt".err error); UnreadRune() (? error); Width() (@"fmt".wid int, @"fmt".ok bool) }
-	type @"math/big".Int struct { @"math/big".neg bool; @"math/big".abs @"math/big".nat }
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Abs (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Add (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") And (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") AndNot (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Binomial (@"math/big".nÂ·3 int64, @"math/big".kÂ·4 int64) (? *@"math/big".Int)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x9") Bit (@"math/big".iÂ·3 int) (? uint)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") BitLen () (? int)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x22") Bits () (? []@"math/big".Word) { return @"math/big".xÂ·2.@"math/big".abs }
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") Bytes () (? []byte)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") Cmp (@"math/big".yÂ·3 *@"math/big".Int "esc:0x1") (@"math/big".rÂ·1 int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Div (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·3 *@"math/big".Int "esc:0x1a") DivMod (@"math/big".xÂ·4 *@"math/big".Int "esc:0x9", @"math/big".yÂ·5 *@"math/big".Int "esc:0x9", @"math/big".mÂ·6 *@"math/big".Int "esc:0x8a") (? *@"math/big".Int, ? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Exp (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x1", @"math/big".mÂ·5 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".xÂ·1 *@"math/big".Int "esc:0x9") Format (@"math/big".sÂ·2 @"fmt".State, @"math/big".chÂ·3 rune)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") GCD (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9", @"math/big".aÂ·5 *@"math/big".Int "esc:0x9", @"math/big".bÂ·6 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x9") GobDecode (@"math/big".bufÂ·3 []byte "esc:0x1") (? error)
-	func (@"math/big".xÂ·3 *@"math/big".Int "esc:0x1") GobEncode () (? []byte, ? error)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") Int64 () (? int64) { var @"math/big".vÂ·3 int64; ; @"math/big".vÂ·3 = int64(@"math/big".low64(@"math/big".xÂ·2.@"math/big".abs)); if @"math/big".xÂ·2.@"math/big".neg { @"math/big".vÂ·3 = -@"math/big".vÂ·3 }; return @"math/big".vÂ·3 }
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Lsh (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".nÂ·4 uint) (? *@"math/big".Int)
-	func (@"math/big".zÂ·3 *@"math/big".Int "esc:0x9") MarshalJSON () (? []byte, ? error)
-	func (@"math/big".zÂ·3 *@"math/big".Int "esc:0x9") MarshalText () (@"math/big".textÂ·1 []byte, @"math/big".errÂ·2 error)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Mod (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") ModInverse (@"math/big".gÂ·3 *@"math/big".Int "esc:0x9", @"math/big".nÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") ModSqrt (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".pÂ·4 *@"math/big".Int) (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Mul (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") MulRange (@"math/big".aÂ·3 int64, @"math/big".bÂ·4 int64) (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Neg (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Not (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Or (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x9") ProbablyPrime (@"math/big".nÂ·3 int) (? bool)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Quo (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·3 *@"math/big".Int "esc:0x1a") QuoRem (@"math/big".xÂ·4 *@"math/big".Int "esc:0x9", @"math/big".yÂ·5 *@"math/big".Int "esc:0x9", @"math/big".rÂ·6 *@"math/big".Int "esc:0x8a") (? *@"math/big".Int, ? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Rand (@"math/big".rndÂ·3 *@"math/rand".Rand "esc:0x9", @"math/big".nÂ·4 *@"math/big".Int "esc:0x1") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Rem (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Rsh (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".nÂ·4 uint) (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x9") Scan (@"math/big".sÂ·3 @"fmt".ScanState, @"math/big".chÂ·4 rune) (? error)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Set (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") SetBit (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".iÂ·4 int, @"math/big".bÂ·5 uint) (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x12") SetBits (@"math/big".absÂ·3 []@"math/big".Word) (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") SetBytes (@"math/big".bufÂ·3 []byte "esc:0x1") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") SetInt64 (@"math/big".xÂ·3 int64) (? *@"math/big".Int)
-	func (@"math/big".zÂ·3 *@"math/big".Int "esc:0x1a") SetString (@"math/big".sÂ·4 string, @"math/big".baseÂ·5 int) (? *@"math/big".Int, ? bool)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") SetUint64 (@"math/big".xÂ·3 uint64) (? *@"math/big".Int)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") Sign () (? int) { if len(@"math/big".xÂ·2.@"math/big".abs) == 0x0 { return 0x0 }; if @"math/big".xÂ·2.@"math/big".neg { return -0x1 }; return 0x1 }
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x9") String () (? string)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Sub (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".xÂ·2 *@"math/big".Int "esc:0x1") Uint64 () (? uint64) { return @"math/big".low64(@"math/big".xÂ·2.@"math/big".abs) }
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x9") UnmarshalJSON (@"math/big".textÂ·3 []byte) (? error)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x9") UnmarshalText (@"math/big".textÂ·3 []byte) (? error)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") Xor (@"math/big".xÂ·3 *@"math/big".Int "esc:0x9", @"math/big".yÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·2 *@"math/big".Int "esc:0x1a") @"math/big".binaryGCD (@"math/big".aÂ·3 *@"math/big".Int "esc:0x9", @"math/big".bÂ·4 *@"math/big".Int "esc:0x9") (? *@"math/big".Int)
-	func (@"math/big".zÂ·4 *@"math/big".Int "esc:0x1a") @"math/big".scan (@"math/big".rÂ·5 @"io".ByteScanner, @"math/big".baseÂ·6 int) (? *@"math/big".Int, ? int, ? error)
-	var @"".TestNetDAOForkBlock *@"math/big".Int
-	var @"".MainNetDAOForkBlock *@"math/big".Int
-	var @"".DAOForkBlockExtra []byte
-	var @"".DAOForkExtraRange *@"math/big".Int
-	import reflect "reflect" // indirect
-	type @"reflect".typeAlg struct { @"reflect".hash func(? @"unsafe".Pointer, ? uintptr) (? uintptr); @"reflect".equal func(? @"unsafe".Pointer, ? @"unsafe".Pointer) (? bool) }
-	type @"reflect".method struct { @"reflect".name *string; @"reflect".pkgPath *string; @"reflect".mtyp *@"reflect".rtype; @"reflect".typ *@"reflect".rtype; @"reflect".ifn @"unsafe".Pointer; @"reflect".tfn @"unsafe".Pointer }
-	type @"reflect".ChanDir int
-	func (@"reflect".dÂ·2 @"reflect".ChanDir) String () (? string)
-	type @"reflect".StructTag string
-	func (@"reflect".tagÂ·2 @"reflect".StructTag "esc:0x12") Get (@"reflect".keyÂ·3 string "esc:0x1") (? string)
-	type @"reflect".StructField struct { Name string; PkgPath string; Type @"reflect".Type; Tag @"reflect".StructTag; Offset uintptr; Index []int; Anonymous bool }
-	type @"reflect".Kind uint
-	func (@"reflect".kÂ·2 @"reflect".Kind) String () (? string)
-	type @"reflect".Type interface { Align() (? int); AssignableTo(@"reflect".u @"reflect".Type) (? bool); Bits() (? int); ChanDir() (? @"reflect".ChanDir); Comparable() (? bool); ConvertibleTo(@"reflect".u @"reflect".Type) (? bool); Elem() (? @"reflect".Type); Field(@"reflect".i int) (? @"reflect".StructField); FieldAlign() (? int); FieldByIndex(@"reflect".index []int) (? @"reflect".StructField); FieldByName(@"reflect".name string) (? @"reflect".StructField, ? bool); FieldByNameFunc(@"reflect".match func(? string) (? bool)) (? @"reflect".StructField, ? bool); Implements(@"reflect".u @"reflect".Type) (? bool); In(@"reflect".i int) (? @"reflect".Type); IsVariadic() (? bool); Key() (? @"reflect".Type); Kind() (? @"reflect".Kind); Len() (? int); Method(? int) (? @"reflect".Method); MethodByName(? string) (? @"reflect".Method, ? bool); Name() (? string); NumField() (? int); NumIn() (? int); NumMethod() (? int); NumOut() (? int); Out(@"reflect".i int) (? @"reflect".Type); PkgPath() (? string); Size() (? uintptr); String() (? string); @"reflect".common() (? *@"reflect".rtype); @"reflect".uncommon() (? *@"reflect".uncommonType) }
-	type @"reflect".Method struct { Name string; PkgPath string; Type @"reflect".Type; Func @"reflect".Value; Index int }
-	type @"reflect".uncommonType struct { @"reflect".name *string; @"reflect".pkgPath *string; @"reflect".methods []@"reflect".method }
-	func (@"reflect".tÂ·2 *@"reflect".uncommonType "esc:0x22") Method (@"reflect".iÂ·3 int) (@"reflect".mÂ·1 @"reflect".Method)
-	func (@"reflect".tÂ·3 *@"reflect".uncommonType "esc:0x22") MethodByName (@"reflect".nameÂ·4 string "esc:0x1") (@"reflect".mÂ·1 @"reflect".Method, @"reflect".okÂ·2 bool)
-	func (@"reflect".tÂ·2 *@"reflect".uncommonType "esc:0x32") Name () (? string) { if @"reflect".tÂ·2 == nil || @"reflect".tÂ·2.@"reflect".name == nil { return "" }; return *@"reflect".tÂ·2.@"reflect".name }
-	func (@"reflect".tÂ·2 *@"reflect".uncommonType "esc:0x1") NumMethod () (? int) { if @"reflect".tÂ·2 == nil { return 0x0 }; return len(@"reflect".tÂ·2.@"reflect".methods) }
-	func (@"reflect".tÂ·2 *@"reflect".uncommonType "esc:0x32") PkgPath () (? string) { if @"reflect".tÂ·2 == nil || @"reflect".tÂ·2.@"reflect".pkgPath == nil { return "" }; return *@"reflect".tÂ·2.@"reflect".pkgPath }
-	func (@"reflect".tÂ·2 *@"reflect".uncommonType "esc:0x12") @"reflect".uncommon () (? *@"reflect".uncommonType) { return @"reflect".tÂ·2 }
-	type @"reflect".rtype struct { @"reflect".size uintptr; @"reflect".ptrdata uintptr; @"reflect".hash uint32; _ uint8; @"reflect".align uint8; @"reflect".fieldAlign uint8; @"reflect".kind uint8; @"reflect".alg *@"reflect".typeAlg; @"reflect".gcdata *byte; @"reflect".string *string; @"reflect".? *@"reflect".uncommonType; @"reflect".ptrToThis *@"reflect".rtype; @"reflect".zero @"unsafe".Pointer }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Align () (? int) { return int(@"reflect".tÂ·2.@"reflect".align) }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") AssignableTo (@"reflect".uÂ·3 @"reflect".Type "esc:0x1") (? bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Bits () (? int)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") ChanDir () (? @"reflect".ChanDir)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Comparable () (? bool) { return @"reflect".tÂ·2.@"reflect".alg != nil && @"reflect".tÂ·2.@"reflect".alg.@"reflect".equal != nil }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x9") ConvertibleTo (@"reflect".uÂ·3 @"reflect".Type "esc:0x9") (? bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x22") Elem () (? @"reflect".Type)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x3a") Field (@"reflect".iÂ·3 int) (? @"reflect".StructField)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") FieldAlign () (? int) { return int(@"reflect".tÂ·2.@"reflect".fieldAlign) }
-	func (@"reflect".tÂ·2 *@"reflect".rtype) FieldByIndex (@"reflect".indexÂ·3 []int "esc:0x1") (? @"reflect".StructField)
-	func (@"reflect".tÂ·3 *@"reflect".rtype) FieldByName (@"reflect".nameÂ·4 string "esc:0x1") (? @"reflect".StructField, ? bool)
-	func (@"reflect".tÂ·3 *@"reflect".rtype) FieldByNameFunc (@"reflect".matchÂ·4 func(? string) (? bool) "esc:0x1") (? @"reflect".StructField, ? bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Implements (@"reflect".uÂ·3 @"reflect".Type) (? bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x32") In (@"reflect".iÂ·3 int) (? @"reflect".Type)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") IsVariadic () (? bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x22") Key () (? @"reflect".Type)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Kind () (? @"reflect".Kind) { return @"reflect".Kind(@"reflect".tÂ·2.@"reflect".kind & 0x1f) }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Len () (? int)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x32") Method (@"reflect".iÂ·3 int) (@"reflect".mÂ·1 @"reflect".Method)
-	func (@"reflect".tÂ·3 *@"reflect".rtype "esc:0x32") MethodByName (@"reflect".nameÂ·4 string "esc:0x1") (@"reflect".mÂ·1 @"reflect".Method, @"reflect".okÂ·2 bool)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x42") Name () (? string) { return @"reflect".tÂ·2.@"reflect".uncommonType.Name() }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") NumField () (? int)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") NumIn () (? int)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") NumMethod () (? int) { if @"reflect".tÂ·2.Kind() == @"reflect".Kind(0x14) { var @"reflect".ttÂ·3 *@"reflect".interfaceType; ; @"reflect".ttÂ·3 = (*@"reflect".interfaceType)(@"unsafe".Pointer(@"reflect".tÂ·2)); return @"reflect".ttÂ·3.NumMethod() }; return @"reflect".tÂ·2.@"reflect".uncommonType.NumMethod() }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") NumOut () (? int)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x32") Out (@"reflect".iÂ·3 int) (? @"reflect".Type)
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x42") PkgPath () (? string) { return @"reflect".tÂ·2.@"reflect".uncommonType.PkgPath() }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") Size () (? uintptr) { return @"reflect".tÂ·2.@"reflect".size }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x32") String () (? string) { return *@"reflect".tÂ·2.@"reflect".string }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x12") @"reflect".common () (? *@"reflect".rtype) { return @"reflect".tÂ·2 }
-	func (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x1") @"reflect".pointers () (? bool) { return @"reflect".tÂ·2.@"reflect".kind & 0x80 == 0x0 }
-	func (@"reflect".tÂ·2 *@"reflect".rtype) @"reflect".ptrTo () (? *@"reflect".rtype)
-	type @"reflect".flag uintptr
-	func (@"reflect".fÂ·2 @"reflect".flag) @"reflect".kind () (? @"reflect".Kind) { return @"reflect".Kind(@"reflect".fÂ·2 & @"reflect".flag(0x1f)) }
-	func (@"reflect".fÂ·1 @"reflect".flag) @"reflect".mustBe (@"reflect".expectedÂ·2 @"reflect".Kind)
-	func (@"reflect".fÂ·1 @"reflect".flag) @"reflect".mustBeAssignable ()
-	func (@"reflect".fÂ·1 @"reflect".flag) @"reflect".mustBeExported ()
-	type @"reflect".Value struct { @"reflect".typ *@"reflect".rtype; @"reflect".ptr @"unsafe".Pointer; @"reflect".? @"reflect".flag }
-	func (@"reflect".vÂ·2 @"reflect".Value) Addr () (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Bool () (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x2a") Bytes () (? []byte)
-	func (@"reflect".vÂ·2 @"reflect".Value) Call (@"reflect".inÂ·3 []@"reflect".Value "esc:0x9") (? []@"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) CallSlice (@"reflect".inÂ·3 []@"reflect".Value "esc:0x9") (? []@"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") CanAddr () (? bool) { return @"reflect".vÂ·2.@"reflect".flag & @"reflect".flag(0x80) != @"reflect".flag(0x0) }
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") CanInterface () (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") CanSet () (? bool) { return @"reflect".vÂ·2.@"reflect".flag & @"reflect".flag(0xa0) == @"reflect".flag(0x80) }
-	func (@"reflect".vÂ·2 @"reflect".Value) Cap () (? int)
-	func (@"reflect".vÂ·1 @"reflect".Value) Close ()
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Complex () (? complex128)
-	func (@"reflect".vÂ·2 @"reflect".Value) Convert (@"reflect".tÂ·3 @"reflect".Type) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Elem () (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Field (@"reflect".iÂ·3 int) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1a") FieldByIndex (@"reflect".indexÂ·3 []int "esc:0x1") (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) FieldByName (@"reflect".nameÂ·3 string "esc:0x1") (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) FieldByNameFunc (@"reflect".matchÂ·3 func(? string) (? bool) "esc:0x1") (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Float () (? float64)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Index (@"reflect".iÂ·3 int) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Int () (? int64)
-	func (@"reflect".vÂ·2 @"reflect".Value) Interface () (@"reflect".iÂ·1 interface {})
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") InterfaceData () (? [2]uintptr)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") IsNil () (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") IsValid () (? bool) { return @"reflect".vÂ·2.@"reflect".flag != @"reflect".flag(0x0) }
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Kind () (? @"reflect".Kind) { return @"reflect".vÂ·2.@"reflect".flag.@"reflect".kind() }
-	func (@"reflect".vÂ·2 @"reflect".Value) Len () (? int)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x2a") MapIndex (@"reflect".keyÂ·3 @"reflect".Value) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x9") MapKeys () (? []@"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Method (@"reflect".iÂ·3 int) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") MethodByName (@"reflect".nameÂ·3 string "esc:0x1") (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") NumField () (? int)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") NumMethod () (? int)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") OverflowComplex (@"reflect".xÂ·3 complex128) (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") OverflowFloat (@"reflect".xÂ·3 float64) (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") OverflowInt (@"reflect".xÂ·3 int64) (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") OverflowUint (@"reflect".xÂ·3 uint64) (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Pointer () (? uintptr)
-	func (@"reflect".vÂ·3 @"reflect".Value) Recv () (@"reflect".xÂ·1 @"reflect".Value, @"reflect".okÂ·2 bool)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x9") Send (@"reflect".xÂ·2 @"reflect".Value)
-	func (@"reflect".vÂ·1 @"reflect".Value) Set (@"reflect".xÂ·2 @"reflect".Value)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetBool (@"reflect".xÂ·2 bool)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x9") SetBytes (@"reflect".xÂ·2 []byte)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetCap (@"reflect".nÂ·2 int)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetComplex (@"reflect".xÂ·2 complex128)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetFloat (@"reflect".xÂ·2 float64)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetInt (@"reflect".xÂ·2 int64)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetLen (@"reflect".nÂ·2 int)
-	func (@"reflect".vÂ·1 @"reflect".Value) SetMapIndex (@"reflect".keyÂ·2 @"reflect".Value, @"reflect".valÂ·3 @"reflect".Value)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetPointer (@"reflect".xÂ·2 @"unsafe".Pointer)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetString (@"reflect".xÂ·2 string)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x1") SetUint (@"reflect".xÂ·2 uint64)
-	func (@"reflect".vÂ·2 @"reflect".Value) Slice (@"reflect".iÂ·3 int, @"reflect".jÂ·4 int) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) Slice3 (@"reflect".iÂ·3 int, @"reflect".jÂ·4 int, @"reflect".kÂ·5 int) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) String () (? string)
-	func (@"reflect".vÂ·3 @"reflect".Value) TryRecv () (@"reflect".xÂ·1 @"reflect".Value, @"reflect".okÂ·2 bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x9") TrySend (@"reflect".xÂ·3 @"reflect".Value) (? bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") Type () (? @"reflect".Type)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x1") Uint () (? uint64)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") UnsafeAddr () (? uintptr)
-	func (@"reflect".vÂ·2 @"reflect".Value) @"reflect".assignTo (@"reflect".contextÂ·3 string "esc:0x1", @"reflect".dstÂ·4 *@"reflect".rtype, @"reflect".targetÂ·5 @"unsafe".Pointer) (? @"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value) @"reflect".call (@"reflect".opÂ·3 string "esc:0x1", @"reflect".inÂ·4 []@"reflect".Value "esc:0x9") (? []@"reflect".Value)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x12") @"reflect".pointer () (? @"unsafe".Pointer)
-	func (@"reflect".vÂ·3 @"reflect".Value) @"reflect".recv (@"reflect".nbÂ·4 bool) (@"reflect".valÂ·1 @"reflect".Value, @"reflect".okÂ·2 bool)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x2a") @"reflect".runes () (? []rune)
-	func (@"reflect".vÂ·2 @"reflect".Value "esc:0x9") @"reflect".send (@"reflect".xÂ·3 @"reflect".Value, @"reflect".nbÂ·4 bool) (@"reflect".selectedÂ·1 bool)
-	func (@"reflect".vÂ·1 @"reflect".Value "esc:0x9") @"reflect".setRunes (@"reflect".xÂ·2 []rune)
-	type @"github.com/ethereum/go-ethereum/common".Hash [32]byte
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 @"github.com/ethereum/go-ethereum/common".Hash) Big () (? *@"math/big".Int)
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 @"github.com/ethereum/go-ethereum/common".Hash) Bytes () (? []byte) { return @"github.com/ethereum/go-ethereum/common".hÂ·2[:] }
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 @"github.com/ethereum/go-ethereum/common".Hash) Generate (@"github.com/ethereum/go-ethereum/common".randÂ·3 *@"math/rand".Rand "esc:0x9", @"github.com/ethereum/go-ethereum/common".sizeÂ·4 int) (? @"reflect".Value)
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 @"github.com/ethereum/go-ethereum/common".Hash) Hex () (? string)
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·3 @"github.com/ethereum/go-ethereum/common".Hash) MarshalJSON () (? []byte, ? error)
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·1 *@"github.com/ethereum/go-ethereum/common".Hash "esc:0x1") Set (@"github.com/ethereum/go-ethereum/common".otherÂ·2 @"github.com/ethereum/go-ethereum/common".Hash)
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·1 *@"github.com/ethereum/go-ethereum/common".Hash "esc:0x1") SetBytes (@"github.com/ethereum/go-ethereum/common".bÂ·2 []byte "esc:0x9") { if len(@"github.com/ethereum/go-ethereum/common".bÂ·2) > 0x20 { @"github.com/ethereum/go-ethereum/common".bÂ·2 = @"github.com/ethereum/go-ethereum/common".bÂ·2[len(@"github.com/ethereum/go-ethereum/common".bÂ·2) - 0x20:] }; copy(@"github.com/ethereum/go-ethereum/common".hÂ·1[0x20 - len(@"github.com/ethereum/go-ethereum/common".bÂ·2):], @"github.com/ethereum/go-ethereum/common".bÂ·2) }
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·1 *@"github.com/ethereum/go-ethereum/common".Hash "esc:0x1") SetString (@"github.com/ethereum/go-ethereum/common".sÂ·2 string "esc:0x1") { @"github.com/ethereum/go-ethereum/common".hÂ·1.SetBytes(([]byte)(@"github.com/ethereum/go-ethereum/common".sÂ·2)) }
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 @"github.com/ethereum/go-ethereum/common".Hash) Str () (? string) { return string(@"github.com/ethereum/go-ethereum/common".hÂ·2[:]) }
-	func (@"github.com/ethereum/go-ethereum/common".hÂ·2 *@"github.com/ethereum/go-ethereum/common".Hash "esc:0x1") UnmarshalJSON (@"github.com/ethereum/go-ethereum/common".inputÂ·3 []byte "esc:0x1") (? error)
-	type @"github.com/ethereum/go-ethereum/common".Address [20]byte
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 @"github.com/ethereum/go-ethereum/common".Address) Big () (? *@"math/big".Int)
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 @"github.com/ethereum/go-ethereum/common".Address) Bytes () (? []byte) { return @"github.com/ethereum/go-ethereum/common".aÂ·2[:] }
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 @"github.com/ethereum/go-ethereum/common".Address) Hash () (? @"github.com/ethereum/go-ethereum/common".Hash) { return @"github.com/ethereum/go-ethereum/common".BytesToHash(@"github.com/ethereum/go-ethereum/common".aÂ·2[:]) }
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 @"github.com/ethereum/go-ethereum/common".Address) Hex () (? string)
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·3 @"github.com/ethereum/go-ethereum/common".Address) MarshalJSON () (? []byte, ? error)
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·1 *@"github.com/ethereum/go-ethereum/common".Address "esc:0x1") Set (@"github.com/ethereum/go-ethereum/common".otherÂ·2 @"github.com/ethereum/go-ethereum/common".Address)
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·1 *@"github.com/ethereum/go-ethereum/common".Address "esc:0x1") SetBytes (@"github.com/ethereum/go-ethereum/common".bÂ·2 []byte "esc:0x9") { if len(@"github.com/ethereum/go-ethereum/common".bÂ·2) > 0x14 { @"github.com/ethereum/go-ethereum/common".bÂ·2 = @"github.com/ethereum/go-ethereum/common".bÂ·2[len(@"github.com/ethereum/go-ethereum/common".bÂ·2) - 0x14:] }; copy(@"github.com/ethereum/go-ethereum/common".aÂ·1[0x14 - len(@"github.com/ethereum/go-ethereum/common".bÂ·2):], @"github.com/ethereum/go-ethereum/common".bÂ·2) }
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·1 *@"github.com/ethereum/go-ethereum/common".Address "esc:0x1") SetString (@"github.com/ethereum/go-ethereum/common".sÂ·2 string "esc:0x1") { @"github.com/ethereum/go-ethereum/common".aÂ·1.SetBytes(([]byte)(@"github.com/ethereum/go-ethereum/common".sÂ·2)) }
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 @"github.com/ethereum/go-ethereum/common".Address) Str () (? string) { return string(@"github.com/ethereum/go-ethereum/common".aÂ·2[:]) }
-	func (@"github.com/ethereum/go-ethereum/common".aÂ·2 *@"github.com/ethereum/go-ethereum/common".Address "esc:0x1") UnmarshalJSON (@"github.com/ethereum/go-ethereum/common".dataÂ·3 []byte "esc:0x1") (? error)
-	var @"".DAORefundContract @"github.com/ethereum/go-ethereum/common".Address
-	var @"".DAODrainList []@"github.com/ethereum/go-ethereum/common".Address
-	var @"".MaximumExtraDataSize *@"math/big".Int
-	var @"".ExpByteGas *@"math/big".Int
-	var @"".SloadGas *@"math/big".Int
-	var @"".CallValueTransferGas *@"math/big".Int
-	var @"".CallNewAccountGas *@"math/big".Int
-	var @"".TxGas *@"math/big".Int
-	var @"".TxGasContractCreation *@"math/big".Int
-	var @"".TxDataZeroGas *@"math/big".Int
-	var @"".DifficultyBoundDivisor *@"math/big".Int
-	var @"".QuadCoeffDiv *@"math/big".Int
-	var @"".GenesisDifficulty *@"math/big".Int
-	var @"".DurationLimit *@"math/big".Int
-	var @"".SstoreSetGas *@"math/big".Int
-	var @"".LogDataGas *@"math/big".Int
-	var @"".CallStipend *@"math/big".Int
-	var @"".EcrecoverGas *@"math/big".Int
-	var @"".Sha256WordGas *@"math/big".Int
-	var @"".MinGasLimit *@"math/big".Int
-	var @"".GenesisGasLimit *@"math/big".Int
-	var @"".TargetGasLimit *@"math/big".Int
-	var @"".Sha3Gas *@"math/big".Int
-	var @"".Sha256Gas *@"math/big".Int
-	var @"".IdentityWordGas *@"math/big".Int
-	var @"".Sha3WordGas *@"math/big".Int
-	var @"".SstoreResetGas *@"math/big".Int
-	var @"".SstoreClearGas *@"math/big".Int
-	var @"".SstoreRefundGas *@"math/big".Int
-	var @"".JumpdestGas *@"math/big".Int
-	var @"".IdentityGas *@"math/big".Int
-	var @"".GasLimitBoundDivisor *@"math/big".Int
-	var @"".EpochDuration *@"math/big".Int
-	var @"".CallGas *@"math/big".Int
-	var @"".CreateDataGas *@"math/big".Int
-	var @"".Ripemd160Gas *@"math/big".Int
-	var @"".Ripemd160WordGas *@"math/big".Int
-	var @"".MinimumDifficulty *@"math/big".Int
-	var @"".CallCreateDepth *@"math/big".Int
-	var @"".ExpGas *@"math/big".Int
-	var @"".LogGas *@"math/big".Int
-	var @"".CopyGas *@"math/big".Int
-	var @"".StackLimit *@"math/big".Int
-	var @"".TierStepGas *@"math/big".Int
-	var @"".LogTopicGas *@"math/big".Int
-	var @"".CreateGas *@"math/big".Int
-	var @"".SuicideRefundGas *@"math/big".Int
-	var @"".MemoryGas *@"math/big".Int
-	var @"".TxDataNonZeroGas *@"math/big".Int
-	var @"".TestNetHomesteadBlock *@"math/big".Int
-	var @"".MainNetHomesteadBlock *@"math/big".Int
-	func @"".init ()
-	func @"math/big".low64 (@"math/big".zÂ·2 @"math/big".nat "esc:0x1") (? uint64) { if len(@"math/big".zÂ·2) == 0x0 { return 0x0 }; var @"math/big".vÂ·3 uint64; ; @"math/big".vÂ·3 = uint64(@"math/big".zÂ·2[0x0]); if false && len(@"math/big".zÂ·2) > 0x1 { @"math/big".vÂ·3 |= uint64(@"math/big".zÂ·2[0x1]) << 0x20 }; return @"math/big".vÂ·3 }
-	type @"reflect".imethod struct { @"reflect".name *string; @"reflect".pkgPath *string; @"reflect".typ *@"reflect".rtype }
-	type @"reflect".interfaceType struct { @"reflect".? @"reflect".rtype "reflect:\"interface\""; @"reflect".methods []@"reflect".imethod }
-	func (@"reflect".tÂ·2 *@"reflect".interfaceType "esc:0x32") Method (@"reflect".iÂ·3 int) (@"reflect".mÂ·1 @"reflect".Method) { if @"reflect".iÂ·3 < 0x0 || @"reflect".iÂ·3 >= len(@"reflect".tÂ·2.@"reflect".methods) { return  }; var @"reflect".pÂ·4 *@"reflect".imethod; ; @"reflect".pÂ·4 = &@"reflect".tÂ·2.@"reflect".methods[@"reflect".iÂ·3]; @"reflect".mÂ·1.Name = *@"reflect".pÂ·4.@"reflect".name; if @"reflect".pÂ·4.@"reflect".pkgPath != nil { @"reflect".mÂ·1.PkgPath = *@"reflect".pÂ·4.@"reflect".pkgPath }; @"reflect".mÂ·1.Type = @"reflect".toType(@"reflect".pÂ·4.@"reflect".typ); @"reflect".mÂ·1.Index = @"reflect".iÂ·3; return  }
-	func (@"reflect".tÂ·3 *@"reflect".interfaceType "esc:0x32") MethodByName (@"reflect".nameÂ·4 string "esc:0x1") (@"reflect".mÂ·1 @"reflect".Method, @"reflect".okÂ·2 bool)
-	func (@"reflect".tÂ·2 *@"reflect".interfaceType "esc:0x1") NumMethod () (? int) { return len(@"reflect".tÂ·2.@"reflect".methods) }
-	import unsafe "unsafe" // indirect
-	func @"github.com/ethereum/go-ethereum/common".BytesToHash (@"github.com/ethereum/go-ethereum/common".bÂ·2 []byte "esc:0x9") (? @"github.com/ethereum/go-ethereum/common".Hash) { var @"github.com/ethereum/go-ethereum/common".hÂ·3 @"github.com/ethereum/go-ethereum/common".Hash; ; @"github.com/ethereum/go-ethereum/common".hÂ·3.SetBytes(@"github.com/ethereum/go-ethereum/common".bÂ·2); return @"github.com/ethereum/go-ethereum/common".hÂ·3 }
-	func @"reflect".toType (@"reflect".tÂ·2 *@"reflect".rtype "esc:0x12") (? @"reflect".Type) { if @"reflect".tÂ·2 == nil { return nil }; return @"reflect".tÂ·2 }
-
-$$
-_go_.o          0           0     0     644     49964     `
-go object darwin amd64 go1.5.2 X:none
-
-!
-  go13ldencoding/json.a
-fmt.amath/big.aPgithub.com/ethereum/go-ethereum/common.a ş"".init.1  À  ®eH‹%    H„$HÿÿÿH;A†2  Hì8  H    H‰$è    H‹\$H‰œ$ˆ   HÇ$    H    H‰\$HÇD$Ì/  è    H‹l$H‹T$ H‹L$(H‹„$ˆ   H‰¬$   H‰,$H‰”$(  H‰T$H‰Œ$0  H‰L$H    H‰œ$    H‰\$H‰„$¨   H‰D$ è    H‹L$(H‹T$0H‰”$˜   H‰Œ$   Hƒù „*  1ÛH‰œ$°   H‰œ$¸   Hœ$°   Hƒû „ÿ   HÇ„$ø      HÇ„$      H‰œ$ğ   H‰$H‰T$è    H‹D$H‹L$H‹œ$ğ   H‰„$    H‰H‰Œ$¨   €=     …ˆ   H‰KH    H‰$HÇD$"   H‹œ$ğ   H‰\$H‹œ$ø   H‰\$H‹œ$   H‰\$ è    H‹L$(H‹D$0H‰Œ$à   H‰$H‰„$è   H‰D$è    H\$H‹H‰$H‹KH‰L$è    LCL‰$H‰L$è    éeÿÿÿ‰éúşÿÿH‹œ$ˆ   H‹H‹CH‹kH‰¬$  1ÉH‰„$  H‰D$HH‰”$  H‰ĞH‹l$HH9éÎ  H‰„$€   H‹(H‰L$PH    HÇÀ   H    H‰$H‰l$pH‰l$H‰Œ$Ğ   H‰L$H‰„$Ø   H‰D$è    H‹\$ Hƒû „  H‹H‹kH‰Œ$À   H‰$H‰¬$È   H‰l$è    H\$H|$\H‰ŞH¥H¥‹‰H‹    H‹    H‹    H‰ÃHÿÃH9Ë‡¨  H‰    H‰×H‰ÅHkíHïHt$\H¥H¥‹‰H    HÇÀ   H    H‰$H‹\$pH‰\$H‰Œ$Ğ   H‰L$H‰„$Ø   H‰D$è    H‹\$ Hƒû „/  H‹H‹kH‰Œ$À   H‰$H‰¬$È   H‰l$è    H\$H|$\H‰ŞH¥H¥‹‰H‹    H‹    H‹    H‰ÃHÿÃH9ËwKH‰    H‰×H‰ÅHkíHïHt$\H¥H¥‹‰H‹„$€   H‹L$PHƒÀHÿÁH‹l$HH9éŒ2şÿÿHÄ8  ÃH-    H‰,$H‰T$H‰D$H‰L$H‰\$ è    H‹T$(H‹D$0H‹L$8H‰ÃH‰D$@HÿÃH‰    H‰    H‰T$x€=     uH‰    éVÿÿÿH-    H‰,$H‰T$è    H‹T$xH‹D$@é2ÿÿÿ‰éÊşÿÿH-    H‰,$H‰T$H‰D$H‰L$H‰\$ è    H‹T$(H‹D$0H‹L$8H‰ÃH‰D$@HÿÃH‰    H‰    H‰T$x€=     uH‰    éùıÿÿH-    H‰,$H‰T$è    H‹T$xH‹D$@éÕıÿÿ‰éiıÿÿè    é©úÿÿ^
-      J  0type.[]map[string]string   \
-  "runtime.newobject   ”  ""..gostring.1   º
-  2runtime.stringtoslicebyte   Â  2type.*[]map[string]string   €
-  .encoding/json.Unmarshal   ì
-  runtime.convI2E   Â 6runtime.writeBarrierEnabled   æ  \go.string."Failed to parse DAO drain list: %v"   Ø
-  fmt.Errorf   ¨
-  runtime.convI2E   Ü
-  runtime.gopanic   „
-  .runtime.writebarrierptr   Ğ	  &go.string."address"   ì	  ,type.map[string]string   Æ
-
-  4runtime.mapaccess1_faststr   ®
-  fgithub.com/ethereum/go-ethereum/common.HexToAddress   æ  "".DAODrainList   ô "".DAODrainList   ‚  "".DAODrainList   ® "".DAODrainList   ğ  >go.string."extraBalanceAccount"   Œ  ,type.map[string]string   æ
-  4runtime.mapaccess1_faststr   Î
-  fgithub.com/ethereum/go-ethereum/common.HexToAddress   †  "".DAODrainList   ” "".DAODrainList   ¢  "".DAODrainList   Æ "".DAODrainList   Ü  jtype.[]github.com/ethereum/go-ethereum/common.Address   –
-  "runtime.growslice   Ø "".DAODrainList   æ  "".DAODrainList   ü 6runtime.writeBarrierEnabled     "".DAODrainList   ¨  "".DAODrainList   Ä
-  .runtime.writebarrierptr   ş  jtype.[]github.com/ethereum/go-ethereum/common.Address   ¸
-  "runtime.growslice   ú "".DAODrainList   ˆ  "".DAODrainList    6runtime.writeBarrierEnabled   ²  "".DAODrainList   Ê  "".DAODrainList   æ
-  .runtime.writebarrierptr   œ
-  0runtime.morestack_noctxt    ğ  $"".autotmp_0018 ï.type.*map[string]string "".autotmp_0017 ßtype.int "".autotmp_0016 Ïtype.int "".autotmp_0015  "type.interface {} "".autotmp_0014 (type.[1]interface {} "".autotmp_0011 &type.[]interface {} "".autotmp_0010  ftype.github.com/ethereum/go-ethereum/common.Address "".autotmp_0009  type.string "".autotmp_0008  type.string "".autotmp_0007 ·ftype.github.com/ethereum/go-ethereum/common.Address "".autotmp_0006 ïtype.string "".autotmp_0005 Ïtype.string "".autotmp_0004 _0type.[]map[string]string "".autotmp_0003 ¯type.error "".autotmp_0001 /type.[]uint8 "".&list ß2type.*[]map[string]string "".dao ,type.map[string]string "".err Ïtype.error "ğˆïğµ à
- >j"©ªSĞÌ"‘‘ 6 -/ÙvV¡Ğ¯:W. TgclocalsÂ·0ce64bbc7cfa5ef04d41c861de81a3d7 TgclocalsÂ·865998cfd1833c8f58c6a6c660dc8ffb   ˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.goş"".init  À7  ¨7eH‹%    H;a†·  Hƒì(¶    €û t¶    €ûuHƒÄ(Ãè    Æ    è    è    è    è    HÇ$ L è    H‹\$€=     …;  H‰    H    H‰$HÇD$   è    H‹\$H‰    H‹\$ H‰    H‹\$€=     …×  H‰    HÇ$
-   è    H‹\$€=     …—  H‰    H    H‰$HÇD$*   è    H\$H=    H‰ŞH¥H¥‹‰HÇ$    è    H‹\$€=     …'  H‰    HÇ$
-   è    H‹\$€=     …ç  H‰    HÇ$2   è    H‹\$€=     …§  H‰    HÇ$(#  è    H‹\$€=     …g  H‰    HÇ$¨a  è    H‹\$€=     …'  H‰    HÇ$R  è    H‹\$€=     …ç
-  H‰    HÇ$Ï  è    H‹\$€=     …§
-  H‰    HÇ$   è    H‹\$€=     …g
-  H‰    HÇ$   è    H‹\$€=     …'
-  H‰    HÇ$   è    H‹\$€=     …ç	  H‰    HÇ$   è    H‹\$€=     …§	  H‰    HÇ$   è    H‹\$€=     …g	  H‰    HÇ$ N  è    H‹\$€=     …'	  H‰    HÇ$   è    H‹\$€=     …ç  H‰    HÇ$ü  è    H‹\$€=     …§  H‰    HÇ$¸  è    H‹\$€=     …g  H‰    HÇ$   è    H‹\$€=     …'  H‰    HÇ$ˆ  è    H‹\$€=     …ç  H‰    HÇ$ÄçG è    H‹\$€=     …§  H‰    H    H‰$è    H‹\$H‰$H‹    H‰\$è    H‹\$€=     …J  H‰    HÇ$   è    H‹\$€=     …
-  H‰    HÇ$<   è    H‹\$€=     …Ê  H‰    HÇ$   è    H‹\$€=     …Š  H‰    HÇ$   è    H‹\$€=     …J  H‰    HÇ$ˆ  è    H‹\$€=     …
-  H‰    HÇ$ˆ  è    H‹\$€=     …Ê  H‰    HÇ$˜:  è    H‹\$€=     …Š  H‰    HÇ$   è    H‹\$€=     …J  H‰    HÇ$   è    H‹\$€=     …
-  H‰    HÇ$   è    H‹\$€=     …Ê  H‰    HÇ$0u  è    H‹\$€=     …Š  H‰    HÇ$(   è    H‹\$€=     …J  H‰    HÇ$È   è    H‹\$€=     …
-  H‰    HÇ$X  è    H‹\$€=     …Ê  H‰    HÇ$x   è    H‹\$€=     …Š  H‰    HÇ$   è    H‹\$€=     …J  H‰    HÇ$   è    H‹\$€=     …
-  H‰    HÇ$
-   è    H‹\$€=     …Ê  H‰    HÇ$w  è    H‹\$€=     …Š  H‰    HÇ$   è    H‹\$€=     …J  H‰    HÇ$   è    H‹\$€=     …
-  H‰    HÇ$    è    H‹\$€=     …Ê  H‰    HÇ$w  è    H‹\$€=     …Š  H‰    HÇ$ }  è    H‹\$€=     …J  H‰    HÇ$À]  è    H‹\$€=     …
-  H‰    HÇ$   è    H‹\$€=     …Ê   H‰    HÇ$D   è    H‹\$€=     …Š   H‰    HÇ$°‰ è    H‹\$€=     uQH‰    HÇ$0Œ è    H‹\$€=     uH‰    è    Æ    HƒÄ(ÃH-    H‰,$H‰\$è    ëØH-    H‰,$H‰\$è    ëŸH-    H‰,$H‰\$è    écÿÿÿH-    H‰,$H‰\$è    é#ÿÿÿH-    H‰,$H‰\$è    éãşÿÿH-    H‰,$H‰\$è    é£şÿÿH-    H‰,$H‰\$è    écşÿÿH-    H‰,$H‰\$è    é#şÿÿH-    H‰,$H‰\$è    éãıÿÿH-    H‰,$H‰\$è    é£ıÿÿH-    H‰,$H‰\$è    écıÿÿH-    H‰,$H‰\$è    é#ıÿÿH-    H‰,$H‰\$è    éãüÿÿH-    H‰,$H‰\$è    é£üÿÿH-    H‰,$H‰\$è    écüÿÿH-    H‰,$H‰\$è    é#üÿÿH-    H‰,$H‰\$è    éãûÿÿH-    H‰,$H‰\$è    é£ûÿÿH-    H‰,$H‰\$è    écûÿÿH-    H‰,$H‰\$è    é#ûÿÿH-    H‰,$H‰\$è    éãúÿÿH-    H‰,$H‰\$è    é£úÿÿH-    H‰,$H‰\$è    écúÿÿH-    H‰,$H‰\$è    é#úÿÿH-    H‰,$H‰\$è    éãùÿÿH-    H‰,$H‰\$è    é£ùÿÿH-    H‰,$H‰\$è    écùÿÿH-    H‰,$H‰\$è    é#ùÿÿH-    H‰,$H‰\$è    éãøÿÿH-    H‰,$H‰\$è    é£øÿÿH-    H‰,$H‰\$è    éFøÿÿH-    H‰,$H‰\$è    éøÿÿH-    H‰,$H‰\$è    éÆ÷ÿÿH-    H‰,$H‰\$è    é†÷ÿÿH-    H‰,$H‰\$è    éF÷ÿÿH-    H‰,$H‰\$è    é÷ÿÿH-    H‰,$H‰\$è    éÆöÿÿH-    H‰,$H‰\$è    é†öÿÿH-    H‰,$H‰\$è    éFöÿÿH-    H‰,$H‰\$è    éöÿÿH-    H‰,$H‰\$è    éÆõÿÿH-    H‰,$H‰\$è    é†õÿÿH-    H‰,$H‰\$è    éFõÿÿH-    H‰,$H‰\$è    éõÿÿH-    H‰,$H‰\$è    éÆôÿÿH-    H‰,$H‰\$è    é†ôÿÿH-    H‰,$H‰\$è    éFôÿÿH-    H‰,$H‰\$è    éôÿÿH-    H‰,$H‰\$è    éÆóÿÿH-    H‰,$H‰\$è    éVóÿÿH-    H‰,$H‰\$è    éóÿÿH-    H‰,$H‰\$è    é²òÿÿè    é,òÿÿ²
-      4  "".initdoneÂ·   L  "".initdoneÂ·   j
-  "runtime.throwinit   z "".initdoneÂ·   †
-  $encoding/json.init   
-  fmt.init   š
-  math/big.init   ¤
-  Vgithub.com/ethereum/go-ethereum/common.init   ¾
-  math/big.NewInt   Ô 6runtime.writeBarrierEnabled   ğ  ,"".MainNetDAOForkBlock   ş  Pgo.string."0x64616f2d686172642d666f726b"   ¢
-  \github.com/ethereum/go-ethereum/common.FromHex   º ("".DAOForkBlockExtra   Ò  ("".DAOForkBlockExtra   è 6runtime.writeBarrierEnabled   „  ("".DAOForkBlockExtra   
-  math/big.NewInt   ´ 6runtime.writeBarrierEnabled   Ğ  ("".DAOForkExtraRange   Ş  lgo.string."0xbf4ed7b27f1d666546e30d74d50d173d20bca754"   ‚
-  fgithub.com/ethereum/go-ethereum/common.HexToAddress   š  ("".DAORefundContract   Ê
-  math/big.NewInt   à 6runtime.writeBarrierEnabled   ü  ."".MaximumExtraDataSize   –
-  math/big.NewInt   ¬ 6runtime.writeBarrierEnabled   È  "".ExpByteGas   â
-  math/big.NewInt   ø 6runtime.writeBarrierEnabled   ”  "".SloadGas   ®
-  math/big.NewInt   Ä 6runtime.writeBarrierEnabled   à  ."".CallValueTransferGas   ú
-  math/big.NewInt    6runtime.writeBarrierEnabled   ¬  ("".CallNewAccountGas   Æ
-  math/big.NewInt   Ü 6runtime.writeBarrierEnabled   ø  "".TxGas   ’
-  math/big.NewInt   ¨ 6runtime.writeBarrierEnabled   Ä  0"".TxGasContractCreation   Ş
-  math/big.NewInt   ô 6runtime.writeBarrierEnabled   	   "".TxDataZeroGas   ª	
-  math/big.NewInt   À	 6runtime.writeBarrierEnabled   Ü	  2"".DifficultyBoundDivisor   ö	
-  math/big.NewInt   Œ
- 6runtime.writeBarrierEnabled   ¨
-  "".QuadCoeffDiv   Â
-
-  math/big.NewInt   Ø
- 6runtime.writeBarrierEnabled   ô
-  ("".GenesisDifficulty   
-  math/big.NewInt   ¤ 6runtime.writeBarrierEnabled   À   "".DurationLimit   Ú
-  math/big.NewInt   ğ 6runtime.writeBarrierEnabled   Œ  "".SstoreSetGas   ¦
-  math/big.NewInt   ¼ 6runtime.writeBarrierEnabled   Ø  "".LogDataGas   ò
-  math/big.NewInt   ˆ 6runtime.writeBarrierEnabled   ¤  "".CallStipend   ¾
-  math/big.NewInt   Ô 6runtime.writeBarrierEnabled   ğ  "".EcrecoverGas   Š
-  math/big.NewInt     6runtime.writeBarrierEnabled   ¼   "".Sha256WordGas   Ö
-  math/big.NewInt   ì 6runtime.writeBarrierEnabled   ˆ  "".MinGasLimit   ¢
-  math/big.NewInt   ¸ 6runtime.writeBarrierEnabled   Ô  $"".GenesisGasLimit   â  "type.math/big.Int   ô
-  "runtime.newobject   ”  $"".GenesisGasLimit   ¨
-  &math/big.(*Int).Set   ¾ 6runtime.writeBarrierEnabled   Ú  """.TargetGasLimit   ô
-  math/big.NewInt   Š 6runtime.writeBarrierEnabled   ¦  "".Sha3Gas   À
-  math/big.NewInt   Ö 6runtime.writeBarrierEnabled   ò  "".Sha256Gas   Œ
-  math/big.NewInt   ¢ 6runtime.writeBarrierEnabled   ¾  $"".IdentityWordGas   Ø
-  math/big.NewInt   î 6runtime.writeBarrierEnabled   Š  "".Sha3WordGas   ¤
-  math/big.NewInt   º 6runtime.writeBarrierEnabled   Ö  """.SstoreResetGas   ğ
-  math/big.NewInt   † 6runtime.writeBarrierEnabled   ¢  """.SstoreClearGas   ¼
-  math/big.NewInt   Ò 6runtime.writeBarrierEnabled   î  $"".SstoreRefundGas   ˆ
-  math/big.NewInt    6runtime.writeBarrierEnabled   º  "".JumpdestGas   Ô
-  math/big.NewInt   ê 6runtime.writeBarrierEnabled   †  "".IdentityGas    
-  math/big.NewInt   ¶ 6runtime.writeBarrierEnabled   Ò  ."".GasLimitBoundDivisor   ì
-  math/big.NewInt   ‚ 6runtime.writeBarrierEnabled      "".EpochDuration   ¸
-  math/big.NewInt   Î 6runtime.writeBarrierEnabled   ê  "".CallGas   „
-  math/big.NewInt   š 6runtime.writeBarrierEnabled   ¶   "".CreateDataGas   Ğ
-  math/big.NewInt   æ 6runtime.writeBarrierEnabled   ‚  "".Ripemd160Gas   œ
-  math/big.NewInt   ² 6runtime.writeBarrierEnabled   Î  &"".Ripemd160WordGas   è
-  math/big.NewInt   ş 6runtime.writeBarrierEnabled   š  ("".MinimumDifficulty   ´
-  math/big.NewInt   Ê 6runtime.writeBarrierEnabled   æ  $"".CallCreateDepth   €
-  math/big.NewInt   – 6runtime.writeBarrierEnabled   ²  "".ExpGas   Ì
-  math/big.NewInt   â 6runtime.writeBarrierEnabled   ş  "".LogGas   ˜
-  math/big.NewInt   ® 6runtime.writeBarrierEnabled   Ê  "".CopyGas   ä
-  math/big.NewInt   ú 6runtime.writeBarrierEnabled   –  "".StackLimit   °
-  math/big.NewInt   Æ 6runtime.writeBarrierEnabled   â  "".TierStepGas   ü
-  math/big.NewInt   ’ 6runtime.writeBarrierEnabled   ®  "".LogTopicGas   È
-  math/big.NewInt   Ş 6runtime.writeBarrierEnabled   ú  "".CreateGas   ”
-  math/big.NewInt   ª 6runtime.writeBarrierEnabled   Æ  &"".SuicideRefundGas   à
-  math/big.NewInt   ö 6runtime.writeBarrierEnabled   ’   "".MemoryGas   ¬ 
-  math/big.NewInt   Â  6runtime.writeBarrierEnabled   Ş   &"".TxDataNonZeroGas   ø 
-  math/big.NewInt   ! 6runtime.writeBarrierEnabled   ¢!  0"".TestNetHomesteadBlock   ¼!
-  math/big.NewInt   Ò! 6runtime.writeBarrierEnabled   æ!  0"".MainNetHomesteadBlock   ğ!
-  "".init.1   ü! "".initdoneÂ·   –"  0"".MainNetHomesteadBlock   ²"
-  .runtime.writebarrierptr   Ä"  0"".TestNetHomesteadBlock   à"
-  .runtime.writebarrierptr   ò"  &"".TxDataNonZeroGas   #
-  .runtime.writebarrierptr   ¦#  "".MemoryGas   Â#
-  .runtime.writebarrierptr   Ú#  &"".SuicideRefundGas   ö#
-  .runtime.writebarrierptr   $  "".CreateGas   ª$
-  .runtime.writebarrierptr   Â$  "".LogTopicGas   Ş$
-  .runtime.writebarrierptr   ö$  "".TierStepGas   ’%
-  .runtime.writebarrierptr   ª%  "".StackLimit   Æ%
-  .runtime.writebarrierptr   Ş%  "".CopyGas   ú%
-  .runtime.writebarrierptr   ’&  "".LogGas   ®&
-  .runtime.writebarrierptr   Æ&  "".ExpGas   â&
-  .runtime.writebarrierptr   ú&  $"".CallCreateDepth   –'
-  .runtime.writebarrierptr   ®'  ("".MinimumDifficulty   Ê'
-  .runtime.writebarrierptr   â'  &"".Ripemd160WordGas   ş'
-  .runtime.writebarrierptr   –(  "".Ripemd160Gas   ²(
-  .runtime.writebarrierptr   Ê(   "".CreateDataGas   æ(
-  .runtime.writebarrierptr   ş(  "".CallGas   š)
-  .runtime.writebarrierptr   ²)   "".EpochDuration   Î)
-  .runtime.writebarrierptr   æ)  ."".GasLimitBoundDivisor   ‚*
-  .runtime.writebarrierptr   š*  "".IdentityGas   ¶*
-  .runtime.writebarrierptr   Î*  "".JumpdestGas   ê*
-  .runtime.writebarrierptr   ‚+  $"".SstoreRefundGas   +
-  .runtime.writebarrierptr   ¶+  """.SstoreClearGas   Ò+
-  .runtime.writebarrierptr   ê+  """.SstoreResetGas   †,
-  .runtime.writebarrierptr   ,  "".Sha3WordGas   º,
-  .runtime.writebarrierptr   Ò,  $"".IdentityWordGas   î,
-  .runtime.writebarrierptr   †-  "".Sha256Gas   ¢-
-  .runtime.writebarrierptr   º-  "".Sha3Gas   Ö-
-  .runtime.writebarrierptr   î-  """.TargetGasLimit   Š.
-  .runtime.writebarrierptr   ¢.  $"".GenesisGasLimit   ¾.
-  .runtime.writebarrierptr   Ö.  "".MinGasLimit   ò.
-  .runtime.writebarrierptr   Š/   "".Sha256WordGas   ¦/
-  .runtime.writebarrierptr   ¾/  "".EcrecoverGas   Ú/
-  .runtime.writebarrierptr   ò/  "".CallStipend   0
-  .runtime.writebarrierptr   ¦0  "".LogDataGas   Â0
-  .runtime.writebarrierptr   Ú0  "".SstoreSetGas   ö0
-  .runtime.writebarrierptr   1   "".DurationLimit   ª1
-  .runtime.writebarrierptr   Â1  ("".GenesisDifficulty   Ş1
-  .runtime.writebarrierptr   ö1  "".QuadCoeffDiv   ’2
-  .runtime.writebarrierptr   ª2  2"".DifficultyBoundDivisor   Æ2
-  .runtime.writebarrierptr   Ş2   "".TxDataZeroGas   ú2
-  .runtime.writebarrierptr   ’3  0"".TxGasContractCreation   ®3
-  .runtime.writebarrierptr   Æ3  "".TxGas   â3
-  .runtime.writebarrierptr   ú3  ("".CallNewAccountGas   –4
-  .runtime.writebarrierptr   ®4  ."".CallValueTransferGas   Ê4
-  .runtime.writebarrierptr   â4  "".SloadGas   ş4
-  .runtime.writebarrierptr   –5  "".ExpByteGas   ²5
-  .runtime.writebarrierptr   Ê5  ."".MaximumExtraDataSize   æ5
-  .runtime.writebarrierptr   ş5  ("".DAOForkExtraRange   š6
-  .runtime.writebarrierptr   ²6  ("".DAOForkBlockExtra   Î6
-  .runtime.writebarrierptr   æ6  ,"".MainNetDAOForkBlock   ‚7
-  .runtime.writebarrierptr   –7
-  0runtime.morestack_noctxt    P  "".autotmp_0028  $type.*math/big.Int POPÓOPØ
- .VÆ—ƒ¬	N ş2V&
-J&0)&&&&&&&&&&&&&&&&&&&C&&&&&&&&&&&&&&&&&&&&&&&&&&&e""ded"
-  4¬ TgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb TgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb   š/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/util.go˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.go°/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/protocol_params.goş(type..hash.[8]string à  ÊeH‹%    H;a†ˆ   Hƒì(H‹L$81ÀHÇD$   H‹l$H9è}\H‰D$ H‰ÅH‰ÈHÁÀH»¿c»kïR H¯ØH‰ØH‹\$0Hƒû t;HÁåHëH‰$H‰D$8H‰D$è    H‹L$H‹D$ HÿÀH‹l$H9è|¤H‰L$@HƒÄ(Ã‰ëÁè    é[ÿÿÿ
-      ä
-  runtime.strhash   ¸
-  0runtime.morestack_noctxt   0P  
-"".autotmp_0081 type.int "".autotmp_0080 type.int "".~r2  type.uintptr "".h type.uintptr "".p  type.*[8]string POP ° ° 
- q? TgclocalsÂ·0b86ef39f3fed835f14ba5f4d7c62fa2 TgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb   ˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.goş$type..eq.[8]string à  ÖeH‹%    H;a†Î   HƒìX1ÀHÇD$(   H‹l$(H9è’   H‰D$0H‹\$`Hƒû „–   H‰ÅHÁåHëH‹3H‹KH‹\$hHƒû tvH‰ÅHÁåHëH‹H‹CH9ÁuVH‰t$HH‰4$H‰L$PH‰L$H‰T$8H‰T$H‰D$@H‰D$è    ¶\$ €û t H‹D$0HÿÀH‹l$(H9èŒnÿÿÿÆD$pHƒÄXÃÆD$p HƒÄXÃ‰ë†‰écÿÿÿè    éÿÿÿ
-      ¼
-   runtime.eqstring   Ä
-  0runtime.morestack_noctxt   0°  "".autotmp_0085 ?type.string "".autotmp_0084 type.string "".autotmp_0083 _type.int "".autotmp_0082 Otype.int "".~r2  type.bool "".q type.*[8]string "".p  type.*[8]string &°´¯°	¯° ğ ğ  S TgclocalsÂ·3bb21ca8fe1d99a3e492463bd711418a TgclocalsÂ·a8eabfc4a4514ed6b3b0c61e9680e440   ˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.goş4type..hash.[1]interface {} à  ÊeH‹%    H;a†ˆ   Hƒì(H‹L$81ÀHÇD$   H‹l$H9è}\H‰D$ H‰ÅH‰ÈHÁÀH»¿c»kïR H¯ØH‰ØH‹\$0Hƒû t;HÁåHëH‰$H‰D$8H‰D$è    H‹L$H‹D$ HÿÀH‹l$H9è|¤H‰L$@HƒÄ(Ã‰ëÁè    é[ÿÿÿ
-      ä
-  (runtime.nilinterhash   ¸
-  0runtime.morestack_noctxt   0P  
-"".autotmp_0087 type.int "".autotmp_0086 type.int "".~r2  type.uintptr "".h type.uintptr "".p  *type.*[1]interface {} POP ° ° 
- q? TgclocalsÂ·0b86ef39f3fed835f14ba5f4d7c62fa2 TgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb   ˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.goş0type..eq.[1]interface {} à  ÖeH‹%    H;a†Î   HƒìX1ÀHÇD$(   H‹l$(H9è’   H‰D$0H‹\$hHƒû „–   H‰ÅHÁåHëH‹H‹sH‹\$`Hƒû tvH‰ÅHÁåHëH‹H‹SH9ÈuVH‰D$8H‰$H‰T$@H‰T$H‰L$HH‰L$H‰t$PH‰t$è    ¶\$ €û t H‹D$0HÿÀH‹l$(H9èŒnÿÿÿÆD$pHƒÄXÃÆD$p HƒÄXÃ‰ë†‰écÿÿÿè    éÿÿÿ
-      ¼
-  runtime.efaceeq   Ä
-  0runtime.morestack_noctxt   0°  "".autotmp_0091 ?"type.interface {} "".autotmp_0090 "type.interface {} "".autotmp_0089 _type.int "".autotmp_0088 Otype.int "".~r2  type.bool "".q *type.*[1]interface {} "".p  *type.*[1]interface {} &°´¯°	¯° ğ ğ  S TgclocalsÂ·3bb21ca8fe1d99a3e492463bd711418a TgclocalsÂ·a8eabfc4a4514ed6b3b0c61e9680e440   ˜/Users/NIC/Documents/Projects&Homeworks/Smart-Contract-master/go-ethereum/build/_workspace/src/github.com/ethereum/go-ethereum/params/dao.goş$"".hdr..gostring.1             Ì/         ""..gostring.1   ş""..gostring.1  ¿  š¿
-[
-   {
-      "address":"0xd4fe7bc31cedb7bfb8a345f31e668033056b2728",
-      "balance":"186cc8bfaefb7be",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xb3fb0e5aba0e20e5c49d252dfd30e102b171a425"
-   },
-   {
-      "address":"0x2c19c7f9ae8b751e37aeb2d93a699722395ae18f",
-      "balance":"b14e8feab1ff435",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xecd135fa4f61a655311e86238c92adcd779555d2"
-   },
-   {
-      "address":"0x1975bd06d486162d5dc297798dfc41edd5d160a7",
-      "balance":"359d26614cb5070c77",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xa3acf3a1e16b1d7c315e23510fdd7847b48234f6"
-   },
-   {
-      "address":"0x319f70bab6845585f412ec7724b744fec6095c85",
-      "balance":"6e075cd846d2cb1d42",
-      "extraBalance":"13d34fd41b545b81",
-      "extraBalanceAccount":"0x06706dd3f2c9abf0a21ddcc6941d9b86f0596936"
-   },
-   {
-      "address":"0x5c8536898fbb74fc7445814902fd08422eac56d0",
-      "balance":"b1e5593558008fd78",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x6966ab0d485353095148a2155858910e0965b6f9"
-   },
-   {
-      "address":"0x779543a0491a837ca36ce8c635d6154e3c4911a6",
-      "balance":"392eaa20d1aad59a4c",
-      "extraBalance":"426938826a96c9",
-      "extraBalanceAccount":"0x2a5ed960395e2a49b1c758cef4aa15213cfd874c"
-   },
-   {
-      "address":"0x5c6e67ccd5849c0d29219c4f95f1a7a93b3f5dc5",
-      "balance":"2875d22b29793d4ba7",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x9c50426be05db97f5d64fc54bf89eff947f0a321"
-   },
-   {
-      "address":"0x200450f06520bdd6c527622a273333384d870efb",
-      "balance":"43c341d9f96954c049",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xbe8539bfe837b67d1282b2b1d61c3f723966f049"
-   },
-   {
-      "address":"0x6b0c4d41ba9ab8d8cfb5d379c69a612f2ced8ecb",
-      "balance":"75251057154d70fa816",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xf1385fb24aad0cd7432824085e42aff90886fef5"
-   },
-   {
-      "address":"0xd1ac8b1ef1b69ff51d1d401a476e7e612414f091",
-      "balance":"392409769296cf67f36",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x8163e7fb499e90f8544ea62bbf80d21cd26d9efd"
-   },
-   {
-      "address":"0x51e0ddd9998364a2eb38588679f0d2c42653e4a6",
-      "balance":"8ac72eccbf4e8083",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x627a0a960c079c21c34f7612d5d230e01b4ad4c7"
-   },
-   {
-      "address":"0xf0b1aa0eb660754448a7937c022e30aa692fe0c5",
-      "balance":"82289c3bb3e8c98799",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x24c4d950dfd4dd1902bbed3508144a54542bba94"
-   },
-   {
-      "address":"0x9f27daea7aca0aa0446220b98d028715e3bc803d",
-      "balance":"56bc29049ebed40fd",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xa5dc5acd6a7968a4554d89d65e59b7fd3bff0f90"
-   },
-   {
-      "address":"0xd9aef3a1e38a39c16b31d1ace71bca8ef58d315b",
-      "balance":"56bc7d3ff79110524",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x63ed5a272de2f6d968408b4acb9024f4cc208ebf"
-   },
-   {
-      "address":"0x6f6704e5a10332af6672e50b3d9754dc460dfa4d",
-      "balance":"23b651bd48cbc70cc",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x77ca7b50b6cd7e2f3fa008e24ab793fd56cb15f6"
-   },
-   {
-      "address":"0x492ea3bb0f3315521c31f273e565b868fc090f17",
-      "balance":"13ea6d4fee651dd7c9",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x0ff30d6de14a8224aa97b78aea5388d1c51c1f00"
-   },
-   {
-      "address":"0x9ea779f907f0b315b364b0cfc39a0fde5b02a416",
-      "balance":"35ac471a3836ae7de5a",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xceaeb481747ca6c540a000c1f3641f8cef161fa7"
-   },
-   {
-      "address":"0xcc34673c6c40e791051898567a1222daf90be287",
-      "balance":"d529c0b76b7aa0",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x579a80d909f346fbfb1189493f521d7f48d52238"
-   },
-   {
-      "address":"0xe308bd1ac5fda103967359b2712dd89deffb7973",
-      "balance":"5cd9e7df3a8e5cdd3",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x4cb31628079fb14e4bc3cd5e30c2f7489b00960c"
-   },
-   {
-      "address":"0xac1ecab32727358dba8962a0f3b261731aad9723",
-      "balance":"2c8442fe35363313b93",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x4fd6ace747f06ece9c49699c7cabc62d02211f75"
-   },
-   {
-      "address":"0x440c59b325d2997a134c2c7c60a8c61611212bad",
-      "balance":"e77583a3958130e53",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x4486a3d68fac6967006d7a517b889fd3f98c102b"
-   },
-   {
-      "address":"0x9c15b54878ba618f494b38f0ae7443db6af648ba",
-      "balance":"1f0b6ade348ca998",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x27b137a85656544b1ccb5a0f2e561a5703c6a68f"
-   },
-   {
-      "address":"0x21c7fdb9ed8d291d79ffd82eb2c4356ec0d81241",
-      "balance":"61725880736659",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x23b75c2f6791eef49c69684db4c6c1f93bf49a50"
-   },
-   {
-      "address":"0x1ca6abd14d30affe533b24d7a21bff4c2d5e1f3b",
-      "balance":"42948d8dc7ddbc22d",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xb9637156d330c0d605a791f1c31ba5890582fe1c"
-   },
-   {
-      "address":"0x6131c42fa982e56929107413a9d526fd99405560",
-      "balance":"7306683851d1eafbfa",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x1591fc0f688c81fbeb17f5426a162a7024d430c2"
-   },
-   {
-      "address":"0x542a9515200d14b68e934e9830d91645a980dd7a",
-      "balance":"2a8457d0d8432e21d0c",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xc4bbd073882dd2add2424cf47d35213405b01324"
-   },
-   {
-      "address":"0x782495b7b3355efb2833d56ecb34dc22ad7dfcc4",
-      "balance":"d8d7391feaeaa8cdb",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x58b95c9a9d5d26825e70a82b6adb139d3fd829eb"
-   },
-   {
-      "address":"0x3ba4d81db016dc2890c81f3acec2454bff5aada5",
-      "balance":"1",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xb52042c8ca3f8aa246fa79c3feaa3d959347c0ab"
-   },
-   {
-      "address":"0xe4ae1efdfc53b73893af49113d8694a057b9c0d1",
-      "balance":"456397665fa74041",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x3c02a7bc0391e86d91b7d144e61c2c01a25a79c5"
-   },
-   {
-      "address":"0x0737a6b837f97f46ebade41b9bc3e1c509c85c53",
-      "balance":"6324dcb7126ecbef",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x97f43a37f595ab5dd318fb46e7a155eae057317a"
-   },
-   {
-      "address":"0x52c5317c848ba20c7504cb2c8052abd1fde29d03",
-      "balance":"6c3419b0705c01cd0d",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x4863226780fe7c0356454236d3b1c8792785748d"
-   },
-   {
-      "address":"0x5d2b2e6fcbe3b11d26b525e085ff818dae332479",
-      "balance":"456397665fa74041",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x5f9f3392e9f62f63b8eac0beb55541fc8627f42c"
-   },
-   {
-      "address":"0x057b56736d32b86616a10f619859c6cd6f59092a",
-      "balance":"232c025bb44b46",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x9aa008f65de0b923a2a4f02012ad034a5e2e2192"
-   },
-   {
-      "address":"0x304a554a310c7e546dfe434669c62820b7d83490",
-      "balance":"3034f5ca7d45e17df199b",
-      "extraBalance":"f7d15162c44e97b6e",
-      "extraBalanceAccount":"0x914d1b8b43e92723e64fd0a06f5bdb8dd9b10c79"
-   },
-   {
-      "address":"0x4deb0033bb26bc534b197e61d19e0733e5679784",
-      "balance":"4417e96ed796591e09",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x07f5c1e1bc2c93e0402f23341973a0e043f7bf8a"
-   },
-   {
-      "address":"0x35a051a0010aba705c9008d7a7eff6fb88f6ea7b",
-      "balance":"d3ff7771412bbcc9",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x4fa802324e929786dbda3b8820dc7834e9134a2a"
-   },
-   {
-      "address":"0x9da397b9e80755301a3b32173283a91c0ef6c87e",
-      "balance":"32ae324c233816b4c2",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x8d9edb3054ce5c5774a420ac37ebae0ac02343c6"
-   },
-   {
-      "address":"0x0101f3be8ebb4bbd39a2e3b9a3639d4259832fd9",
-      "balance":"1e530695b705f037c6",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x5dc28b15dffed94048d73806ce4b7a4612a1d48f"
-   },
-   {
-      "address":"0xbcf899e6c7d9d5a215ab1e3444c86806fa854c76",
-      "balance":"68013bad5b4b1133fc5",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x12e626b0eebfe86a56d633b9864e389b45dcb260"
-   },
-   {
-      "address":"0xa2f1ccba9395d7fcb155bba8bc92db9bafaeade7",
-      "balance":"456397665fa74041",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xec8e57756626fdc07c63ad2eafbd28d08e7b0ca5"
-   },
-   {
-      "address":"0xd164b088bd9108b60d0ca3751da4bceb207b0782",
-      "balance":"3635ce47fabaaa336e",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x6231b6d0d5e77fe001c2a460bd9584fee60d409b"
-   },
-   {
-      "address":"0x1cba23d343a983e9b5cfd19496b9a9701ada385f",
-      "balance":"f3abd9906c170a",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xa82f360a8d3455c5c41366975bde739c37bfeb8a"
-   },
-   {
-      "address":"0x9fcd2deaff372a39cc679d5c5e4de7bafb0b1339",
-      "balance":"4c6679d9d9b95a4e08",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x005f5cee7a43331d5a3d3eec71305925a62f34b6"
-   },
-   {
-      "address":"0x0e0da70933f4c7849fc0d203f5d1d43b9ae4532d",
-      "balance":"40f622936475de31849",
-      "extraBalance":"671e1bbabded39754",
-      "extraBalanceAccount":"0xd131637d5275fd1a68a3200f4ad25c71a2a9522e"
-   },
-   {
-      "address":"0xbc07118b9ac290e4622f5e77a0853539789effbe",
-      "balance":"1316ccfa4a35db5e58f",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x47e7aa56d6bdf3f36be34619660de61275420af8"
-   },
-   {
-      "address":"0xacd87e28b0c9d1254e868b81cba4cc20d9a32225",
-      "balance":"b3ad6bb72000bab9f",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xadf80daec7ba8dcf15392f1ac611fff65d94f880"
-   },
-   {
-      "address":"0x5524c55fb03cf21f549444ccbecb664d0acad706",
-      "balance":"16f2da372a5c8a70967",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x40b803a9abce16f50f36a77ba41180eb90023925"
-   },
-   {
-      "address":"0xfe24cdd8648121a43a7c86d289be4dd2951ed49f",
-      "balance":"ea0b1bdc78f500a43",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x17802f43a0137c506ba92291391a8a8f207f487d"
-   },
-   {
-      "address":"0x253488078a4edf4d6f42f113d1e62836a942cf1a",
-      "balance":"3060e3aed135cc80",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x86af3e9626fce1957c82e88cbf04ddf3a2ed7915"
-   },
-   {
-      "address":"0xb136707642a4ea12fb4bae820f03d2562ebff487",
-      "balance":"6050bdeb3354b5c98adc3",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xdbe9b615a3ae8709af8b93336ce9b477e4ac0940"
-   },
-   {
-      "address":"0xf14c14075d6c4ed84b86798af0956deef67365b5",
-      "balance":"1d77844e94c25ba2",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xca544e5c4687d109611d0f8f928b53a25af72448"
-   },
-   {
-      "address":"0xaeeb8ff27288bdabc0fa5ebb731b6f409507516c",
-      "balance":"2e93a72de4fc5ec0ed",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xcbb9d3703e651b0d496cdefb8b92c25aeb2171f7"
-   },
-   {
-      "address":"0x6d87578288b6cb5549d5076a207456a1f6a63dc0",
-      "balance":"1afd340799e48c18",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0xb2c6f0dfbb716ac562e2d85d6cb2f8d5ee87603e"
-   },
-   {
-      "address":"0xaccc230e8a6e5be9160b8cdf2864dd2a001c28b6",
-      "balance":"14d0944eb3be947a8",
-      "extraBalance":"0",
-      "extraBalanceAccount":"0x2b3455ec7fedf16e646268bf88846bd7a2319bb2"
-   },
-   {
-      "address":"0x4613f3bca5c44ea06337a9e439fbc6d42e501d0a",
-      "balance":"6202b236a200e365eba",
-      "extraBalance":"11979be9020f03ec4ec",
-      "extraBalanceAccount":"0xd343b217de44030afaa275f54d31a9317c7f441e"
-   },
-   {
-      "address":"0x84ef4b2357079cd7a7c69fd7a37cd0609a679106",
-      "balance":"7ed634ebbba531901e07",
-      "extraBalance":"f9c5eff28cb08720c85",
-      "extraBalanceAccount":"0xda2fef9e4a3230988ff17df2165440f37e8b1708"
-   },
-   {
-      "address":"0xf4c64518ea10f995918a454158c6b61407ea345c",
-      "balance":"39152e15508a96ff894a",
-      "extraBalance":"14041ca908bcc185c8",
-      "extraBalanceAccount":"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97"
-   },
-   {
-      "address":"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
-      "balance":"1",
-      "extraBalance":"5553ebc",
-      "extraBalanceAccount":"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
-   }
-]
-  şdgo.string.hdr."Failed to parse DAO drain list: %v"             "          \go.string."Failed to parse DAO drain list: %v"   ş\go.string."Failed to parse DAO drain list: %v" P  FFailed to parse DAO drain list: %v  ş.go.string.hdr."address"                       &go.string."address"   ş&go.string."address"   address  şFgo.string.hdr."extraBalanceAccount"                       >go.string."extraBalanceAccount"   ş>go.string."extraBalanceAccount" 0  (extraBalanceAccount  şTgclocalsÂ·865998cfd1833c8f58c6a6c660dc8ffb P  P                               şTgclocalsÂ·0ce64bbc7cfa5ef04d41c861de81a3d7           şXgo.string.hdr."0x64616f2d686172642d666f726b"                       Pgo.string."0x64616f2d686172642d666f726b"   şPgo.string."0x64616f2d686172642d666f726b" @  :0x64616f2d686172642d666f726b  ştgo.string.hdr."0xbf4ed7b27f1d666546e30d74d50d173d20bca754"             *          lgo.string."0xbf4ed7b27f1d666546e30d74d50d173d20bca754"   şlgo.string."0xbf4ed7b27f1d666546e30d74d50d173d20bca754" `  V0xbf4ed7b27f1d666546e30d74d50d173d20bca754  şTgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb           şTgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb           ş.,"".TestNetDAOForkBlock  $type.*math/big.Int   ş.,"".MainNetDAOForkBlock  $type.*math/big.Int   ş.("".DAOForkBlockExtra  0type.[]uint8   ş.("".DAOForkExtraRange  $type.*math/big.Int   ş0("".DAORefundContract  (ftype.github.com/ethereum/go-ethereum/common.Address   ş."".DAODrainList  0jtype.[]github.com/ethereum/go-ethereum/common.Address   ş.."".MaximumExtraDataSize  $type.*math/big.Int   ş."".ExpByteGas  $type.*math/big.Int   ş."".SloadGas  $type.*math/big.Int   ş.."".CallValueTransferGas  $type.*math/big.Int   ş.("".CallNewAccountGas  $type.*math/big.Int   ş."".TxGas  $type.*math/big.Int   ş.0"".TxGasContractCreation  $type.*math/big.Int   ş. "".TxDataZeroGas  $type.*math/big.Int   ş.2"".DifficultyBoundDivisor  $type.*math/big.Int   ş."".QuadCoeffDiv  $type.*math/big.Int   ş.("".GenesisDifficulty  $type.*math/big.Int   ş. "".DurationLimit  $type.*math/big.Int   ş."".SstoreSetGas  $type.*math/big.Int   ş."".LogDataGas  $type.*math/big.Int   ş."".CallStipend  $type.*math/big.Int   ş."".EcrecoverGas  $type.*math/big.Int   ş. "".Sha256WordGas  $type.*math/big.Int   ş."".MinGasLimit  $type.*math/big.Int   ş.$"".GenesisGasLimit  $type.*math/big.Int   ş.""".TargetGasLimit  $type.*math/big.Int   ş."".Sha3Gas  $type.*math/big.Int   ş."".Sha256Gas  $type.*math/big.Int   ş.$"".IdentityWordGas  $type.*math/big.Int   ş."".Sha3WordGas  $type.*math/big.Int   ş.""".SstoreResetGas  $type.*math/big.Int   ş.""".SstoreClearGas  $type.*math/big.Int   ş.$"".SstoreRefundGas  $type.*math/big.Int   ş."".JumpdestGas  $type.*math/big.Int   ş."".IdentityGas  $type.*math/big.Int   ş.."".GasLimitBoundDivisor  $type.*math/big.Int   ş. "".EpochDuration  $type.*math/big.Int   ş."".CallGas  $type.*math/big.Int   ş. "".CreateDataGas  $type.*math/big.Int   ş."".Ripemd160Gas  $type.*math/big.Int   ş.&"".Ripemd160WordGas  $type.*math/big.Int   ş.("".MinimumDifficulty  $type.*math/big.Int   ş.$"".CallCreateDepth  $type.*math/big.Int   ş."".ExpGas  $type.*math/big.Int   ş."".LogGas  $type.*math/big.Int   ş."".CopyGas  $type.*math/big.Int   ş."".StackLimit  $type.*math/big.Int   ş."".TierStepGas  $type.*math/big.Int   ş."".LogTopicGas  $type.*math/big.Int   ş."".CreateGas  $type.*math/big.Int   ş.&"".SuicideRefundGas  $type.*math/big.Int   ş."".MemoryGas  $type.*math/big.Int   ş.&"".TxDataNonZeroGas  $type.*math/big.Int   ş.0"".TestNetHomesteadBlock  $type.*math/big.Int   ş.0"".MainNetHomesteadBlock  $type.*math/big.Int   ş0"".initdoneÂ·  type.uint8   ş"".init.1Â·f              "".init.1   ş"".initÂ·f              "".init   ş"runtime.gcbits.01    ş.go.string.hdr."[]uint8"                       &go.string."[]uint8"   ş&go.string."[]uint8"   []uint8  ştype.[]uint8                   ß~.8                                                         0   runtime.algarray   @  "runtime.gcbits.01   P  .go.string.hdr."[]uint8"   p  *go.weak.type.*[]uint8   €  "runtime.zerovalue     type.uint8   ş6go.typelink.[]uint8	[]uint8              type.[]uint8   şruntime.gcbits.      ş0go.string.hdr."[8]uint8"                       (go.string."[8]uint8"   ş(go.string."[8]uint8"    [8]uint8  ştype.[8]uint8 À  À               >ù0´ ‘                                                                       0   runtime.algarray   @  runtime.gcbits.   P  0go.string.hdr."[8]uint8"   p  ,go.weak.type.*[8]uint8   €  "runtime.zerovalue     type.uint8      type.[]uint8   ş:go.typelink.[8]uint8	[8]uint8              type.[8]uint8   ş0go.string.hdr."[]string"                       (go.string."[]string"   ş(go.string."[]string"    []string  ştype.[]string                   Ó¨ó
-                                                         0   runtime.algarray   @  "runtime.gcbits.01   P  0go.string.hdr."[]string"   p  ,go.weak.type.*[]string   €  "runtime.zerovalue     type.string   ş:go.typelink.[]string	[]string              type.[]string   şTgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb           şTgclocalsÂ·0b86ef39f3fed835f14ba5f4d7c62fa2             şTgclocalsÂ·a8eabfc4a4514ed6b3b0c61e9680e440              şTgclocalsÂ·3bb21ca8fe1d99a3e492463bd711418a             ş0type..hashfunc.[8]string              (type..hash.[8]string   ş,type..eqfunc.[8]string              $type..eq.[8]string   ş&type..alg.[8]string                        0type..hashfunc.[8]string     ,type..eqfunc.[8]string   ş&runtime.gcbits.5555   UU ş2go.string.hdr."[8]string"             	          *go.string."[8]string"   ş*go.string."[8]string"    [8]string  ştype.[8]string À  À€       x       USŒ>                                                                        0  &type..alg.[8]string   @  &runtime.gcbits.5555   P  2go.string.hdr."[8]string"   p  .go.weak.type.*[8]string   €  "runtime.zerovalue     type.string      type.[]string   ş>go.typelink.[8]string	[8]string              type.[8]string   şRgo.string.hdr."*map.bucket[string]string"                       Jgo.string."*map.bucket[string]string"   şJgo.string."*map.bucket[string]string" @  4*map.bucket[string]string  ş<type.*map.bucket[string]string                   ¦te 6                                                        0   runtime.algarray   @  "runtime.gcbits.01   P  Rgo.string.hdr."*map.bucket[string]string"   p  Ngo.weak.type.**map.bucket[string]string   €  "runtime.zerovalue     :type.map.bucket[string]string   ş2runtime.gcbits.aaaaaaaa02 
-  
-ªªªª şPgo.string.hdr."map.bucket[string]string"                       Hgo.string."map.bucket[string]string"   şHgo.string."map.bucket[string]string" @  2map.bucket[string]string  ş.go.string.hdr."topbits"                       &go.string."topbits"   ş&go.string."topbits"   topbits  ş(go.string.hdr."keys"                        go.string."keys"   ş go.string."keys"   
-keys  ş,go.string.hdr."values"                       $go.string."values"   ş$go.string."values"   values  ş0go.string.hdr."overflow"                       (go.string."overflow"   ş(go.string."overflow"    overflow  ş:type.map.bucket[string]string €  €            Ş>                                                                                                                                                                                      ˆ                                             0à  runtime.algarray   @  2runtime.gcbits.aaaaaaaa02   P  Pgo.string.hdr."map.bucket[string]string"   p  Lgo.weak.type.*map.bucket[string]string   €  "runtime.zerovalue   À :type.map.bucket[string]string   À  .go.string.hdr."topbits"   à  type.[8]uint8     (go.string.hdr."keys"   °  type.[8]string   à  ,go.string.hdr."values"   €  type.[8]string   °  0go.string.hdr."overflow"   Ğ  <type.*map.bucket[string]string   ş"runtime.gcbits.2c   , şJgo.string.hdr."map.hdr[string]string"                       Bgo.string."map.hdr[string]string"   şBgo.string."map.hdr[string]string" 0  ,map.hdr[string]string  ş*go.string.hdr."count"                       "go.string."count"   ş"go.string."count"   count  ş*go.string.hdr."flags"                       "go.string."flags"   ş"go.string."flags"   flags  ş"go.string.hdr."B"                       go.string."B"   şgo.string."B"   B  ş*go.string.hdr."hash0"                       "go.string."hash0"   ş"go.string."hash0"   hash0  ş.go.string.hdr."buckets"                       &go.string."buckets"   ş&go.string."buckets"   buckets  ş4go.string.hdr."oldbuckets"             
-          ,go.string."oldbuckets"   ş,go.string."oldbuckets"    oldbuckets  ş2go.string.hdr."nevacuate"             	          *go.string."nevacuate"   ş*go.string."nevacuate"    nevacuate  ş4type.map.hdr[string]string À  À0       0       Ïmlh                                                                                                                                                                                      	                                                                                                                                                                                                    (       ,0à  runtime.algarray   @  "runtime.gcbits.2c   P  Jgo.string.hdr."map.hdr[string]string"   p  Fgo.weak.type.*map.hdr[string]string   €  "runtime.zerovalue   À 4type.map.hdr[string]string   À  *go.string.hdr."count"   à  type.int     *go.string.hdr."flags"   °  type.uint8   à  "go.string.hdr."B"   €  type.uint8   °  *go.string.hdr."hash0"   Ğ  type.uint32   €  .go.string.hdr."buckets"      <type.*map.bucket[string]string   Ğ  4go.string.hdr."oldbuckets"   ğ  <type.*map.bucket[string]string      2go.string.hdr."nevacuate"   À  type.uintptr   ğ  0go.string.hdr."overflow"     &type.unsafe.Pointer   şBgo.string.hdr."map[string]string"                       :go.string."map[string]string"   ş:go.string."map[string]string" 0  $map[string]string  ş,type.map[string]string Ş  Ş              Y¡ç) 5                                                                                  0€  runtime.algarray   @  "runtime.gcbits.01   P  Bgo.string.hdr."map[string]string"   p  >go.weak.type.*map[string]string   €  "runtime.zerovalue     type.string      type.string   °  :type.map.bucket[string]string   À  4type.map.hdr[string]string   ş^go.typelink.map[string]string	map[string]string              ,type.map[string]string   şFgo.string.hdr."[]map[string]string"                       >go.string."[]map[string]string"   ş>go.string."[]map[string]string" 0  ([]map[string]string  ş0type.[]map[string]string                   è÷Õf                                                         0   runtime.algarray   @  "runtime.gcbits.01   P  Fgo.string.hdr."[]map[string]string"   p  Bgo.weak.type.*[]map[string]string   €  "runtime.zerovalue     ,type.map[string]string   şfgo.typelink.[]map[string]string	[]map[string]string              0type.[]map[string]string   şHgo.string.hdr."*[]map[string]string"                       @go.string."*[]map[string]string"   ş@go.string."*[]map[string]string" 0  **[]map[string]string  ş2type.*[]map[string]string                   ±l(D 6                                                        0   runtime.algarray   @  "runtime.gcbits.01   P  Hgo.string.hdr."*[]map[string]string"   p  Dgo.weak.type.**[]map[string]string   €  "runtime.zerovalue     0type.[]map[string]string   ş"runtime.gcbits.03    ş8go.string.hdr."interface {}"                       0go.string."interface {}"   ş0go.string."interface {}"    interface {}  ş"type.interface {} À  À              çW                                                                          0€  runtime.algarray   @  "runtime.gcbits.03   P  8go.string.hdr."interface {}"   p  4go.weak.type.*interface {}   €  "runtime.zerovalue   À "type.interface {}   ş<go.string.hdr."[]interface {}"                       4go.string."[]interface {}"   ş4go.string."[]interface {}"    []interface {}  ş&type.[]interface {}                   p“ê/                                                         0   runtime.algarray   @  "runtime.gcbits.01   P  <go.string.hdr."[]interface {}"   p  8go.weak.type.*[]interface {}   €  "runtime.zerovalue     "type.interface {}   şRgo.typelink.[]interface {}	[]interface {}              &type.[]interface {}   şTgclocalsÂ·33cdeccccebe80329f1fdbee7f5874cb           şTgclocalsÂ·0b86ef39f3fed835f14ba5f4d7c62fa2             şTgclocalsÂ·a8eabfc4a4514ed6b3b0c61e9680e440              şTgclocalsÂ·3bb21ca8fe1d99a3e492463bd711418a             ş<type..hashfunc.[1]interface {}              4type..hash.[1]interface {}   ş8type..eqfunc.[1]interface {}              0type..eq.[1]interface {}   ş2type..alg.[1]interface {}                        <type..hashfunc.[1]interface {}     8type..eqfunc.[1]interface {}   ş>go.string.hdr."[1]interface {}"                       6go.string."[1]interface {}"   ş6go.string."[1]interface {}"     [1]interface {}  ş(type.[1]interface {} À  À              P‘[ú                                                                        0  2type..alg.[1]interface {}   @  "runtime.gcbits.03   P  >go.string.hdr."[1]interface {}"   p  :go.weak.type.*[1]interface {}   €  "runtime.zerovalue     "type.interface {}      &type.[]interface {}   şVgo.typelink.[1]interface {}	[1]interface {}              (type.[1]interface {}   ş@go.string.hdr."*[1]interface {}"                       8go.string."*[1]interface {}"   ş8go.string."*[1]interface {}" 0  "*[1]interface {}  ş*type.*[1]interface {}                   ¿¨5 6                                                        0   runtime.algarray   @  "runtime.gcbits.01   P  @go.string.hdr."*[1]interface {}"   p  <go.weak.type.**[1]interface {}   €  "runtime.zerovalue     (type.[1]interface {}   şDgo.string.hdr."*map[string]string"                       <go.string."*map[string]string"   ş<go.string."*map[string]string" 0  &*map[string]string  ş.type.*map[string]string                   s kÙ 6                                                        0   runtime.algarray   @  "runtime.gcbits.01   P  Dgo.string.hdr."*map[string]string"   p  @go.weak.type.**map[string]string   €  "runtime.zerovalue     ,type.map[string]string   ş@go.string.hdr."[]common.Address"                       8go.string."[]common.Address"   ş8go.string."[]common.Address" 0  "[]common.Address  şjtype.[]github.com/ethereum/go-ethereum/common.Address                   ÆS•!                                                         0   runtime.algarray   @  "runtime.gcbits.01   P  @go.string.hdr."[]common.Address"   p  |go.weak.type.*[]github.com/ethereum/go-ethereum/common.Address   €  "runtime.zerovalue     ftype.github.com/ethereum/go-ethereum/common.Address   şšgo.typelink.[]common.Address	[]github.com/ethereum/go-ethereum/common.Address              jtype.[]github.com/ethereum/go-ethereum/common.Address   ş4go.string.hdr."*[8]string"             
-          ,go.string."*[8]string"   ş,go.string."*[8]string"    *[8]string  ştype.*[8]string                   ­”o 6                                                        0   runtime.algarray   @  "runtime.gcbits.01   P  4go.string.hdr."*[8]string"   p  0go.weak.type.**[8]string   €  "runtime.zerovalue     type.[8]string   ş.go.string.hdr."runtime"                       &go.string."runtime"   ş&go.string."runtime"   runtime  ş,go.importpath.runtime.                       &go.string."runtime"   ş:go.string.hdr."encoding/json"                       2go.string."encoding/json"   ş2go.string."encoding/json"    encoding/json  ş8go.importpath.encoding/json.                       2go.string."encoding/json"   ş&go.string.hdr."fmt"                       go.string."fmt"   şgo.string."fmt"   fmt  ş$go.importpath.fmt.                       go.string."fmt"   ş0go.string.hdr."math/big"                       (go.string."math/big"   ş(go.string."math/big"    math/big  ş.go.importpath.math/big.                       (go.string."math/big"   şlgo.string.hdr."github.com/ethereum/go-ethereum/common"             &          dgo.string."github.com/ethereum/go-ethereum/common"   şdgo.string."github.com/ethereum/go-ethereum/common" P  Ngithub.com/ethereum/go-ethereum/common  şjgo.importpath.github.com/ethereum/go-ethereum/common.             &          dgo.string."github.com/ethereum/go-ethereum/common"   ş.type..hash.[8]stringÂ·f              (type..hash.[8]string   ş*type..eq.[8]stringÂ·f              $type..eq.[8]string   ş:type..hash.[1]interface {}Â·f              4type..hash.[1]interface {}   ş6type..eq.[1]interface {}Â·f              0type..eq.[1]interface {}   ş"runtime.zerovalue      ÿÿgo13ld
