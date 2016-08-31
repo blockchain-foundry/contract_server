@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/soljson.dir/jsonCompiler.cpp.o"
   "libsoljson.pdb"
-  "libsoljson.so"
+  "libsoljson.dylib"
 )
 
 # Per-language clean rules from dependency scanning.

@@ -394,7 +394,7 @@ void CompilerUtils::convertType(Type const& _typeOnStack, Type const& _targetTyp
 			}
 			else
 			{
-			  cout<< "This is Integer Type" <<endl;
+			    //cout<< "This is Integer Type" <<endl;
 				IntegerType const& typeOnStack = stackTypeCategory == Type::Category::Integer
 					? dynamic_cast<IntegerType const&>(_typeOnStack) : addressType;
 				// Widening: clean up according to source type width

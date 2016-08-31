@@ -794,8 +794,8 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 		      _functionCall.expression().accept(*this);
 		      arguments[0]->accept(*this);
 		      utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
-		      cout<<"GETBALANCE"<<endl;
-		      	      m_context << Instruction::BALANCE;
+		      // cout<<"GETBALANCE"<<endl;
+		      m_context << Instruction::BALANCE;
 		      break;
 		    }
 		case Location::ObjectCreation:
@@ -1419,7 +1419,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	vector<ASTPointer<Expression const>> const& _arguments
 )
 {
-  cout<<"Append External functioncall" <<endl;
+    //cout<<"Append External functioncall" <<endl;
 	solAssert(
 		_functionType.takesArbitraryParameters() ||
 		_arguments.size() == _functionType.parameterTypes().size(), ""

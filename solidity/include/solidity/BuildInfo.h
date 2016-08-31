@@ -1,11 +1,11 @@
 #pragma once
 
 #define ETH_PROJECT_VERSION "0.3.6"
-#define ETH_COMMIT_HASH b69172f2187d8e0a0292ee6a4a3865114c671db5
-#define ETH_CLEAN_REPO 0
+#define ETH_COMMIT_HASH 0
+#define ETH_CLEAN_REPO 1
 #define ETH_BUILD_TYPE .
-#define ETH_BUILD_OS Linux
-#define ETH_BUILD_COMPILER g++
-#define ETH_BUILD_PLATFORM Linux/g++
+#define ETH_BUILD_OS Darwin
+#define ETH_BUILD_COMPILER appleclang
+#define ETH_BUILD_PLATFORM Darwin/appleclang
 #define ETH_BUILD_NUMBER 
 #define ETH_VERSION_SUFFIX ""
