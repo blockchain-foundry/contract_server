@@ -42,21 +42,21 @@ import (
 var (
 	
 	app       *cli.App
-	MorrisFlag = cli.StringFlag{
-		Name : "morris",
-		Usage : "Big Spring",
+	FundFlag = cli.StringFlag{
+		Name : "fund",
+		Usage : "make-up fund for sender",
 	}
-	JonahFlag = cli.BoolFlag{
-		Name: "jonah",
-		Usage: "Handsome",
+	DeployFlag = cli.BoolFlag{
+		Name: "deploy",
+		Usage: "deploy new contract",
 	}
 	SenderFlag = cli.StringFlag{
 		Name: "sender",
-		Usage: "Jonah as a sender",
+		Usage: "sender of the transaction",
 	}
 	ReceiverFlag = cli.StringFlag{
 		Name: "receiver",
-		Usage: "Jonah as a receiver",
+		Usage: "receiver of the transaction",
 	}
 	WriteFlag = cli.StringFlag{
 		Name: "write",
@@ -161,8 +161,8 @@ func init() {
 		ValueFlag,
 		DumpFlag,
 		InputFlag,
-		JonahFlag,
-		MorrisFlag,
+		DeployFlag,
+		FundFlag,
 		TimeFlag,
 	}
 	app.Action = run
@@ -262,10 +262,10 @@ func run(ctx *cli.Context) error {
 		}
 
 		//   adding the money to the sender 
-		if ctx.GlobalString(MorrisFlag.Name) != ""{
+		if ctx.GlobalString(FundFlag.Name) != ""{
 		//	fmt.Println(string(common.BalanceToJson(common.NewBalance(common.Big("50"),60))))
-			morrisbalance := common.JsonToBalance([]byte(ctx.GlobalString(MorrisFlag.Name)))
-			for k, v := range morrisbalance{
+			fundbalance := common.JsonToBalance([]byte(ctx.GlobalString(FundFlag.Name)))
+			for k, v := range fundbalance{
 				fmt.Println(k,v)
 				statedb.AddBalance(k, sender.Address(), v)
 			}
@@ -280,9 +280,9 @@ func run(ctx *cli.Context) error {
 			common.JsonToBalance([]byte(ctx.GlobalString(ValueFlag.Name))),
 		)
 
-		// if the jonah flag is set than create the contract.
+		// if the deploy flag is set than create the contract.
 		// run the byte code and save the output into that address.
-		if ctx.GlobalBool(JonahFlag.Name) {
+		if ctx.GlobalBool(DeployFlag.Name) {
 			receiver.SetCode(ret)
 		}
 
