@@ -1,24 +1,14 @@
 # GCoin Smart Contract Server, Oracle Server Environment Setup
-## Using virtualenv
-To install the required package, you can use
+## Clone gcoin-rpc first
 
-	$ pip install -r requirements.txt
-
-to install packages, but there is one package, gcoin-rpc, need access premission to install, so checkout the first step to install gcoin-rpc, then you can simply use pip install to install the rest packages.
-
-### Install gcoin-rpc
 	$ git clone https://github.com/OpenNetworking/gcoin-rpc.git
 
 This requires access premission in OpenNetworking group.
 
-	$ cd gcoin-rpc  
-	$ which python // to list where is your python in virtualenv  
-	/home/user/PythonWorkspace/django/smart_contract/bin/python // this is example  
-	$ /home/user/PythonWorkspace/django/smart_contract/bin/python setup.py build  
-	$ /home/user/PythonWorkspace/django/smart_contract/bin/python setup.py install
+## Using build script
+To install setup the environment.
 
-### Install the rest packages
-	$ pip install -r requirements.txt
+	$ ./setup_venv.sh
 
 ## Install GCoin
 Please refer to [Gcoin github](https://github.com/OpenNetworking/gcoin-community)

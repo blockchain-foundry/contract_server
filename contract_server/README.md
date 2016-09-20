@@ -3,7 +3,7 @@
 ### Add Oracle Server into DB
 
 		$ python manage.py shell
-		>>> from oracles.model import Oracle
+		>>> from oracles.models import Oracle
 		>>> oracle = Oracle(name="test server", url="http://localhost:8080")
 		>>> oracle.save()
 		>>> exit()

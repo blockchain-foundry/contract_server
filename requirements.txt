@@ -5,3 +5,4 @@ post==0.0.8
 public==0.0.34
 query-string==0.0.8
 request==0.0.8
+requests==2.4.3
