@@ -4,7 +4,7 @@ from threading import Thread
 
 import requests
 import sha3
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.views import status
 
@@ -26,10 +26,13 @@ class Contracts(APIView):
             source_code = serializer.data['source_code']
             response = {'multisig_address':addrs,'source_code':source_code, 'intereface':[]}
             print(response)
-            return HttpResponse(json.dumps(response),content_type="application/json")
+            return JsonResponse(response)
         except:
             response = {'status': 'contract not found.'}
-            return HttpResponse(json.dumps(json_data['multisig_address']), status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+            return JsonResponse(
+                    json_data['multisig_address'],
+                    status=status.HTTP_404_NOT_FOUND
+            )
 
     def _get_pubkey_from_oracle(self, url, source_code, pubkeys):
         '''
@@ -203,7 +206,7 @@ class ContractFunc(APIView):
             serializer=ContractSerializer(contract)
         except:
             response = {'status': 'contract not found.'}
-            return HttpResponse(json.dumps(response),status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+            return JsonResponse(response, status=status.HTTP_404_NOT_FOUND)
         val = []
         try:
             func_id = json_data['function_id']
@@ -213,7 +216,7 @@ class ContractFunc(APIView):
                     val.append(v['value'])
                 except:
                     response = {'status': 'wrong arguments.'}
-                    return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+                    return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
         except:
             pass
 
@@ -227,10 +230,10 @@ class ContractFunc(APIView):
             subprocess.check_output(command, shell = True)
         except:
             response = {'status': 'wrong arguments.'}
-            return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
         response = {'status':'success'}
-        return HttpResponse(json.dumps(response), content_type="application/json")
+        return JsonResponse(response)
 
 
 class ContractList(APIView):
@@ -238,6 +241,6 @@ class ContractList(APIView):
         contracts = Contract.objects.all()
         serializer = ContractSerializer(contracts, many=True)
         response = {'contracts':serializer.data}
-        return HttpResponse(json.dumps(response), content_type="application/json")
+        return JsonResponse(response)
 
 
