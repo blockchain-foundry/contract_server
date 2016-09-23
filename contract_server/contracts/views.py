@@ -4,7 +4,7 @@ from threading import Thread
 
 import requests
 import sha3
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from rest_framework.views import APIView
 from rest_framework.views import status
 
@@ -146,10 +146,7 @@ class Contracts(APIView):
             color = json_data['utxo']['color']
         except:
             response = {'status': 'Bad request.'}
-            return HttpResponse(json.dumps(response),
-                status=status.HTTP_400_BAD_REQUEST,
-                content_type="application/json"
-            )
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
         # optional parameters
         try:
             oracle_list = json_data['oracles']
@@ -166,21 +163,14 @@ class Contracts(APIView):
             )
         except:
             response = {'status': 'Bad request.'}
-            return HttpResponse(json.dumps(response),
-                status=status.HTTP_400_BAD_REQUEST,
-                content_type="application/json"
-            )
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
         response = {
             'multisig_address': multisig_addr,
             'oracles': oracle_list,
             'tx': tx_hex
         }
-        return HttpResponse(
-            json.dumps(response),
-            status=status.HTTP_200_OK,
-            content_type="application/json"
-        )
+        return JsonResponse(response, status=status.HTTP_200_OK)
 
 
 class ContractFunc(APIView):
