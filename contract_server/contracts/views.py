@@ -1,23 +1,16 @@
 import json
-import random
+from subprocess import Popen, PIPE, STDOUT
+from threading import Thread
 
 import requests
-import sha3 # keccak_256
-
-import gcoinrpc
-
-from oracles.models import *
-from oracles.serializers import *
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
-from rest_framework.views import status
-from rest_framework.views import APIView
-from subprocess import Popen, PIPE, STDOUT
+import sha3
 from django.http import HttpResponse
-from threading import Thread
-from queue import Queue
+from rest_framework.views import APIView
+from rest_framework.views import status
 
 from gcoin import *
+from oracles.models import Oracle
+from oracles.serializers import *
 
 # Create your views here.
 
