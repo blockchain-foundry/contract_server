@@ -235,9 +235,9 @@ class ContractFunc(APIView):
 
 class ContractList(APIView):
     def get(self, request, format=None):
-                contracts = Contract.objects.all()
-                serializer = ContractSerializer(contracts, many=True)
-                response = {'contracts':serializer.data}
-                return HttpResponse(json.dumps(response), content_type="application/json")
+        contracts = Contract.objects.all()
+        serializer = ContractSerializer(contracts, many=True)
+        response = {'contracts':serializer.data}
+        return HttpResponse(json.dumps(response), content_type="application/json")
 
 
