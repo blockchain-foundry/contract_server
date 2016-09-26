@@ -5,15 +5,19 @@ from django.db import models
 class Contract(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     source_code = models.TextField()
+    contract_id = models.CharField()
+    color_id = models.IntegerField()
+    amount = models.IntegerField()
     multisig_address = models.CharField(max_length=100, blank=True, default='')
     interface = models.TextField(default='')
-    oracles = models.TextField(default='')
     class Meta:
         ordering = ('created',)
 
 class Oracle(models.Model):
+    contract = models.ForeignKey(Contract, related_name='oracles')
     created = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100, blank=True, default='')
-    url = models.TextField(validators=[URLValidator()])
+    url = models.URLField()
     class Meta:
         ordering = ('created',)
+

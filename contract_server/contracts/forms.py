@@ -38,3 +38,9 @@ class ContractFunctionPostForm(forms.Form):
 
         if from_address and to_address and amount and color:
             self.is_payment = True
+
+
+class MultisigPaymentForm(forms.Form):
+
+    user_address = forms.CharField()
+    contract_id = forms.CharField(max_length=100)

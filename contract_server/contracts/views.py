@@ -32,6 +32,75 @@ logger = logging.getLogger(__name__)
 
 # Create your views here.
 
+def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
+    end_point = '/base/v1/transaction/create'
+
+    params = {
+        'from_address': from_address,
+        'to_address': to_address,
+        'amount': amount,
+        'color_id': color_id
+    }
+
+    r = requests.get(url=settings.OSS_API_URL+end_point, params=params)
+    return r.json()
+
+def send_multisig_payment_tx(raw_tx):
+    # prepare before you send
+    end_point = '/base/v1/transaction/send'
+
+    data = {'raw_tx': raw_tx}
+    r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
+    return r.json()
+
+def create_multisig_payment(request):
+    form = MultisigPaymentForm(request.POST)
+
+    if form.is_valid():
+        multisig_address = form.cleaned_data['multisig_address']
+        user_address = form.cleaned_data['user_address']
+
+        contract = Contract.objects.get(multisig_address=multisig_address)
+        oracles = contract.oracles.all()
+
+        data = {
+            'from_address': multisig_address,
+            'to_address': user_address,
+            'color_id': contract.color_id,
+            'amount': contract.amount
+        }
+        r = prepare_multisig_payment_tx(**data)
+        if 'raw_tx' not in r:
+            # Handle error
+            pass
+        raw_tx = r['raw_tx']
+
+        # multisig sign
+        for oracle in oracles:
+            data = {
+                'transaction': raw_tx,
+                'contract_id': contract.contract_id,
+                'user_address': user_address,
+                'color_id': contract.color_id,
+                'amount': contract.amount
+            }
+            r = requests.post(url=oracle.url+'sign/', data=data)
+            if 'signature' not in r.json()
+                # Handle error
+                pass
+            raw_tx = r.json()['signature']
+
+        # send
+        r = send_multisig_payment_tx(raw_tx)
+
+        if 'tx_id' not in r.json()
+            # Handle error
+            pass
+        tx_id = r.json()['tx_id']
+        response = {'tx_id': r.json()['tx_id']}
+        return JsonResponse(response, status=httplib.OK)
+
+    # handle form error
 
 class Contracts(APIView):
 
