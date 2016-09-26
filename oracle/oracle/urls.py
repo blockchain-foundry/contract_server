@@ -16,8 +16,8 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 from rest_framework.urlpatterns import format_suffix_patterns
-from app.views import *
 
+from app.views import *
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
