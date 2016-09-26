@@ -1,17 +1,25 @@
 import json
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import PIPE, STDOUT, Popen
 from threading import Thread
 
 import requests
 import sha3
 from django.http import JsonResponse
-from rest_framework.views import APIView
-from rest_framework.views import status
+from rest_framework.views import APIView, status
 
 import gcoinrpc
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
+
+from .forms import ContractFunctionListForm, ContractFunctionPOSTForm
+
+try:
+    import http.client as httplib
+except ImportError:
+    import httplib
+
+
 
 # Create your views here.
 
@@ -192,63 +200,139 @@ class Contracts(APIView):
 
 
 class ContractFunc(APIView):
+
+    HARDCODE_ADDRESS = '12MNSq9xegfVZcnfucKE5BmsDuyZ3xsdeP'
+
+    def _get_function_list(self, interface):
+
+        if not interface:
+            return []
+
+        function_list = []
+        for function in interface:
+            function_list.append({
+                'id': function['id'],
+                'name': function['name'],
+                'inputs': function['inputs']
+            })
+
+        return function_list
+
+    def _get_function_by_id(self, interface, function_id):
+        '''
+        interface is a list of dictionary contains id, name, type, inputs and outputs
+        '''
+        if not function_list:
+            return {}
+        for f in function_list:
+            if f['id'] == function_id:
+                return f
+        return {}
+
+    def _evm_input_code(self, function, value):
+
+        function_name = function['name'] + '('
+        for i in function['inputs']:
+             function_name += i['type'] + ','
+        function_name = function_name[:-1] + ')'
+        # Not sure why encode
+        function_name.encode()
+        k = sha3.keccak_256()
+        k.update(function_name)
+
+        input_code = ' --input ' + k.hexdigest()[:8]
+        for v in value:
+            input_code += '0'*(64-len(v)) + v
+
+        print('='* 20, input_code, '='*20)
+        return input_code
+
+    def get(self, request):
+        '''
+        Get a list of functions of the given contract
+        return format
+        [
+          {
+            'id': 1,
+            'name': 'function1',
+            'inputs':'[
+                 { 'name': name1, 'type': type1}, {'name': name2, 'type': type2}, ...
+            ]'
+          }, ...
+        ]
+
+        '''
+        form = ContractFunctionListForm(request.GET)
+
+        if form.is_valid():
+            try:
+                contract = Contract.objects.get(multisig_address=form.cleaned_data['multisig_address'])
+            except Contract.DoesNotExist:
+                response = {'error': 'contract not found'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
+
+            function_list = self._get_function_list(contract.interface)
+            response = {'functions': function_list}
+            return JsonResponse(response, status=httplib.OK)
+
+        response = {'error': form.errors.as_json()}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
     def post(self, request, multisig_address):
-        def FuncParam(function, func_id, val):
-            function = function[int(func_id)-1]
-            functionName = function['name'] + '('
-            inputs = function['inputs']
-            for inp in inputs:
-                try:
-                    inputtype = inp['type']
-                    functionName = functionName+inputtype+','
-                except:
-                    pass
-            functionName = functionName[:-1]+')'
-            functionName = functionName.encode()
-            k = sha3.keccak_256()
-            k.update(functionName)
-            input_param = k.hexdigest()
-            input_param = input_param[:8]
-            input_param = ' --input ' + input_param
-            for v in val :
-                input_param = input_param + '0'*(64-len(v)) + v
-            return input_param
+        '''
+        Execute the given function in the given contract with the given arguments
+        Input format:
+        {
+          'multisig_address': multisig_address,
+          'function_id': function_id,
+          'function_inputs': [
+            {
+              'name': name,
+              'value': value,
+            },
+          ]
+        }
+        '''
+        form = ContractFunctionPOSTForm(request.POST)
+        if form.is_valid():
+            multisig_address = form.cleaned_data['multisig_address']
+            function_id = form.cleaned_data['function_id']
+            function_inputs = form.cleaned_data['function_inputs']
+            try:
+                contract = Contract.objects.get(multisig_address=multisig_address)
+            except Contract.DoesNotExist:
+                response = {'error': 'contract not found'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        try:
-            contract = Contract.objects.get(multisig_address=multisig_address)
-            serializer=ContractSerializer(contract)
-        except:
-            response = {'status': 'contract not found.'}
-            return JsonResponse(response, status=status.HTTP_404_NOT_FOUND)
-        val = []
-        try:
-            func_id = json_data['function_id']
-            value = json_data['function_inputs']
-            for v in value:
-                try:
-                    val.append(v['value'])
-                except:
-                    response = {'status': 'wrong arguments.'}
-                    return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
-        except:
-            pass
+            function = self._get_function_by_id(contract.interface, function_id)
+            if not function:
+                response = {'error': 'function not found'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        try:
-            #get function
-            #keccak hash
-            function = serializer.data['interface']
-            function = eval(function)
-            input_param = FuncParam(function, func_id, val)
-            command = "../go-ethereum/build/bin/evm --read "+multisig_address+ input_param + " --dump --receiver " + multisig_address
-            subprocess.check_output(command, shell = True)
-        except:
-            response = {'status': 'wrong arguments.'}
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            value = []
+            for i in function_inputs:
+                value.append(i['value'])
 
-        response = {'status':'success'}
-        return JsonResponse(response)
+            # get balance
+            r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
+            balance = r.json()
+            value = json.dumps(balance)
+            # Execute Function
+            evm_input_code = self._evm_input_code(function, value)
+
+            # Hard code sender address for it is not actually used
+            command = ["../go-ethereum/build/bin/evm", "--read " + multisig_address, "--sender " + self.HARDCODE_ADDRESS, "--fund " + value, "--value " + value, "--input " + evm_input_code , "--dump --receiver " + multisig_address]
+            try:
+                subprocess.check_call(command)
+            except CalledProcessError:
+                response = {'error': 'internal server error'}
+                return JsonResponse(response, status=httlib.INTERNAL_SERVER_ERROR)
+
+            response = {'status': 'success'}
+            return JsonResponse(response, status=httplib.OK)
+
+        response = {'error': form.errors.as_json()}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
 class ContractList(APIView):
@@ -257,5 +341,3 @@ class ContractList(APIView):
         serializer = ContractSerializer(contracts, many=True)
         response = {'contracts':serializer.data}
         return JsonResponse(response)
-
-
