@@ -1,7 +1,6 @@
 import json
 import base58
 from binascii import hexlify
-from django.http import HttpResponse, JsonResponse
 from rest_framework import status
 from rest_framework.views import APIView
 
@@ -11,27 +10,31 @@ from subprocess import check_call
 from app.models import Proposal, Registration
 from app.serializers import ProposalSerializer, RegistrationSerializer
 
+try:
+    import http.client as httplib
+except ImportError:
+    import httplib
+
+
+
+
 
 class Proposes(APIView):
 
     def post(self, request):
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        try:
-            source_code = json_data['source_code']
-        except:
-            response = {'status':'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+        # Return public key to Contract-Server
+        data = request.POST
+        source_code = data['source_code']
 
         connection = gcoinrpc.connect_to_local()
         connection.keypoolrefill(1)
         address = connection.getnewaddress()
-        result = connection.validateaddress(address)
-        public_key = result.pubkey
-        p1 = Proposal(source_code=source_code,public_key=public_key)
-        p1.save()
+        public_key = connection.validateaddress(address)['pubkey']
+
+        p = Proposal(source_code=source_code, public_key=public_key)
+        p.save()
         response = {'public_key':public_key}
-        return HttpResponse(json.dumps(response), content_type="application/json")
+        return JsonResponse(response, status=httplib.OK)
 
 class Registrate(APIView):
     def post(self, request):
@@ -73,26 +76,36 @@ class Deploy(APIView):
         except Exception as e:
             print(e)
             response = {
-                "status":"fail"    
+                "status":"fail"
             }
         return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
 class Sign(APIView):
 
     def post(self, request):
-        connection = gcoinrpc.connect_to_local()
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        hexTx = json_data['transaction']
-        try:
-            #need to check contract result before sign Tx
-            signature = connection.signrawtransaction(hexTx)
-            # return only signature hex
-            response = {'signature': signature['hex']}
-            return HttpResponse(json.dumps(response), content_type="application/json")
-        except:
-            response = {'status':'contract not found'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+        data = request.POST
+        tx = data['transaction']
+        #need to check contract result before sign Tx
+        with open('../../go-ethereum/{contract_id}'.format(contract_id=data['contract_id']), 'r') as f:
+            content = json.load(f)
+            account = content['accounts'].get(data['address'])
+            if not account:
+                response = {'error': 'Address not found'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
+            amount = account['balance'].get(data['color_id'], 0)
+
+        except IOError:
+            # Log
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+
+        if amount < data['amount']:
+            response = {'error': 'insufficient funds'}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        signature = connection.signrawtransaction(tx)
+        # return only signature hex
+        response = {'signature': signature['hex']}
+        return JsonResponse(response, status=httplib.OK)
 
 
 class ProposalList(APIView):

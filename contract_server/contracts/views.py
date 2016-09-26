@@ -6,9 +6,11 @@ from threading import Thread
 
 import base58
 import requests
-import sha3
+import sha3  # keccak_256
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
@@ -29,6 +31,8 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
+
 
 # Create your views here.
 
@@ -53,6 +57,7 @@ def send_multisig_payment_tx(raw_tx):
     r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
     return r.json()
 
+@csrf_exempt
 def create_multisig_payment(request):
     form = MultisigPaymentForm(request.POST)
 
@@ -71,8 +76,8 @@ def create_multisig_payment(request):
         }
         r = prepare_multisig_payment_tx(**data)
         if 'raw_tx' not in r:
-            # Handle error
-            pass
+            response = {'error': 'payment error'}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
         raw_tx = r['raw_tx']
 
         # multisig sign
@@ -84,23 +89,25 @@ def create_multisig_payment(request):
                 'color_id': contract.color_id,
                 'amount': contract.amount
             }
-            r = requests.post(url=oracle.url+'sign/', data=data)
-            if 'signature' not in r.json()
-                # Handle error
-                pass
+            r = requests.post(url=oracle.url+'/sign/', data=data)
+            if 'signature' not in r.json():
+                response = {'error': 'invalid'}
+                return JsonResponse(response, status=httplib.BAD_REQUEST)
             raw_tx = r.json()['signature']
 
         # send
         r = send_multisig_payment_tx(raw_tx)
 
-        if 'tx_id' not in r.json()
-            # Handle error
-            pass
+        if 'tx_id' not in r.json():
+            response = {'error': 'sign error'}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
         tx_id = r.json()['tx_id']
-        response = {'tx_id': r.json()['tx_id']}
+        response = {'tx_id':tx_id}
         return JsonResponse(response, status=httplib.OK)
 
-    # handle form error
+    response = {'error': form.errors}
+    return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 class Contracts(APIView):
 
@@ -204,7 +211,7 @@ class Contracts(APIView):
         abi = str2[3]
         abi =json.loads(abi)
         interface = []
-        ids = 1 
+        ids = 1
         for func in abi:
             try:
                 func["id"] = ids
