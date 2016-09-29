@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.views import status
 
+import gcoinrpc
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
@@ -15,6 +16,13 @@ from oracles.serializers import *
 # Create your views here.
 
 class Contracts(APIView):
+
+    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
+    CONTRACT_FEE = 1 # 1 bitcoin
+    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    CONTRACT_TX_TYPE = 5
+    SOLIDITY_PATH = "../solidity/build/solc/solc"
+
     def get(self, request):
         body_unicode = request.body.decode('utf-8')
         json_data = json.loads(body_unicode)
@@ -33,6 +41,19 @@ class Contracts(APIView):
                     json_data['multisig_address'],
                     status=status.HTTP_404_NOT_FOUND
             )
+
+    def _select_utxo(self, address):
+
+        c = gcoinrpc.connect_to_local()
+        utxos = c.gettxoutaddress(address)
+        for i in utxos:
+            if i['value'] > self.CONTRACT_FEE + self.TX_FEE:
+                return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
+                       i['color']
+                )
+        raise ValueError(
+            'Insufficient funds in address %s to create a contract.' % address
+        )
 
     def _get_pubkey_from_oracle(self, url, source_code, pubkeys):
         '''
@@ -82,7 +103,7 @@ class Contracts(APIView):
 
     def _compile_code(self, source_code):
 
-        command = ["../solidity/build/solc/solc", "--abi", "--bin"]
+        command = [self.SOLIDITY_PATH, "--abi", "--bin"]
         p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
         r = str(p.communicate(input=bytes(source_code, "utf8"))[0], "utf8")
         r = r.strip()
@@ -97,14 +118,12 @@ class Contracts(APIView):
     def _make_contract_tx(self, txid, vout, script, address, value, color,
             multisig_addr, code):
 
-        BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
-        CONTRACT_FEE = 1 * BITCOIN # 1 bitcoin
-        TX_FEE = 1 * BITCOIN # 1 bitcoin, either 0 or 1 is okay.
-        CONTRACT_TX_TYPE = 5
+        # 1. We must ensure that value is int type,
+        #    otherwise errors will occur in make_raw_tx().
+        # 2. In raw transaction, we use satoshis as the standard unit.
+        value = int(value * self.BITCOIN)
 
-        value = value * BITCOIN
-
-        if value < TX_FEE + CONTRACT_FEE:
+        if value <= (self.TX_FEE + self.CONTRACT_FEE) * self.BITCOIN:
             raise ValueError("Insufficient funds.")
 
         inputs = [{ # txid, vout, script, multisig_addr, bytecode
@@ -116,12 +135,12 @@ class Contracts(APIView):
         outputs = [
             {
                 'address': address,
-                'value': value - CONTRACT_FEE - TX_FEE,
+                'value': value - (self.CONTRACT_FEE + self.TX_FEE) * self.BITCOIN,
                 'color': color
             },
             {
                 'address': multisig_addr,
-                'value': CONTRACT_FEE,
+                'value': self.CONTRACT_FEE * self.BITCOIN,
                 'color': color
             },
             {
@@ -130,7 +149,7 @@ class Contracts(APIView):
                 'color': 0
             }
         ]
-        tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
+        tx_hex = make_raw_tx(inputs, outputs, self.CONTRACT_TX_TYPE)
         return tx_hex
 
     def post(self, request):
@@ -140,13 +159,8 @@ class Contracts(APIView):
             body_unicode = request.body.decode('utf-8')
             json_data = json.loads(body_unicode)
             source_code = str(json_data['source_code'])
+            address = json_data['address']
             m = json_data['m']
-            txid = json_data['utxo']['txid']
-            vout = json_data['utxo']['vout']
-            script = json_data['utxo']['script']
-            address = json_data['utxo']['address']
-            value = json_data['utxo']['value']
-            color = json_data['utxo']['color']
         except:
             response = {'status': 'Bad request.'}
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
@@ -160,6 +174,7 @@ class Contracts(APIView):
             oracle_list = self._get_oracle_list(oracle_list)
             multisig_addr = self._get_multisig_addr(oracle_list, source_code, m)
             compiled_code = self._compile_code(source_code)
+            txid, vout, script, value, color = self._select_utxo(address)
             tx_hex = self._make_contract_tx(
                     txid, vout, script, address, value, color,
                     multisig_addr, compiled_code
