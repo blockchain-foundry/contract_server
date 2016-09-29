@@ -9,13 +9,18 @@ to install packages, but there is one package, gcoin-rpc, need access premission
 ### Install gcoin-rpc
 	$ git clone https://github.com/OpenNetworking/gcoin-rpc.git
 
-This requires access premission in OpenNetworking group.
+This requires access permission in OpenNetworking group.
 
 	$ cd gcoin-rpc  
 	$ which python // to list where is your python in virtualenv  
 	/home/user/PythonWorkspace/django/smart_contract/bin/python // this is example  
 	$ /home/user/PythonWorkspace/django/smart_contract/bin/python setup.py build  
 	$ /home/user/PythonWorkspace/django/smart_contract/bin/python setup.py install
+
+### Install pygcointools
+	$ git clone https://github.com/OpenNetworking/pygcointools.git
+
+This also requires the access permission in OpenNetworking group.
 
 ### Install the rest packages
 	$ pip install -r requirements.txt
