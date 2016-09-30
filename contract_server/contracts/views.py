@@ -1,21 +1,28 @@
 import json
-import subprocess
-from queue import Queue
+from subprocess import Popen, PIPE, STDOUT
 from threading import Thread
 
 import requests
-import sha3  # keccak_256
-from django.http import HttpResponse
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
-from rest_framework.views import APIView, status
+import sha3
+from django.http import JsonResponse
+from rest_framework.views import APIView
+from rest_framework.views import status
 
 import gcoinrpc
-from oracles.models import *
+from gcoin import *
+from oracles.models import Oracle
 from oracles.serializers import *
 
+# Create your views here.
 
 class Contracts(APIView):
+
+    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
+    CONTRACT_FEE = 1 # 1 bitcoin
+    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    CONTRACT_TX_TYPE = 5
+    SOLIDITY_PATH = "../solidity/build/solc/solc"
+
     def get(self, request):
         body_unicode = request.body.decode('utf-8')
         json_data = json.loads(body_unicode)
@@ -27,106 +34,162 @@ class Contracts(APIView):
             source_code = serializer.data['source_code']
             response = {'multisig_address':addrs,'source_code':source_code, 'intereface':[]}
             print(response)
-            return HttpResponse(json.dumps(response),content_type="application/json")
+            return JsonResponse(response)
         except:
             response = {'status': 'contract not found.'}
-            return HttpResponse(json.dumps(json_data['multisig_address']), status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+            return JsonResponse(
+                    json_data['multisig_address'],
+                    status=status.HTTP_404_NOT_FOUND
+            )
 
-    def post(self, request):
-        def getPublicKeys(server_queue, keys, source_code,oracle_key):
-            url = (server_queue.get())['url']
-            data = {'source_code':source_code}
-            request_key = requests.post(url + "/proposals/", data=json.dumps(data))
-            key = json.loads(request_key.text)['public_key']
-            oracle_key.append((key,url))
-            keys.append(key)
-            server_queue.task_done()
-
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        min_authority = 1
-        oracles_num = 1
-        serverlist = list(Oracle.objects.all())
-        try:
-            source_code = str(json_data['source_code'])
-            #get valid term start and end
-            try:
-                valid_start = parse_date(json_data['valid_term_start'])
-            except:
-                pass
-            try:
-                valid_end   = parse_date(json_data['valid_term_end'])
-            except:
-                pass
-
-            #compile soure code
-            # return : binary, ABI
-
-            #1. store source code to file
-            file = open('compile','w')
-            file.write(source_code)
-            file.close()
-
-            #2. compile: solc filename --abi --bin
-            command = "../solidity/solc/solc compile --abi --bin"
-            r = str(subprocess.check_output(command, shell = True), "utf8").strip()
-            str1 = r.split('Binary:')
-            str2 = str1[1].split('\n')
-            binary = str2[1]
-            abi = str2[3]
-        except:
-            response = {'status':'worng arguments.'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
-
-        try:
-            for oracle in json_data['oracles']:
-                serverlist.append(oracle)
-        except:
-            response = {'status':'oracle not found.'}
-            return HttpResponse(json.dumps(response),status=status.HTTP_404_NOT_FOUND, content_type="application/json")
-
-        serverlist.reverse() #oracle list
-        server_queue=Queue()
-        keys = []
-        source_code = json_data['source_code']
-        oracle_key=[]
-        for server in serverlist[:oracles_num]:
-            worker = Thread(target=getPublicKeys, args=(server_queue, keys, source_code,oracle_key))
-            worker.start()
-            server_queue.put(server)
-        server_queue.join()
+    def _select_utxo(self, address):
 
         c = gcoinrpc.connect_to_local()
+        utxos = c.gettxoutaddress(address)
+        for i in utxos:
+            if i['value'] > self.CONTRACT_FEE + self.TX_FEE:
+                return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
+                       i['color']
+                )
+        raise ValueError(
+            'Insufficient funds in address %s to create a contract.' % address
+        )
+
+    def _get_pubkey_from_oracle(self, url, source_code, pubkeys):
+        '''
+            get public keys from an oracle
+        '''
+
+        data = {
+            'source_code': source_code
+        }
+        r = requests.post(url + '/proposals/', data=json.dumps(data))
+        pubkey = json.loads(r.text)['public_key']
+        pubkeys.append(pubkey)
+
+    def _get_multisig_addr(self, oracle_list, source_code, m):
+        """
+            get public keys and create multisig_address
+        """
+
+        if len(oracle_list) < m:
+            raise ValueError("The m in 'm of n' is bigger than n.")
+        pubkeys = []
+        threads = []
+        for oracle in oracle_list:
+            t = Thread(target=self._get_pubkey_from_oracle,
+                    args=(oracle['url'], source_code, pubkeys)
+            )
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+        script = mk_multisig_script(pubkeys, m)
+        multisig_addr = scriptaddr(script)
+        return multisig_addr
+
+    def _get_oracle_list(self, oracle_list):
+
+        if len(oracle_list) == 0:
+            oracle_list = []
+            for i in Oracle.objects.all():
+                oracle_list.append(
+                    {
+                        'name': i.name,
+                        'url': i.url
+                    }
+                )
+        return oracle_list
+
+    def _compile_code(self, source_code):
+
+        command = [self.SOLIDITY_PATH, "--abi", "--bin"]
+        p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+        r = str(p.communicate(input=bytes(source_code, "utf8"))[0], "utf8")
+        r = r.strip()
+        if p.returncode != 0:
+            raise ValueError("Error occurs when compiling source code.")
+        str1 = r.split('Binary:')
+        str2 = str1[1].split('\n')
+        compiled_code_in_hex = str2[1]
+        abi = str2[3]
+        return compiled_code_in_hex
+
+    def _make_contract_tx(self, txid, vout, script, address, value, color,
+            multisig_addr, code):
+
+        # 1. We must ensure that value is int type,
+        #    otherwise errors will occur in make_raw_tx().
+        # 2. In raw transaction, we use satoshis as the standard unit.
+        value = int(value * self.BITCOIN)
+
+        if value <= (self.TX_FEE + self.CONTRACT_FEE) * self.BITCOIN:
+            raise ValueError("Insufficient funds.")
+
+        inputs = [{ # txid, vout, script, multisig_addr, bytecode
+            'tx_id': txid,
+            'index': vout,
+            'script': script
+        }]
+        op_return_script = mk_op_return_script(code)
+        outputs = [
+            {
+                'address': address,
+                'value': value - (self.CONTRACT_FEE + self.TX_FEE) * self.BITCOIN,
+                'color': color
+            },
+            {
+                'address': multisig_addr,
+                'value': self.CONTRACT_FEE * self.BITCOIN,
+                'color': color
+            },
+            {
+                'script': op_return_script,
+                'value': 0,
+                'color': 0
+            }
+        ]
+        tx_hex = make_raw_tx(inputs, outputs, self.CONTRACT_TX_TYPE)
+        return tx_hex
+
+    def post(self, request):
+
+        # required parameters
         try:
-            multisig = c.createmultisig(min_authority, keys)
+            body_unicode = request.body.decode('utf-8')
+            json_data = json.loads(body_unicode)
+            source_code = str(json_data['source_code'])
+            address = json_data['address']
+            m = json_data['m']
         except:
-            #createmultisig failed
-            pass
+            response = {'status': 'Bad request.'}
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+        # optional parameters
+        try:
+            oracle_list = json_data['oracles']
+        except:
+            oracle_list = []
 
-        command = "../go-ethereum/build/bin/evm --jonah --write " + multisig['address'] + " --code " + binary +" --receiver " + multisig['address']
-        subprocess.check_output(command, shell = True)
-        abi = json.loads(abi)
-        interface = []
-        ids = 1
-        for func in abi:
-            try:
-                func['id'] = ids
-                interface.append(func)
-                ids = ids + 1
-            except:
-                pass
+        try:
+            oracle_list = self._get_oracle_list(oracle_list)
+            multisig_addr = self._get_multisig_addr(oracle_list, source_code, m)
+            compiled_code = self._compile_code(source_code)
+            txid, vout, script, value, color = self._select_utxo(address)
+            tx_hex = self._make_contract_tx(
+                    txid, vout, script, address, value, color,
+                    multisig_addr, compiled_code
+            )
+        except:
+            response = {'status': 'Bad request.'}
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
-        contract = Contract(valid_term_start=valid_start, valid_term_end=valid_end, source_code=source_code,multisig_address=multisig['address'], oracles=serverlist[:oracles_num], interface=interface)
-        contract.save()
+        response = {
+            'multisig_address': multisig_addr,
+            'oracles': oracle_list,
+            'tx': tx_hex
+        }
+        return JsonResponse(response, status=status.HTTP_200_OK)
 
-        for url in oracle_key:
-            data = {'multisig_address':multisig['address'],'public_key':url[0],'redeem_script':multisig['redeemScript'], 'valid_term_start':valid_start, 'valid_term_end':valid_end}
-            print(data)
-            request_registration = requests.post(url[1] + "/registration/", data=json.dumps(data))
-
-        seri_oracle = OracleSerializer(contract.oracles, many=True)
-        response = {'multisig_address': multisig['address'], 'oracles':seri_oracle.data, 'interface':interface}
-        return HttpResponse(json.dumps(response), content_type="application/json")
 
 class ContractFunc(APIView):
     def post(self, request, multisig_address):
@@ -158,7 +221,7 @@ class ContractFunc(APIView):
             serializer=ContractSerializer(contract)
         except:
             response = {'status': 'contract not found.'}
-            return HttpResponse(json.dumps(response),status=status.HTTP_404_NOT_FOUND, content_type="application/json")
+            return JsonResponse(response, status=status.HTTP_404_NOT_FOUND)
         val = []
         try:
             func_id = json_data['function_id']
@@ -168,7 +231,7 @@ class ContractFunc(APIView):
                     val.append(v['value'])
                 except:
                     response = {'status': 'wrong arguments.'}
-                    return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+                    return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
         except:
             pass
 
@@ -182,15 +245,17 @@ class ContractFunc(APIView):
             subprocess.check_output(command, shell = True)
         except:
             response = {'status': 'wrong arguments.'}
-            return HttpResponse(json.dumps(response),status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
         response = {'status':'success'}
-        return HttpResponse(json.dumps(response), content_type="application/json")
+        return JsonResponse(response)
 
 
 class ContractList(APIView):
     def get(self, request, format=None):
-                contracts = Contract.objects.all()
-                serializer = ContractSerializer(contracts, many=True)
-                response = {'contracts':serializer.data}
-                return HttpResponse(json.dumps(response), content_type="application/json")
+        contracts = Contract.objects.all()
+        serializer = ContractSerializer(contracts, many=True)
+        response = {'contracts':serializer.data}
+        return JsonResponse(response)
+
+
