@@ -242,12 +242,13 @@ class ContractFunc(APIView):
 
         input_code = ' --input ' + k.hexdigest()[:8]
         for v in value:
+            v = str(v)
             input_code += '0'*(64-len(v)) + v
 
         print('='* 20, input_code, '='*20)
         return input_code
 
-    def get(self, request):
+    def get(self, request, multisig_address):
         '''
         Get a list of functions of the given contract
         return format
@@ -262,28 +263,21 @@ class ContractFunc(APIView):
         ]
 
         '''
-        form = ContractFunctionListForm(request.GET)
+        try:
+            contract = Contract.objects.get(multisig_address=form.cleaned_data['multisig_address'])
+        except Contract.DoesNotExist:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        if form.is_valid():
-            try:
-                contract = Contract.objects.get(multisig_address=form.cleaned_data['multisig_address'])
-            except Contract.DoesNotExist:
-                response = {'error': 'contract not found'}
-                return JsonResponse(response, status=httplib.NOT_FOUND)
-
-            function_list = self._get_function_list(contract.interface)
-            response = {'functions': function_list}
-            return JsonResponse(response, status=httplib.OK)
-
-        response = {'error': form.errors.as_json()}
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        function_list = self._get_function_list(contract.interface)
+        response = {'functions': function_list}
+        return JsonResponse(response, status=httplib.OK)
 
     def post(self, request, multisig_address):
         '''
         Execute the given function in the given contract with the given arguments
         Input format:
         {
-          'multisig_address': multisig_address,
           'function_id': function_id,
           'function_inputs': [
             {
@@ -295,7 +289,6 @@ class ContractFunc(APIView):
         '''
         form = ContractFunctionPOSTForm(request.POST)
         if form.is_valid():
-            multisig_address = form.cleaned_data['multisig_address']
             function_id = form.cleaned_data['function_id']
             function_inputs = form.cleaned_data['function_inputs']
             try:
@@ -313,25 +306,23 @@ class ContractFunc(APIView):
             for i in function_inputs:
                 value.append(i['value'])
 
-            # get balance
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
             balance = r.json()
             value = json.dumps(balance)
-            # Execute Function
             evm_input_code = self._evm_input_code(function, value)
-
             # Hard code sender address for it is not actually used
             command = ["../go-ethereum/build/bin/evm", "--read " + multisig_address, "--sender " + self.HARDCODE_ADDRESS, "--fund " + value, "--value " + value, "--input " + evm_input_code , "--dump --receiver " + multisig_address]
             try:
                 subprocess.check_call(command)
             except CalledProcessError:
+                # TODO logger
                 response = {'error': 'internal server error'}
                 return JsonResponse(response, status=httlib.INTERNAL_SERVER_ERROR)
 
             response = {'status': 'success'}
             return JsonResponse(response, status=httplib.OK)
 
-        response = {'error': form.errors.as_json()}
+        response = {'error': form.errors}
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
