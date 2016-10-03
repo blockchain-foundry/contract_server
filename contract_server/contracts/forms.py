@@ -9,7 +9,7 @@ def type_convert(data_type, value):
     elif data_type == 'int':
         return int(value)
 
-class ContractFunctionPOSTForm(forms.Form):
+class ContractFunctionPostForm(forms.Form):
     function_id = forms.IntegerField(min_value=1)
     function_inputs = forms.CharField()
 

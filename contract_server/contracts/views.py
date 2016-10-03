@@ -12,7 +12,7 @@ from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
 
-from .forms import ContractFunctionListForm, ContractFunctionPOSTForm
+from .forms import ContractFunctionPostForm
 
 try:
     import http.client as httplib
@@ -208,25 +208,31 @@ class ContractFunc(APIView):
         if not interface:
             return []
 
+        #The outermost quote must be ', otherwise json.loads will fail
+        interface = json.loads(interface.replace("'", '"'))
         function_list = []
-        for function in interface:
-            function_list.append({
-                'id': function['id'],
-                'name': function['name'],
-                'inputs': function['inputs']
-            })
+        for i in interface:
+            if i['type'] == 'function':
+                function_list.append({
+                    'id': i['id'],
+                    'name': i['name'],
+                    'inputs': i['inputs']
+                })
 
         return function_list
 
     def _get_function_by_id(self, interface, function_id):
         '''
-        interface is a list of dictionary contains id, name, type, inputs and outputs
+        interface is string of a list of dictionary containing id, name, type, inputs and outputs
         '''
-        if not function_list:
+        if not interface:
             return {}
-        for f in function_list:
-            if f['id'] == function_id:
-                return f
+
+        interface = json.loads(interface.replace("'", '"'))
+        for i in interface:
+            fid = i.get('id')
+            if fid == function_id and i['type'] == 'function':
+                return i
         return {}
 
     def _evm_input_code(self, function, value):
@@ -264,7 +270,7 @@ class ContractFunc(APIView):
 
         '''
         try:
-            contract = Contract.objects.get(multisig_address=form.cleaned_data['multisig_address'])
+            contract = Contract.objects.get(multisig_address=multisig_address)
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
@@ -287,7 +293,7 @@ class ContractFunc(APIView):
           ]
         }
         '''
-        form = ContractFunctionPOSTForm(request.POST)
+        form = ContractFunctionPostForm(request.POST)
         if form.is_valid():
             function_id = form.cleaned_data['function_id']
             function_inputs = form.cleaned_data['function_inputs']
