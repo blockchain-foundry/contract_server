@@ -48,8 +48,8 @@ class Contracts(APIView):
         c = gcoinrpc.connect_to_local()
         utxos = c.gettxoutaddress(address)
         for i in utxos:
-            if i['color'] == self.FEE_COLOR and \
-               i['value'] > self.CONTRACT_FEE + self.TX_FEE:
+            if (i['color'] == self.FEE_COLOR and
+               i['value'] > self.CONTRACT_FEE + self.TX_FEE):
                 return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
                        i['color']
                 )
