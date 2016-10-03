@@ -20,6 +20,7 @@ class Contracts(APIView):
     BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
     CONTRACT_FEE = 1 # 1 bitcoin
     TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    FEE_COLOR = 1
     CONTRACT_TX_TYPE = 5
     SOLIDITY_PATH = "../solidity/build/solc/solc"
 
@@ -47,7 +48,8 @@ class Contracts(APIView):
         c = gcoinrpc.connect_to_local()
         utxos = c.gettxoutaddress(address)
         for i in utxos:
-            if i['value'] > self.CONTRACT_FEE + self.TX_FEE:
+            if (i['color'] == self.FEE_COLOR and
+                    i['value'] > self.CONTRACT_FEE + self.TX_FEE):
                 return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
                        i['color']
                 )
