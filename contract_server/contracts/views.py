@@ -154,6 +154,14 @@ class Contracts(APIView):
         tx_hex = make_raw_tx(inputs, outputs, self.CONTRACT_TX_TYPE)
         return tx_hex
 
+    def _save_contract_oracles_mapping(self, multisig_addr, oracle_list):
+
+        c = Contract(
+                multisig_address=multisig_addr,
+                oracles=','.join([i['url'] for i in oracle_list])
+        )
+        c.save()
+
     def post(self, request):
 
         # required parameters
@@ -181,6 +189,7 @@ class Contracts(APIView):
                     txid, vout, script, address, value, color,
                     multisig_addr, compiled_code
             )
+            self._save_contract_oracles_mapping(multisig_addr, oracle_list)
         except:
             response = {'status': 'Bad request.'}
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
