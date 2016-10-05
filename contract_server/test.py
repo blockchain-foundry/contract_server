@@ -60,10 +60,13 @@ def get_related_oracles(multisig_addr_list):
 
     return Contract.objects.filter(multisig_address__in=multisig_addr_list)
 
-def notify_oracle(host, multisig_addr):
+def oracle_deploy(multisig_addr, host):
+    '''
+        @return: resulting interface
+    '''
 
     '''
-    url = host + '/notify'
+    url = host + '/deploy'
     data = {
             'multisig_addr': multisig_addr
     }
@@ -71,21 +74,53 @@ def notify_oracle(host, multisig_addr):
     return r.json()['interface']
     '''
     print(host, ': ', multisig_addr)
-    return 'interface for fake'
+    return 'MOCK_INTERFACE'
 
-def main():
+def get_contracts_interfaces(contract_oracles_mapping):
 
-    block_hash = sys.argv[1]
+    DELIMETER = ','
+    ret = []
+    for contract in contract_oracles_mapping:
+        multisig_addr = contract.multisig_address
+        oracles = contract.oracles.split(DELIMETER)
+        oracles.remove('')
+        interfaces = []
+        for oracle in oracles:
+            interface = oracle_deploy(multisig_addr, oracle)
+            interfaces.append(interface)
+        ret.append(
+            {
+                'multisig_addr': multisig_addr,
+                'interface': interfaces
+            }
+        )
+    return ret
+
+def store_interfaces(interfaces):
+
+    for i in interfaces:
+        c = Contract.objects.get(multisig_address=i['multisig_addr'])
+        # TODO: Don't know which interface to save, or should save them all?
+        c.interface = i['interface'][0]
+        c.save()
+
+
+def deploy_block_contracts(block_hash):
+
     tx_hash_list = get_tx_hash_list_from_block(block_hash)
     contract_txs = get_contract_txs(tx_hash_list)
     multisig_addr_list = [
             get_multisig_addr_from_contract_tx(tx) for tx in contract_txs
     ]
-    print(get_related_oracles(multisig_addr_list))
-    '''
-    for i in Oracle.objects.all():
-        print(i.url)
-    '''
+    contract_oracles_mapping = get_related_oracles(multisig_addr_list)
+    # get interfaces
+    contracts_interfaces = get_contracts_interfaces(contract_oracles_mapping)
+    store_interfaces(contracts_interfaces)
+
+def main():
+
+    block_hash = sys.argv[1]
+    deploy_block_contracts(block_hash)
 
 if __name__ == "__main__":
 
