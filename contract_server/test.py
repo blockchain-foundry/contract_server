@@ -4,6 +4,7 @@
 import json
 import os
 import sys
+from threading import Thread
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 import requests
@@ -60,7 +61,7 @@ def get_related_oracles(multisig_addr_list):
 
     return Contract.objects.filter(multisig_address__in=multisig_addr_list)
 
-def oracle_deploy(multisig_addr, host):
+def oracle_deploy(multisig_addr, host, interfaces):
     '''
         @return: resulting interface
     '''
@@ -74,7 +75,8 @@ def oracle_deploy(multisig_addr, host):
     return r.json()['interface']
     '''
     print(host, ': ', multisig_addr)
-    return 'MOCK_INTERFACE'
+    interface = 'MOCK_INTERFACE'
+    interfaces.append(interface)
 
 def get_contracts_interfaces(contract_oracles_mapping):
 
@@ -85,9 +87,17 @@ def get_contracts_interfaces(contract_oracles_mapping):
         oracles = contract.oracles.split(DELIMETER)
         oracles.remove('')
         interfaces = []
+        threads = []
         for oracle in oracles:
-            interface = oracle_deploy(multisig_addr, oracle)
-            interfaces.append(interface)
+            t = Thread(
+                    target=oracle_deploy,
+                    args=(multisig_addr, oracle, interfaces)
+            )
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+
         ret.append(
             {
                 'multisig_addr': multisig_addr,
