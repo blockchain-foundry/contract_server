@@ -79,7 +79,6 @@ def get_related_oracles(multisig_addr):
     oracles.remove('')
     return oracles
 
-
 def oracle_deploy(multisig_addr, bytecode, host):
 
     url = host + '/deploy/'
@@ -90,16 +89,6 @@ def oracle_deploy(multisig_addr, bytecode, host):
     r = requests.post(url, data=json.dumps(data))
 
 def deploy_contracts(contract_txs):
-    '''
-        input : [
-            {
-                'multisig_addr': '3abcde.....',
-                'bytecode': '363636....'
-                'oracles': 'oracle1,oracle2,...'
-            }
-            ...
-        ]
-    '''
 
     threads = []
     for contract in contract_txs:
