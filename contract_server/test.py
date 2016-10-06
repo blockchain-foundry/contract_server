@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from binascii import unhexlify
 import json
 import os
 import sys
@@ -29,103 +30,97 @@ def get_tx_info(tx_hash):
     result = c.getrawtransaction(tx_hash, 1) # verbose
     return result
 
-def get_contract_txs(tx_hash_list):
+def get_multisig_addr_and_bytecode(tx):
+
+    multisig_addr = None
+    bytecode = None
+    for vout in tx.vout:
+        if (vout['scriptPubKey']['type'] == 'scripthash' and
+                vout['color'] == CONTRACT_FEE_COLOR and
+                vout['value'] == CONTRACT_FEE_AMOUNT):
+            multisig_addr = vout['scriptPubKey']['addresses'][0]
+        if vout['scriptPubKey']['type'] == 'nulldata':
+            # 'OP_RETURN 3636......'
+            bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
+            bytecode = bytecode.decode('utf-8')
+    if multisig_addr is None or bytecode is None:
+        raise ValueError(
+                "Contract tx %s not valid." % tx.txid
+        )
+    return multisig_addr, bytecode
+
+def get_contracts_info(tx_hash_list):
     """
         May be slow when one block contains seas of transactions.
         Using thread doesn't help due to the fact that rpc getrawtransaction
         locks cs_main, which blocks other operations requiring cs_main lock.
     """
 
-    contract_tx_list = []
+    contract_tx_info_list = []
     for tx_hash in tx_hash_list:
         tx = get_tx_info(tx_hash)
         if tx.type == 'CONTRACT':
-            contract_tx_list.append(tx)
-    return contract_tx_list
+            multisig_addr, bytecode = get_multisig_addr_and_bytecode(tx)
+            oracles = get_related_oracles(multisig_addr)
+            contract_tx_info_list.append(
+                    {
+                        'multisig_addr': multisig_addr,
+                        'bytecode': bytecode,
+                        'oracles': oracles
+                    }
+            )
+    return contract_tx_info_list
 
-def get_multisig_addr_from_contract_tx(tx):
-
-    for vout in tx.vout:
-        if (vout['color'] == CONTRACT_FEE_COLOR and
-                vout['value'] == CONTRACT_FEE_AMOUNT and
-                vout['scriptPubKey']['type'] == 'scripthash'):
-            return vout['scriptPubKey']['addresses'][0]
-    raise ValueError(
-            "Multisig address doesn't show up in contract tx %s" % tx.txid
-    )
-
-def get_related_oracles(multisig_addr_list):
-    '''
-        @return: list of Contract objects
-    '''
-
-    return Contract.objects.filter(multisig_address__in=multisig_addr_list)
-
-def oracle_deploy(multisig_addr, host, interfaces):
-    '''
-        @return: resulting interface
-    '''
-
-    '''
-    url = host + '/deploy'
-    data = {
-            'multisig_addr': multisig_addr
-    }
-    r = requests.post(url, data=json.dumps(data))
-    return r.json()['interface']
-    '''
-    print(host, ': ', multisig_addr)
-    interface = 'MOCK_INTERFACE'
-    interfaces.append(interface)
-
-def get_contracts_interfaces(contract_oracles_mapping):
+def get_related_oracles(multisig_addr):
 
     DELIMETER = ','
-    ret = []
-    for contract in contract_oracles_mapping:
-        multisig_addr = contract.multisig_address
-        oracles = contract.oracles.split(DELIMETER)
-        oracles.remove('')
-        interfaces = []
-        threads = []
+    contract = Contract.objects.get(multisig_address=multisig_addr)
+    oracles = contract.oracles.split(DELIMETER)
+    oracles.remove('')
+    return oracles
+
+
+def oracle_deploy(multisig_addr, bytecode, host):
+
+    url = host + '/deploy/'
+    data = {
+            'multisig_addr': multisig_addr,
+            'compiled_code': bytecode
+    }
+    r = requests.post(url, data=json.dumps(data))
+
+def deploy_contracts(contract_txs):
+    '''
+        input : [
+            {
+                'multisig_addr': '3abcde.....',
+                'bytecode': '363636....'
+                'oracles': 'oracle1,oracle2,...'
+            }
+            ...
+        ]
+    '''
+
+    threads = []
+    for contract in contract_txs:
+        multisig_addr = contract['multisig_addr']
+        bytecode = contract['bytecode']
+        oracles = contract['oracles']
         for oracle in oracles:
             t = Thread(
                     target=oracle_deploy,
-                    args=(multisig_addr, oracle, interfaces)
+                    args=(multisig_addr, bytecode, oracle)
             )
             t.start()
             threads.append(t)
-        for t in threads:
-            t.join()
-
-        ret.append(
-            {
-                'multisig_addr': multisig_addr,
-                'interface': interfaces
-            }
-        )
-    return ret
-
-def store_interfaces(interfaces):
-
-    for i in interfaces:
-        c = Contract.objects.get(multisig_address=i['multisig_addr'])
-        # TODO: Don't know which interface to save, or should save them all?
-        c.interface = i['interface'][0]
-        c.save()
-
+    for t in threads:
+        t.join()
 
 def deploy_block_contracts(block_hash):
 
     tx_hash_list = get_tx_hash_list_from_block(block_hash)
-    contract_txs = get_contract_txs(tx_hash_list)
-    multisig_addr_list = [
-            get_multisig_addr_from_contract_tx(tx) for tx in contract_txs
-    ]
-    contract_oracles_mapping = get_related_oracles(multisig_addr_list)
-    # get interfaces
-    contracts_interfaces = get_contracts_interfaces(contract_oracles_mapping)
-    store_interfaces(contracts_interfaces)
+    contracts_info = get_contracts_info(tx_hash_list)
+    deploy_contracts(contracts_info)
 
 def main():
 
