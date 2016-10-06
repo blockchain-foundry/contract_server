@@ -5,6 +5,7 @@ from threading import Thread
 import requests
 import sha3
 from django.http import JsonResponse
+from django.conf import settings
 from rest_framework.views import APIView, status
 
 import gcoinrpc
@@ -237,7 +238,7 @@ class ContractFunc(APIView):
                 return i
         return {}
 
-    def _evm_input_code(self, function, value):
+    def _evm_input_code(self, function, input_value):
 
         function_name = function['name'] + '('
         for i in function['inputs']:
@@ -249,11 +250,10 @@ class ContractFunc(APIView):
         k.update(function_name)
 
         input_code = ' --input ' + k.hexdigest()[:8]
-        for v in value:
-            v = str(v)
+        for i in input_value:
+            v = str(i['value'])
             input_code += '0'*(64-len(v)) + v
 
-        print('='* 20, input_code, '='*20)
         return input_code
 
     def get(self, request, multisig_address):
@@ -290,6 +290,7 @@ class ContractFunc(APIView):
           'function_inputs': [
             {
               'name': name,
+              'type': type,
               'value': value,
             },
           ]
@@ -310,14 +311,13 @@ class ContractFunc(APIView):
                 response = {'error': 'function not found'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)
 
-            value = []
+            input_value = []
             for i in function_inputs:
-                value.append(i['value'])
+                input_value.append(i['value'])
+            evm_input_code = self._evm_input_code(function, input_value)
 
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
-            balance = r.json()
-            value = json.dumps(balance)
-            evm_input_code = self._evm_input_code(function, value)
+            value = json.dumps(r.json())
             # Hard code sender address for it is not actually used
             command = ["../go-ethereum/build/bin/evm", "--read " + multisig_address, "--sender " + self.HARDCODE_ADDRESS, "--fund " + value, "--value " + value, "--input " + evm_input_code , "--dump --receiver " + multisig_address]
             try:
