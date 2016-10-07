@@ -176,7 +176,6 @@ class Contracts(APIView):
             oracle_list = self._get_oracle_list(oracle_list)
             multisig_addr = self._get_multisig_addr(oracle_list, source_code, m)
             compiled_code = self._compile_code(source_code)
-            print(compiled_code)
             txid, vout, script, value, color = self._select_utxo(address)
             tx_hex = self._make_contract_tx(
                     txid, vout, script, address, value, color,
