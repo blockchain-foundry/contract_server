@@ -16,3 +16,16 @@ and to check the result
 		$ curl localhost:8000/oracles/
 		
 you'll get the result
+
+### Enable the monitoring script: monitor_contract_tx.py
+
+First, add blocknotify to the gcoin configuration file(~/.gcoin/gcoin.conf)
+```config
+blocknotify=/home/kevin/Smart-Contract/contract_server/monitor_contract_tx.py %s
+```
+
+Second, restart the gcoin daemon
+```bash
+$ gcoin-cli stop
+$ gcoind -daemon
+```
