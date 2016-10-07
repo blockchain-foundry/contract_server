@@ -60,8 +60,11 @@ def get_contracts_info(tx_hash_list):
     for tx_hash in tx_hash_list:
         tx = get_tx_info(tx_hash)
         if tx.type == 'CONTRACT':
-            multisig_addr, bytecode = get_multisig_addr_and_bytecode(tx)
-            oracles = get_related_oracles(multisig_addr)
+            try:
+                multisig_addr, bytecode = get_multisig_addr_and_bytecode(tx)
+                oracles = get_related_oracles(multisig_addr)
+            except:
+                continue
             contract_tx_info_list.append(
                     {
                         'multisig_addr': multisig_addr,
