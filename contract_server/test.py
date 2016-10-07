@@ -76,7 +76,13 @@ def get_related_oracles(multisig_addr):
     DELIMETER = ','
     contract = Contract.objects.get(multisig_address=multisig_addr)
     oracles = contract.oracles.split(DELIMETER)
-    oracles.remove('')
+    # contract.oracles should be in the form of
+    # 'http://localhost:8000,http://localhost:8080,...'
+    try:
+        # this deal with the case like 'http:localhost:8080,'
+        oracles.remove('')
+    except:
+        pass
     return oracles
 
 def oracle_deploy(multisig_addr, bytecode, host):
