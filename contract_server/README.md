@@ -21,6 +21,10 @@ you'll get the result
 
 First, add blocknotify to the gcoin configuration file(~/.gcoin/gcoin.conf)
 ```config
+blocknotify=SCRIPTS_ABSOLUTE_PATH %s
+```
+For example,
+```config
 blocknotify=/home/kevin/Smart-Contract/contract_server/monitor_contract_tx.py %s
 ```
 
