@@ -5,7 +5,6 @@ from django.db import models
 class Contract(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     source_code = models.TextField()
-    contract_id = models.CharField(max_length=100)
     color_id = models.PositiveIntegerField()
     amount = models.PositiveIntegerField()
     multisig_address = models.CharField(max_length=100, blank=True, default='')

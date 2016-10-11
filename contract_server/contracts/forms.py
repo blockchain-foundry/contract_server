@@ -43,4 +43,4 @@ class ContractFunctionPostForm(forms.Form):
 class MultisigPaymentForm(forms.Form):
 
     user_address = forms.CharField()
-    contract_id = forms.CharField(max_length=100)
+    multisig_address = forms.CharField(max_length=100)

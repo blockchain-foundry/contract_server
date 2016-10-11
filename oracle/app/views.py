@@ -82,13 +82,14 @@ class Deploy(APIView):
 
 class Sign(APIView):
 
+    EVM_PATH = '../go-ethereum/{multisig_address}'
     def post(self, request):
         data = request.POST
         tx = data['transaction']
         #need to check contract result before sign Tx
-        with open('../../go-ethereum/{contract_id}'.format(contract_id=data['contract_id']), 'r') as f:
+        with open(self.EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
             content = json.load(f)
-            account = content['accounts'].get(data['address'])
+            account = content['accounts'].get(data['user_address'])
             if not account:
                 response = {'error': 'Address not found'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)

@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Create your views here.
 
 def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
-    end_point = '/base/v1/transaction/create'
+    end_point = '/base/v1/transaction/prepare'
 
     params = {
         'from_address': from_address,
@@ -75,34 +75,36 @@ def create_multisig_payment(request):
             'amount': contract.amount
         }
         r = prepare_multisig_payment_tx(**data)
-        if 'raw_tx' not in r:
-            response = {'error': 'payment error'}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-        raw_tx = r['raw_tx']
 
+        raw_tx = r.get('raw_tx')
+        if raw_tx is None:
+            response = {'error': 'prepare multisig payment failed'}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+        signer_count = 0
         # multisig sign
         for oracle in oracles:
             data = {
                 'transaction': raw_tx,
-                'contract_id': contract.contract_id,
+                'multisig_address': multisig_address,
                 'user_address': user_address,
                 'color_id': contract.color_id,
                 'amount': contract.amount
             }
-            r = requests.post(url=oracle.url+'/sign/', data=data)
-            if 'signature' not in r.json():
-                response = {'error': 'invalid'}
-                return JsonResponse(response, status=httplib.BAD_REQUEST)
-            raw_tx = r.json()['signature']
+            r = requests.post(oracle.url+'/sign/', data=data)
+
+            signature = r.get('signature')
+            if signature is not None:
+                # sign success, update raw_tx
+                signer_count += 1
+                raw_tx = signature
 
         # send
         r = send_multisig_payment_tx(raw_tx)
-
-        if 'tx_id' not in r.json():
+        tx_id = r.get('tx_id')
+        if tx_id is None:
             response = {'error': 'sign error'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
-
-        tx_id = r.json()['tx_id']
         response = {'tx_id':tx_id}
         return JsonResponse(response, status=httplib.OK)
 
@@ -313,8 +315,9 @@ class Contracts(APIView):
 
 class ContractFunc(APIView):
 
-    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
+    HARDCODE_ADDRESS = '12MNSq9xegfVZcnfucKE5BmsDuyZ3xsdeP'
+    EVM_COMMAND_PATH = '../go-ethereum/build/bin/evn'
 
     def _get_function_list(self, interface):
 
