@@ -23,6 +23,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^proposals/', Proposes.as_view()),
     url(r'^registration/', Registrate.as_view()),
+    url(r'^deploy/', Deploy.as_view()),
     url(r'^sign/', Sign.as_view()),
     url(r'^proposallist/',ProposalList.as_view()),
     url(r'^registrationlist/', RegistrationList.as_view())
