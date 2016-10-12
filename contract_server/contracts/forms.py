@@ -3,7 +3,7 @@ import json
 from django import forms
 
 
-def type_convert(data_type, value):
+def type_check(data_type, value):
     if data_type == 'string':
         return str(value)
     elif data_type == 'int':
@@ -18,8 +18,7 @@ class ContractFunctionPostForm(forms.Form):
         inputs = []
         for i in function_inputs:
             try:
-                tmp = type_convert(i['type'], i['value'])
-                inputs.append(tmp)
+                type_check(i['type'], i['value'])
             except ValueError:
                 raise forms.ValidationError('Can not convert \'{value}\' to type \'{data_type}\''.format(value=i['value'], data_type=i['type']))
-        return inputs
+        return function_inputs
