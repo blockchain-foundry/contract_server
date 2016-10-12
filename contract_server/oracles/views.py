@@ -12,5 +12,5 @@ class OracleList(APIView):
     def get(self, request, format=None):
         oracles = Oracle.objects.all()
         serializer = OracleSerializer(oracles, many=True)
-        response = {'oralces':serializer.data}
+        response = {'oracles':serializer.data}
         return HttpResponse(json.dumps(response), content_type="application/json")

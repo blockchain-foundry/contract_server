@@ -111,7 +111,7 @@ class Contracts(APIView):
                 )
         return oracle_list
 
-    def _compile_code(self, source_code):
+    def _compile_code_and_interface(self, source_code):
 
         command = [self.SOLIDITY_PATH, "--abi", "--bin"]
         p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -123,8 +123,19 @@ class Contracts(APIView):
         str2 = str1[1].split('\n')
         compiled_code_in_hex = str2[1]
         abi = str2[3]
-        return compiled_code_in_hex
-
+        abi =json.loads(abi)
+        interface = []
+        ids = 1 
+        for func in abi:
+            try:
+                func["id"] = ids
+                interface.append(func)
+                ids = ids + 1
+            except:
+                pass
+        interface = json.dumps(interface)
+        return compiled_code_in_hex, interface
+    
     def _make_contract_tx(self, txid, vout, script, address, value, color,
             multisig_addr, code):
 
@@ -183,12 +194,25 @@ class Contracts(APIView):
         try:
             oracle_list = self._get_oracle_list(oracle_list)
             multisig_addr = self._get_multisig_addr(oracle_list, source_code, m)
-            compiled_code = self._compile_code(source_code)
+            compiled_code, interface = self._compile_code_and_interface(source_code)
             txid, vout, script, value, color = self._select_utxo(address)
             tx_hex = self._make_contract_tx(
                     txid, vout, script, address, value, color,
                     multisig_addr, compiled_code
             )
+
+            oracles = []
+            for i in oracle_list:
+                oracles.append(i["url"])
+            oracles = ','.join(oracles)
+
+            contract = Contract(
+                    source_code = source_code,
+                    multisig_address = multisig_addr,
+                    oracles = oracles,
+                    interface = interface
+            )
+            contract.save()
         except:
             response = {'status': 'Bad request.'}
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
