@@ -1,4 +1,3 @@
-from django.core.validators import URLValidator
 from django.db import models
 
 
@@ -9,11 +8,11 @@ class Contract(models.Model):
     amount = models.PositiveIntegerField()
     multisig_address = models.CharField(max_length=100, blank=True, default='')
     interface = models.TextField(default='')
+    oracles = models.ManyToManyField('Oracle')
     class Meta:
         ordering = ('created',)
 
 class Oracle(models.Model):
-    contract = models.ForeignKey(Contract, related_name='oracles')
     created = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100, blank=True, default='')
     url = models.URLField()
