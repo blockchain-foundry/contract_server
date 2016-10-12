@@ -36,6 +36,13 @@ logger = logging.getLogger(__name__)
 
 # Create your views here.
 
+def wallet_address_to_evm(address):
+    address = base58.b58decode(address)
+    address = hexlify(address).decode('utf-8')
+    address = '0x' + gcoin.hash160(address)
+
+    return address
+
 def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
     end_point = '/base/v1/transaction/prepare'
 
@@ -57,56 +64,76 @@ def send_multisig_payment_tx(raw_tx):
     r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
     return r.json()
 
+def create_multisig_payment(from_address, to_address, color_id, amount)
+
+    contract = Contract.objects.get(multisig_address=multisig_address)
+    oracles = contract.oracles.all()
+
+    data = {
+        'from_address': from_address,
+        'to_address': to_address,
+        'color_id': contract.color_id,
+        'amount': contract.amount
+    }
+    r = prepare_multisig_payment_tx(**data)
+
+    raw_tx = r.get('raw_tx')
+    if raw_tx is None:
+        return {'error': 'prepare multisig payment failed'}
+
+    # multisig sign
+    for oracle in oracles:
+        data = {
+            'transaction': raw_tx,
+            'multisig_address': multisig_address,
+            'user_address': user_address,
+            'color_id': color_id,
+            'amount': amount
+        }
+        r = requests.post(oracle.url+'/sign/', data=data)
+
+        signature = r.get('signature')
+        if signature is not None:
+            # sign success, update raw_tx
+            raw_tx = signature
+
+    # send
+    r = send_multisig_payment_tx(raw_tx)
+    tx_id = r.get('tx_id')
+    if tx_id is None:
+        return {'error': 'sign multisig payment failed'}
+    return {'tx_id': tx_id}
+
 @csrf_exempt
-def create_multisig_payment(request):
-    form = MultisigPaymentForm(request.POST)
+def withdraw_from_contract(request):
+    form = WithdrawForm(request.Form)
 
     if form.is_valid():
         multisig_address = form.cleaned_data['multisig_address']
         user_address = form.cleaned_data['user_address']
 
-        contract = Contract.objects.get(multisig_address=multisig_address)
-        oracles = contract.oracles.all()
+        user_evm_address = wallet_address_to_evm(user_address)
+        # read evm state
+        with open('../go-ethereum/{multisig_address}'.format(multisig_address=multisig_address)) as f:
+            content = json.load(f)
+            account = content['accounts'].get(user_evm_address)
+            if account is None:
+                response = {'error': 'user_address not found'}
+                return JsonResponse(response, status=httplib.BAD_REQUEST)
+            color_id = account['balance'].keys()[0]
+            amount = account['balance'][color]
+        except IOError:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        data = {
-            'from_address': multisig_address,
-            'to_address': user_address,
-            'color_id': contract.color_id,
-            'amount': contract.amount
-        }
-        r = prepare_multisig_payment_tx(**data)
-
-        raw_tx = r.get('raw_tx')
-        if raw_tx is None:
-            response = {'error': 'prepare multisig payment failed'}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-
-        signer_count = 0
-        # multisig sign
-        for oracle in oracles:
-            data = {
-                'transaction': raw_tx,
-                'multisig_address': multisig_address,
-                'user_address': user_address,
-                'color_id': contract.color_id,
-                'amount': contract.amount
-            }
-            r = requests.post(oracle.url+'/sign/', data=data)
-
-            signature = r.get('signature')
-            if signature is not None:
-                # sign success, update raw_tx
-                signer_count += 1
-                raw_tx = signature
-
-        # send
-        r = send_multisig_payment_tx(raw_tx)
+        # create payment
+        r = create_multisig_payment(multisig_address, user_address, color_id, amount)
         tx_id = r.get('tx_id')
         if tx_id is None:
-            response = {'error': 'sign error'}
+            response = r
             return JsonResponse(response, status=httplib.BAD_REQUEST)
-        response = {'tx_id':tx_id}
-        return JsonResponse(response, status=httplib.OK)
+        response = {'tx_id': tx_id}
+        return JsonResponse(response)
 
     response = {'error': form.errors}
     return JsonResponse(response, status=httplib.BAD_REQUEST)
@@ -317,7 +344,7 @@ class ContractFunc(APIView):
 
     CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
     HARDCODE_ADDRESS = '12MNSq9xegfVZcnfucKE5BmsDuyZ3xsdeP'
-    EVM_COMMAND_PATH = '../go-ethereum/build/bin/evn'
+    EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
     def _get_function_list(self, interface):
 
