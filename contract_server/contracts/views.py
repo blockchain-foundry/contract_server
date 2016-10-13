@@ -14,6 +14,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
+import base58
 import gcoinrpc
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import *
@@ -92,7 +93,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount)
         }
         r = requests.post(oracle.url+'/sign/', data=data)
 
-        signature = r.get('signature')
+        signature = r.json().get('signature')
         if signature is not None:
             # sign success, update raw_tx
             raw_tx = signature
