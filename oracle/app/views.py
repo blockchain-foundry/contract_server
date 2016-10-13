@@ -17,6 +17,11 @@ except ImportError:
 
 
 
+def wallet_address_to_evm(address):
+    address = base58.b58decode(address)
+    address = hexlify(address).decode('utf-8')
+    address = '0x' + gcoin.hash160(address)
+    return address
 
 
 class Proposes(APIView):
@@ -86,10 +91,11 @@ class Sign(APIView):
     def post(self, request):
         data = request.POST
         tx = data['transaction']
+        user_evm_address = wallet_address_to_evm(data['user_address'])
         #need to check contract result before sign Tx
         with open(self.EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
             content = json.load(f)
-            account = content['accounts'].get(data['user_address'])
+            account = content['accounts'].get(user_evm_address)
             if not account:
                 response = {'error': 'Address not found'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)

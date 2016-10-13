@@ -9,6 +9,7 @@ urlpatterns = [
     url(r'^contractlist/$', views.ContractList.as_view()),
     url(r'^functions/$', views.transfer_money_to_account),
     url(r'^execute/$', views.create_multisig_payment),
+    url(r'^withdraw/$', views.withdraw_from_contract),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

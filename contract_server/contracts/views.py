@@ -121,20 +121,37 @@ def withdraw_from_contract(request):
             if account is None:
                 response = {'error': 'user_address not found'}
                 return JsonResponse(response, status=httplib.BAD_REQUEST)
-            color_id = account['balance'].keys()[0]
-            amount = account['balance'][color]
+
+            colors = []
+            amounts = []
+            for key, value in account['balance'].iteritems():
+                colors.append(key)
+                amounts.append(value)
+
         except IOError:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        # create payment
-        r = create_multisig_payment(multisig_address, user_address, color_id, amount)
-        tx_id = r.get('tx_id')
-        if tx_id is None:
-            response = r
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-        response = {'tx_id': tx_id}
-        return JsonResponse(response)
+        # create payment for each color and store the results
+        # in tx list or error list
+        txs = []
+        errors = []
+        for color_id, amount in zip(colors, amounts):
+            if amount == 0:
+                errors.append({color_id: 'amount is zero'})
+                continue
+
+            r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            tx_id = r.get('tx_id')
+            if tx_id is None:
+                errors.append({color_id: r})
+                continue
+            txs.append(tx_id)
+
+        response = {'txs': txs, 'errors': errors}
+        if txs:
+            return JsonResponse(response)
+        return JsonResponse(response, status=httplib.BAD_REQEUST)
 
     response = {'error': form.errors}
     return JsonResponse(response, status=httplib.BAD_REQUEST)
@@ -344,7 +361,7 @@ class Contracts(APIView):
 class ContractFunc(APIView):
 
     CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
-    HARDCODE_ADDRESS = '12MNSq9xegfVZcnfucKE5BmsDuyZ3xsdeP'
+    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
     def _get_function_list(self, interface):
