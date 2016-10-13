@@ -1,5 +1,8 @@
 import json
-from subprocess import PIPE, STDOUT, Popen
+import base58
+from binascii import hexlify
+
+from subprocess import PIPE, STDOUT, Popen, check_call, CalledProcessError
 from threading import Thread
 
 import requests
@@ -136,7 +139,7 @@ class Contracts(APIView):
                 pass
         interface = json.dumps(interface)
         return compiled_code_in_hex, interface
-    
+
     def _make_contract_tx(self, txid, vout, script, address, value, color,
             multisig_addr, code):
 
@@ -228,8 +231,7 @@ class Contracts(APIView):
 
 class ContractFunc(APIView):
 
-    HARDCODE_ADDRESS = '12MNSq9xegfVZcnfucKE5BmsDuyZ3xsdeP'
-
+    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     def _get_function_list(self, interface):
 
         if not interface:
@@ -262,22 +264,19 @@ class ContractFunc(APIView):
                 return i
         return {}
 
-    def _evm_input_code(self, function, input_value):
-
+    def _evm_input_code(self, function, function_values):
         function_name = function['name'] + '('
         for i in function['inputs']:
              function_name += i['type'] + ','
         function_name = function_name[:-1] + ')'
         # Not sure why encode
-        function_name.encode()
+        function_name = function_name.encode()
         k = sha3.keccak_256()
         k.update(function_name)
 
         input_code = ' --input ' + k.hexdigest()[:8]
-        for i in input_value:
-            v = str(i['value'])
-            input_code += '0'*(64-len(v)) + v
-
+        for i in function_values:
+            input_code += '0'*(64-len(i)) + i
         return input_code
 
     def get(self, request, multisig_address):
@@ -300,7 +299,6 @@ class ContractFunc(APIView):
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
-
         function_list = self._get_function_list(contract.interface)
         response = {'functions': function_list}
         return JsonResponse(response, status=httplib.OK)
@@ -342,14 +340,18 @@ class ContractFunc(APIView):
 
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
             value = json.dumps(r.json())
+            value = "'" + value + "'"
             # Hard code sender address for it is not actually used
-            command = ["../go-ethereum/build/bin/evm", "--read " + multisig_address, "--sender " + self.HARDCODE_ADDRESS, "--fund " + value, "--value " + value, "--input " + evm_input_code , "--dump --receiver " + multisig_address]
+            multisig_address_hex = base58.b58decode(multisig_address)
+            multisig_address_hex = hexlify(multisig_address_hex)
+            multisig_address_hex = "0x" + hash160(multisig_address_hex)
+            command = "../go-ethereum/build/bin/evm" + " --read " + multisig_address + " --sender " + self.HARDCODE_ADDRESS + " --fund " + value + " --value " + value + evm_input_code + " --dump " + "--receiver " + multisig_address_hex
             try:
-                subprocess.check_call(command)
+                check_call(command, shell=True)
             except CalledProcessError:
                 # TODO logger
                 response = {'error': 'internal server error'}
-                return JsonResponse(response, status=httlib.INTERNAL_SERVER_ERROR)
+                return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
 
             response = {'status': 'success'}
             return JsonResponse(response, status=httplib.OK)
