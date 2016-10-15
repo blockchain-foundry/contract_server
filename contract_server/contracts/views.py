@@ -19,7 +19,10 @@ try:
 except ImportError:
     import httplib
 
+import logging
+from contract_server.decorators import handle_uncaught_exception
 
+logger = logging.getLogger(__name__)
 
 # Create your views here.
 

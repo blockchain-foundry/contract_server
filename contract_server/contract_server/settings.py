@@ -15,7 +15,6 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
@@ -123,3 +122,64 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 OSS_API_URL = 'http://oss2.diqi.us:8888'
+
+
+# loggin related settings
+LOG_DIR = BASE_DIR + '/../log/'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format' : "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt' : "%d/%b/%Y %H:%M:%S"
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': LOG_DIR + 'django.log',
+            'formatter': 'verbose'
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler'
+        }
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'propagate': True,
+            'level': 'DEBUG',
+        },
+        'django.request': {
+            'handlers': ['file'],
+            'propagate': False,
+            'level': 'DEBUG',
+        },
+        'django.db.backends': {
+            'handlers': ['file'],
+            'propagate': False,
+            'level': 'WARNING',
+        },
+        'django_crontab': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        },
+        'contracts': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        },
+        'oracles': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        },
+        'contract_server': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        }
+
+
+    }
+}
