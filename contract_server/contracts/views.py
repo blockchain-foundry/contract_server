@@ -315,13 +315,15 @@ class ContractFunc(APIView):
               'type': type,
               'value': value,
             },
-          ]
+          ],
+          'sender_address': sender_address
         }
         '''
         form = ContractFunctionPostForm(request.POST)
         if form.is_valid():
             function_id = form.cleaned_data['function_id']
             function_inputs = form.cleaned_data['function_inputs']
+            sender_address = form.cleaned_data['sender_address']
             try:
                 contract = Contract.objects.get(multisig_address=multisig_address)
             except Contract.DoesNotExist:
@@ -345,7 +347,11 @@ class ContractFunc(APIView):
             multisig_address_hex = base58.b58decode(multisig_address)
             multisig_address_hex = hexlify(multisig_address_hex)
             multisig_address_hex = "0x" + hash160(multisig_address_hex)
-            command = "../go-ethereum/build/bin/evm" + " --read " + multisig_address + " --sender " + self.HARDCODE_ADDRESS + " --fund " + value + " --value " + value + evm_input_code + " --dump " + "--receiver " + multisig_address_hex
+            sender_address_hex = base58.b58decode(sender_address)
+            sender_address_hex = hexlify(sender_address_hex)
+            sender_address_hex = "0x" + hash160(sender_address_hex)
+
+            command = "../go-ethereum/build/bin/evm" + " --fund " + value +  " --read " + multisig_address + " --sender " + sender_address_hex  + " --value " + value + evm_input_code + " --dump " + " --write " + multisig_address
             try:
                 check_call(command, shell=True)
             except CalledProcessError:
