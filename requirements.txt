@@ -2,3 +2,4 @@ Django==1.8.2
 djangorestframework==3.4.1
 requests==2.4.3
 pysha3==1.0b1
+base58==0.2.2

@@ -12,6 +12,7 @@ def type_check(data_type, value):
 class ContractFunctionPostForm(forms.Form):
     function_id = forms.IntegerField(min_value=1)
     function_inputs = forms.CharField()
+    sender_address = forms.CharField()
 
     def clean_function_inputs(self):
         function_inputs = json.loads((self.cleaned_data['function_inputs']))
