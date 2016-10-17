@@ -1,9 +1,12 @@
 import json
+import base58
+from binascii import hexlify
 from django.http import HttpResponse, JsonResponse
 from rest_framework import status
 from rest_framework.views import APIView
 
 import gcoinrpc
+from gcoin import *
 from subprocess import check_call
 from app.models import Proposal, Registration
 from app.serializers import ProposalSerializer, RegistrationSerializer
@@ -56,7 +59,10 @@ class Deploy(APIView):
         json_data = json.loads(body_unicode)
         compiled_code = str(json_data["compiled_code"])
         multisig = str(json_data["multisig_addr"])
-        command = [EVM_PATH, "--deploy", "--write", multisig, "--code", compiled_code, "--receiver", multisig]
+        multisig_hex = base58.b58decode(multisig)
+        multisig_hex = hexlify(multisig_hex)
+        multisig_hex = "0x" + hash160(multisig_hex)
+        command = [EVM_PATH, "--deploy", "--write", multisig, "--code", compiled_code, "--receiver", multisig_hex]
         response = {}
         try:
             check_call(command)
