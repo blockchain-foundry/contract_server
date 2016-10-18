@@ -270,7 +270,10 @@ class ContractFunc(APIView):
         function_name = function['name'] + '('
         for i in function['inputs']:
              function_name += i['type'] + ','
-        function_name = function_name[:-1] + ')'
+        if(len(function['inputs']) != 0):
+            function_name = function_name[:-1] + ')'
+        else:
+            function_name = function_name + ')'
         # Not sure why encode
         function_name = function_name.encode()
         k = sha3.keccak_256()
