@@ -1,14 +1,14 @@
 import json
-import base58
 from binascii import hexlify
-
-from subprocess import PIPE, STDOUT, Popen, check_call, CalledProcessError
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
 from threading import Thread
 
+import base58
 import requests
 import sha3
-from django.http import JsonResponse
 from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
 import gcoinrpc
@@ -16,8 +16,8 @@ from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
 
-from .forms import ContractFunctionPostForm
 from .config import *
+from .forms import ContractFunctionPostForm
 
 try:
     import http.client as httplib
@@ -385,7 +385,7 @@ def _general_select_utxo(address, amount, color):
     for utxo in utxos:
         if(utxo['color'] == color and
                 utxo['value'] >= TX_FEE + CONTRACT_FEE + amount):
-            return uxto
+            return utxo
     raise ValueError(
         'Insufficient funds in address %s to get utxo' % address
     )
@@ -407,12 +407,12 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
     outputs = [
         {
             'address': address,
-            'value': (value - CONTRACT_FEE - TX_FEE - amount) * BTC2SATOSHI,
+            'value': int((value - CONTRACT_FEE - TX_FEE - amount) * BTC2SATOSHI),
             'color': color
         },
         {
             'address': multisig_address,
-            'value': (amount + CONTRACT_FEE + TX_FEE) * BTC2SATOSHI,
+            'value': int((amount + CONTRACT_FEE + TX_FEE) * BTC2SATOSHI),
             'color': color
         },
         {
@@ -421,20 +421,22 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
             'color': 0
         }
     ]
-    tx_hex = make_raw_tx(inputs, output, CONTRACT_TX_TYPE)
+    tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
+    return tx_hex
 
-def _handle_payment_parameter_error(parameters):
+def _handle_payment_parameter_error(form):
     # the payment should at least takes the following inputs
     # from_address, to_address, amount, color
     inputs = ['from_address', 'to_address', 'amount', 'color']
     errors = []
     for i in inputs:
-        if not parameters.get(i):
+        if i in form.errors:
+            errors.append(form.errors[i])
+        elif not form.cleaned_data.get(i):
             errors.append({i: 'require parameter {}'.format(i)})
-        else if i in parameters.errors:
-            errors.append(parameters.errors[i])
     return {'errors': errors}
 
+@csrf_exempt
 def transfer_money_to_account(request):
     # This function will make a tx (user transfer money to multisig address)
     # of contract type and op_return=function_inputs and function_id
@@ -450,6 +452,11 @@ def transfer_money_to_account(request):
             response = _handle_payment_parameter_error(form)
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
+        from_address = form.cleaned_data['from_address']
+        to_address = form.cleaned_data['to_address']
+        amount = form.cleaned_data['amount']
+        color = form.cleaned_data['color']
+
         code = json.dumps({
             "function_inputs": form.cleaned_data['function_inputs'],
             "function_id": form.cleaned_data['function_id']
@@ -457,14 +464,12 @@ def transfer_money_to_account(request):
 
         try:
             utxo = _general_select_utxo(
-                form.cleaned_data['from_address'],
-                form.cleaned_data['amount'],
-                form.cleaned_data['color']
+                from_address, amount, color
             )
             txhex = _general_make_contract_tx(
-                utxo['txid'], utxo['vout'], utxo['scriptPubkey'],
-                utxo['value'], utxo['color'],
-                form.cleaned_data['to_address'], code
+                utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
+                from_address, utxo['value'], utxo['color'],
+                to_address, code, amount,
             )
         except ValueError:
             response = {'error': 'Insufficient funds'}
