@@ -1007,7 +1007,7 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 		else if (member == "sender")
 			m_context << Instruction::CALLER;
 		else if (member == "value")
-			m_context << Instruction::CALLVALUE;
+			; // Bytecodes are pushed at somewhere else
 		else if (member == "origin")
 			m_context << Instruction::ORIGIN;
 		else if (member == "gas")
