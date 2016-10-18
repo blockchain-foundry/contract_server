@@ -1,14 +1,14 @@
 import json
-import base58
 from binascii import hexlify
-
-from subprocess import PIPE, STDOUT, Popen, check_call, CalledProcessError
+from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
 from threading import Thread
 
+import base58
 import requests
 import sha3
-from django.http import JsonResponse
 from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
 import gcoinrpc
@@ -16,6 +16,7 @@ from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
 
+from .config import *
 from .forms import ContractFunctionPostForm
 
 try:
@@ -26,6 +27,7 @@ except ImportError:
 
 
 # Create your views here.
+
 
 class Contracts(APIView):
 
@@ -372,3 +374,108 @@ class ContractList(APIView):
         serializer = ContractSerializer(contracts, many=True)
         response = {'contracts':serializer.data}
         return JsonResponse(response)
+
+
+def _general_select_utxo(address, amount, color):
+    # select a uxto with color=`color`
+    # and value >= TX_FEE+CONTRACT_FEE+`amount`
+    # current unit: satoshi ?
+    conn = gcoinrpc.connect_to_local()
+    utxos = conn.gettxoutaddress(address)
+    for utxo in utxos:
+        if(utxo['color'] == color and
+                utxo['value'] >= TX_FEE + CONTRACT_FEE + amount):
+            return utxo
+    raise ValueError(
+        'Insufficient funds in address %s to get utxo' % address
+    )
+
+def _general_make_contract_tx(txid, vout, script, address, value, color,
+                              multisig_address, code, amount):
+    # `value` should at least greater than TX_FEE + CONTRACT_FEE
+    # `code` is a string
+    if value <= TX_FEE + CONTRACT_FEE:
+        raise ValueError(
+            'Insufficient funds in address %s to create contract' % address
+        )
+    inputs = [{
+        'tx_id': txid,
+        'index': vout,
+        'script': script
+    }]
+    op_return_script = mk_op_return_script(code)
+    outputs = [
+        {
+            'address': address,
+            'value': int((value - CONTRACT_FEE - TX_FEE - amount) * BTC2SATOSHI),
+            'color': color
+        },
+        {
+            'address': multisig_address,
+            'value': int((amount + CONTRACT_FEE + TX_FEE) * BTC2SATOSHI),
+            'color': color
+        },
+        {
+            'script': op_return_script,
+            'value': 0,
+            'color': 0
+        }
+    ]
+    tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
+    return tx_hex
+
+def _handle_payment_parameter_error(form):
+    # the payment should at least takes the following inputs
+    # from_address, to_address, amount, color
+    inputs = ['from_address', 'to_address', 'amount', 'color']
+    errors = []
+    for i in inputs:
+        if i in form.errors:
+            errors.append(form.errors[i])
+        elif not form.cleaned_data.get(i):
+            errors.append({i: 'require parameter {}'.format(i)})
+    return {'errors': errors}
+
+@csrf_exempt
+def transfer_money_to_account(request):
+    # This function will make a tx (user transfer money to multisig address)
+    # of contract type and op_return=function_inputs and function_id
+    # The oracle monitor will notice the created tx
+    # and then tunrs it to evn state
+
+    # inputs: from_address, to_address, amount, color, function_inputs, function_id
+    # `function_inputs` is a list
+
+    form = ContractFunctionPostForm(request.POST)
+    if form.is_valid():
+        if not form.is_payment:
+            response = _handle_payment_parameter_error(form)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+        from_address = form.cleaned_data['from_address']
+        to_address = form.cleaned_data['to_address']
+        amount = form.cleaned_data['amount']
+        color = form.cleaned_data['color']
+
+        code = json.dumps({
+            "function_inputs": form.cleaned_data['function_inputs'],
+            "function_id": form.cleaned_data['function_id']
+        })
+
+        try:
+            utxo = _general_select_utxo(
+                from_address, amount, color
+            )
+            txhex = _general_make_contract_tx(
+                utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
+                from_address, utxo['value'], utxo['color'],
+                to_address, code, amount,
+            )
+        except ValueError:
+            response = {'error': 'Insufficient funds'}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        response = {'raw_tx': txhex}
+        return JsonResponse(response)
+
+    response = {'errors': form.errors}
+    return JsonResponse(response, status=httplib.BAD_REQUEST)
