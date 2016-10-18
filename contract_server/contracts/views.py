@@ -14,7 +14,6 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
-import base58
 import gcoinrpc
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import *
@@ -39,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
-    address = hexlify(address).decode('utf-8')
-    address = '0x' + gcoin.hash160(address)
+    address = hexlify(address)
+    address = '0x' + hash160(address)
 
     return address
 
@@ -65,9 +64,9 @@ def send_multisig_payment_tx(raw_tx):
     r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
     return r.json()
 
-def create_multisig_payment(from_address, to_address, color_id, amount)
+def create_multisig_payment(from_address, to_address, color_id, amount):
 
-    contract = Contract.objects.get(multisig_address=multisig_address)
+    contract = Contract.objects.get(multisig_address=from_address)
     oracles = contract.oracles.all()
 
     data = {
@@ -107,7 +106,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount)
 
 @csrf_exempt
 def withdraw_from_contract(request):
-    form = WithdrawForm(request.Form)
+    form = WithdrawForm(request.POST)
 
     if form.is_valid():
         multisig_address = form.cleaned_data['multisig_address']
@@ -115,18 +114,19 @@ def withdraw_from_contract(request):
 
         user_evm_address = wallet_address_to_evm(user_address)
         # read evm state
-        with open('../go-ethereum/{multisig_address}'.format(multisig_address=multisig_address)) as f:
-            content = json.load(f)
-            account = content['accounts'].get(user_evm_address)
-            if account is None:
-                response = {'error': 'user_address not found'}
-                return JsonResponse(response, status=httplib.BAD_REQUEST)
+        try:
+            with open('../go-ethereum/{multisig_address}'.format(multisig_address=multisig_address)) as f:
+                content = json.load(f)
+                account = content['accounts'].get(user_evm_address)
+                if account is None:
+                    response = {'error': 'user_address not found'}
+                    return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-            colors = []
-            amounts = []
-            for key, value in account['balance'].iteritems():
-                colors.append(key)
-                amounts.append(value)
+                colors = []
+                amounts = []
+                for key, value in account['balance'].items():
+                    colors.append(key)
+                    amounts.append(value)
 
         except IOError:
             response = {'error': 'contract not found'}

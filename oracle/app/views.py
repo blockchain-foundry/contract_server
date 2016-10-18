@@ -1,14 +1,15 @@
 import json
-import base58
 from binascii import hexlify
+from subprocess import check_call
+
+import base58
 from rest_framework import status
 from rest_framework.views import APIView
 
 import gcoinrpc
-from gcoin import *
-from subprocess import check_call
 from app.models import Proposal, Registration
 from app.serializers import ProposalSerializer, RegistrationSerializer
+from gcoin import *
 
 try:
     import http.client as httplib
