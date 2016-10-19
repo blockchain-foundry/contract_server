@@ -12,7 +12,7 @@ def type_check(data_type, value):
 class ContractFunctionPostForm(forms.Form):
     function_id = forms.IntegerField(min_value=1)
     function_inputs = forms.CharField()
-    from_address = forms.CharField(required=False)
+    from_address = forms.CharField()
     to_address = forms.CharField(required=False)
     amount = forms.IntegerField(required=False, min_value=1)
     color = forms.IntegerField(required=False, min_value=0)

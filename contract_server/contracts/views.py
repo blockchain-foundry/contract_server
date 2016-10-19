@@ -15,7 +15,7 @@ import gcoinrpc
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
-from contract_server.utils import wallet_address_to_evm
+from contract_server.utils import wallet_address_to_evm_address
 
 from .config import *
 from .forms import ContractFunctionPostForm
@@ -327,14 +327,14 @@ class ContractFunc(APIView):
               'value': value,
             },
           ],
-          'sender_address': sender_address
+          'from_address': from_address
         }
         '''
         form = ContractFunctionPostForm(request.POST)
         if form.is_valid():
             function_id = form.cleaned_data['function_id']
             function_inputs = form.cleaned_data['function_inputs']
-            sender_address = form.cleaned_data['sender_address']
+            from_address = form.cleaned_data['from_address']
             try:
                 contract = Contract.objects.get(multisig_address=multisig_address)
             except Contract.DoesNotExist:
@@ -354,8 +354,7 @@ class ContractFunc(APIView):
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
             value = json.dumps(r.json())
             value = "'" + value + "'"
-            # Hard code sender address for it is not actually used
-            sender_address_hex = wallet_address_to_evm(sender_address)
+            sender_address_hex = wallet_address_to_evm_address(from_address)
             save_contract_path = self.CONTRACTS_PATH + multisig_address
 
             command = "../go-ethereum/build/bin/evm" + " --fund " + value\
