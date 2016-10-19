@@ -15,6 +15,7 @@ import gcoinrpc
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
+from contract_server.utils import wallet_address_to_evm
 
 from .config import *
 from .forms import ContractFunctionPostForm
@@ -237,6 +238,8 @@ class Contracts(APIView):
 class ContractFunc(APIView):
 
     HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
+    CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
+
     def _get_function_list(self, interface):
 
         if not interface:
@@ -352,14 +355,13 @@ class ContractFunc(APIView):
             value = json.dumps(r.json())
             value = "'" + value + "'"
             # Hard code sender address for it is not actually used
-            multisig_address_hex = base58.b58decode(multisig_address)
-            multisig_address_hex = hexlify(multisig_address_hex)
-            multisig_address_hex = "0x" + hash160(multisig_address_hex)
-            sender_address_hex = base58.b58decode(sender_address)
-            sender_address_hex = hexlify(sender_address_hex)
-            sender_address_hex = "0x" + hash160(sender_address_hex)
+            sender_address_hex = wallet_address_to_evm(sender_address)
+            save_contract_path = self.CONTRACTS_PATH + multisig_address
 
-            command = "../go-ethereum/build/bin/evm" + " --fund " + value +  " --read " + multisig_address + " --sender " + sender_address_hex  + " --value " + value + evm_input_code + " --dump " + " --write " + multisig_address
+            command = "../go-ethereum/build/bin/evm" + " --fund " + value\
+                       +  " --read " + save_contract_path + " --sender " + sender_address_hex\
+                       + " --value " + value + evm_input_code + " --dump "\
+                       + " --write " + save_contract_path
             try:
                 check_call(command, shell=True)
             except CalledProcessError:
