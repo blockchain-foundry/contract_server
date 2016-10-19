@@ -316,13 +316,13 @@ func run(ctx *cli.Context) error {
 	//morris' testing
 	//write states to a [filename]
 	if ctx.GlobalString(WriteFlag.Name) != "" {
-		f, err := os.OpenFile(ctx.GlobalString(WriteFlag.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 777)
+		f, err := os.OpenFile(ctx.GlobalString(WriteFlag.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			return err
 		}
-		defer f.Close()
 		statedb.Commit()
 		f.WriteString(string(statedb.Dump()))
+		f.Close()
 	}
 
 
