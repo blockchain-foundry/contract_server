@@ -1,4 +1,5 @@
 import json
+import logging
 from binascii import hexlify
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
 from threading import Thread
@@ -12,10 +13,11 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
 import gcoinrpc
+from contract_server.decorators import handle_uncaught_exception
+from contract_server.utils import *
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
-from contract_server.utils import wallet_address_to_evm_address
 
 from .config import *
 from .forms import ContractFunctionPostForm
@@ -25,8 +27,6 @@ try:
 except ImportError:
     import httplib
 
-import logging
-from contract_server.decorators import handle_uncaught_exception
 
 logger = logging.getLogger(__name__)
 
@@ -354,7 +354,7 @@ class ContractFunc(APIView):
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
             value = json.dumps(r.json())
             value = "'" + value + "'"
-            sender_address_hex = wallet_address_to_evm_address(from_address)
+            sender_address_hex = prefixed_wallet_address_to_evm_address(from_address)
             save_contract_path = self.CONTRACTS_PATH + multisig_address
 
             command = "../go-ethereum/build/bin/evm" + " --fund " + value\
