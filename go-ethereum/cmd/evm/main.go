@@ -40,7 +40,7 @@ import (
 )
 
 var (
-	
+
 	app       *cli.App
 	FundFlag = cli.StringFlag{
 		Name : "fund",
@@ -239,7 +239,7 @@ func run(ctx *cli.Context) error {
 			common.Big(ctx.GlobalString(GasFlag.Name)),
 			common.Big(ctx.GlobalString(PriceFlag.Name)),
 			common.NewBalance(common.Big(ctx.GlobalString(ValueFlag.Name)),25),
-			
+
 		)
 	} else {
 		receiver := statedb.CreateAccount(common.StringToAddress("receiver"))
@@ -255,13 +255,13 @@ func run(ctx *cli.Context) error {
 
 		}
 		//
-	
+
 
 		if ctx.GlobalString(CodeFlag.Name) != "" {
 			receiver.SetCode(common.Hex2Bytes(ctx.GlobalString(CodeFlag.Name)))
 		}
 
-		//   adding the money to the sender 
+		//   adding the money to the sender
 		if ctx.GlobalString(FundFlag.Name) != ""{
 		//	fmt.Println(string(common.BalanceToJson(common.NewBalance(common.Big("50"),60))))
 			fundbalance := common.JsonToBalance([]byte(ctx.GlobalString(FundFlag.Name)))
@@ -316,7 +316,7 @@ func run(ctx *cli.Context) error {
 	//morris' testing
 	//write states to a [filename]
 	if ctx.GlobalString(WriteFlag.Name) != "" {
-		f, err := os.OpenFile(ctx.GlobalString(WriteFlag.Name), os.O_WRONLY|os.O_CREATE, 777)
+		f, err := os.OpenFile(ctx.GlobalString(WriteFlag.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 777)
 		if err != nil {
 			return err
 		}
@@ -354,7 +354,7 @@ type VMEnv struct {
 func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg vm.Config, myTime *big.Int) *VMEnv {
 
 
-	
+
 	env := &VMEnv{
 		state:      state,
 		transactor: &transactor,
@@ -404,7 +404,7 @@ func (self *VMEnv) AddStructLog(log vm.StructLog) {
 func (self *VMEnv) StructLogs() []vm.StructLog {
 	return self.logs
 }
-func (self *VMEnv) AddLog(log *vm.Log) { 
+func (self *VMEnv) AddLog(log *vm.Log) {
 	self.state.AddLog(log)
 }
 func (self *VMEnv) CanTransfer(from common.Address, balance map[uint]*big.Int) bool {
