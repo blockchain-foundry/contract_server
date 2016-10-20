@@ -1,4 +1,5 @@
 import json
+import logging
 from binascii import hexlify
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
 from threading import Thread
@@ -12,6 +13,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
 import gcoinrpc
+from contract_server.decorators import handle_uncaught_exception
+from contract_server.utils import *
 from gcoin import *
 from oracles.models import Oracle
 from oracles.serializers import *
@@ -24,8 +27,6 @@ try:
 except ImportError:
     import httplib
 
-import logging
-from contract_server.decorators import handle_uncaught_exception
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +238,8 @@ class Contracts(APIView):
 class ContractFunc(APIView):
 
     HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
+    CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
+
     def _get_function_list(self, interface):
 
         if not interface:
@@ -324,14 +327,14 @@ class ContractFunc(APIView):
               'value': value,
             },
           ],
-          'sender_address': sender_address
+          'from_address': from_address
         }
         '''
         form = ContractFunctionPostForm(request.POST)
         if form.is_valid():
             function_id = form.cleaned_data['function_id']
             function_inputs = form.cleaned_data['function_inputs']
-            sender_address = form.cleaned_data['sender_address']
+            from_address = form.cleaned_data['from_address']
             try:
                 contract = Contract.objects.get(multisig_address=multisig_address)
             except Contract.DoesNotExist:
@@ -351,15 +354,13 @@ class ContractFunc(APIView):
             r = requests.get(settings.OSS_API_URL+'/base/v1/balance/{address}'.format(address=multisig_address))
             value = json.dumps(r.json())
             value = "'" + value + "'"
-            # Hard code sender address for it is not actually used
-            multisig_address_hex = base58.b58decode(multisig_address)
-            multisig_address_hex = hexlify(multisig_address_hex)
-            multisig_address_hex = "0x" + hash160(multisig_address_hex)
-            sender_address_hex = base58.b58decode(sender_address)
-            sender_address_hex = hexlify(sender_address_hex)
-            sender_address_hex = "0x" + hash160(sender_address_hex)
+            sender_address_hex = prefixed_wallet_address_to_evm_address(from_address)
+            save_contract_path = self.CONTRACTS_PATH + multisig_address
 
-            command = "../go-ethereum/build/bin/evm" + " --fund " + value +  " --read " + multisig_address + " --sender " + sender_address_hex  + " --value " + value + evm_input_code + " --dump " + " --write " + multisig_address
+            command = "../go-ethereum/build/bin/evm" + " --fund " + value\
+                       +  " --read " + save_contract_path + " --sender " + sender_address_hex\
+                       + " --value " + value + evm_input_code + " --dump "\
+                       + " --write " + save_contract_path
             try:
                 check_call(command, shell=True)
             except CalledProcessError:
