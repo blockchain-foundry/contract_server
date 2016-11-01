@@ -7,6 +7,7 @@ class Contract(models.Model):
     color_id = models.PositiveIntegerField()
     amount = models.PositiveIntegerField()
     multisig_address = models.CharField(max_length=100, blank=True, default='')
+    multisig_script = models.CharField(max_length=4096, blank=True, default='')
     interface = models.TextField(default='')
     oracles = models.ManyToManyField('Oracle')
     class Meta:

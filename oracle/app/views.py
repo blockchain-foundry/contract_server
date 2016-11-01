@@ -1,6 +1,7 @@
 import json
 from binascii import hexlify
 from subprocess import check_call
+from django.http import HttpResponse, JsonResponse
 
 import base58
 from rest_framework import status
@@ -20,27 +21,48 @@ except ImportError:
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
-    address = hexlify(address).decode('utf-8')
-    address = '0x' + gcoin.hash160(address)
+    address = hexlify(address)
+    address = hash160(address)
     return address
 
 
 class Proposes(APIView):
-
     def post(self, request):
         # Return public key to Contract-Server
-        data = request.POST
-        source_code = data['source_code']
-
+        body_unicode = request.body.decode('utf-8')
+        json_data = json.loads(body_unicode)
+        try:
+            source_code = json_data['source_code']
+        except:
+            response = {'status':'worng argument'}
+            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST,  content_type="application/json")
         connection = gcoinrpc.connect_to_local()
         connection.keypoolrefill(1)
         address = connection.getnewaddress()
-        public_key = connection.validateaddress(address)['pubkey']
-
-        p = Proposal(source_code=source_code, public_key=public_key)
+        public_key = connection.validateaddress(address).pubkey
+        p = Proposal(source_code=source_code, public_key=public_key, address=address)
         p.save()
         response = {'public_key':public_key}
         return JsonResponse(response, status=httplib.OK)
+
+class Multisig_addr(APIView):
+    def post(self, request):
+        body_unicode = request.body.decode('utf-8')
+        json_data = json.loads(body_unicode)
+        try:
+            pubkey = json_data['pubkey']
+            multisig_addr = json_data['multisig_addr']
+        except:
+            response = {'status':'worng argument'}
+            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+
+        p = Proposal.objects.get(public_key=pubkey)
+        p.multisig_addr = multisig_addr
+        p.save()
+        response = {
+            "status":"success"
+        }
+        return JsonResponse(response)
 
 class Registrate(APIView):
     def post(self, request):
@@ -76,7 +98,7 @@ class Deploy(APIView):
         try:
             check_call(command)
             response = {
-                "status":"success"    
+                "status":"success"
             }
             return JsonResponse(response)
         except Exception as e:
@@ -88,31 +110,35 @@ class Deploy(APIView):
 
 class Sign(APIView):
 
-    EVM_PATH = '../go-ethereum/{multisig_address}'
+    EVM_PATH = '../oracle/{multisig_address}'
     def post(self, request):
         data = request.POST
         tx = data['transaction']
+        script = data['script']
         user_evm_address = wallet_address_to_evm(data['user_address'])
         #need to check contract result before sign Tx
-        with open(self.EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
-            content = json.load(f)
-            account = content['accounts'].get(user_evm_address)
-            if not account:
-                response = {'error': 'Address not found'}
-                return JsonResponse(response, status=httplib.NOT_FOUND)
-            amount = account['balance'].get(data['color_id'], 0)
-
+        try:
+            with open(self.EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
+                content = json.load(f)
+                account = content['accounts'][user_evm_address]
+                if not account:
+                    response = {'error': 'Address not found'}
+                    return JsonResponse(response, status=httplib.NOT_FOUND)
+                amount = account['balance'][data['color_id']]
         except IOError:
             # Log
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
-
         if amount < data['amount']:
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
-        signature = connection.signrawtransaction(tx)
+        connection = gcoinrpc.connect_to_local()
+        #signature = connection.signrawtransaction(tx)
+        p = Proposal.objects.get(multisig_addr=data['multisig_address'])
+        privkeys = [connection.dumpprivkey(p.address)]
+        signature = signall_multisig(tx, script, privkeys)
         # return only signature hex
-        response = {'signature': signature['hex']}
+        response = {'signature': signature}
         return JsonResponse(response, status=httplib.OK)
 
 
