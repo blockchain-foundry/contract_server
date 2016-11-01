@@ -167,6 +167,7 @@ class Contracts(APIView):
     CONTRACT_TX_TYPE = 5
     SOLIDITY_PATH = "../solidity/build/solc/solc"
 
+    @handle_uncaught_exception
     def get(self, request):
         body_unicode = request.body.decode('utf-8')
         json_data = json.loads(body_unicode)
@@ -328,6 +329,7 @@ class Contracts(APIView):
             }
             r = requests.post(url+"/multisigaddress/", data=json.dumps(data))
 
+    @handle_uncaught_exception
     def post(self, request):
 
         # required parameters
