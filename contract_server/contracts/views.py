@@ -6,9 +6,11 @@ from threading import Thread
 
 import base58
 import requests
-import sha3
+import sha3  # keccak_256
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
@@ -20,7 +22,7 @@ from oracles.models import Oracle
 from oracles.serializers import *
 
 from .config import *
-from .forms import ContractFunctionPostForm
+from .forms import ContractFunctionPostForm, WithdrawForm
 
 try:
     import http.client as httplib
@@ -30,8 +32,132 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
+
 # Create your views here.
 
+def wallet_address_to_evm(address):
+    address = base58.b58decode(address)
+    address = hexlify(address)
+    address = hash160(address)
+
+    return address
+
+def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
+    end_point = '/base/v1/transaction/prepare'
+
+    params = {
+        'from_address': from_address,
+        'to_address': to_address,
+        'amount': amount,
+        'color_id': color_id
+    }
+
+    r = requests.get(url=settings.OSS_API_URL+end_point, params=params)
+    return r.json()
+
+def send_multisig_payment_tx(raw_tx):
+    # prepare before you send
+    end_point = '/base/v1/transaction/send'
+
+    data = {'raw_tx': raw_tx}
+    r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
+    return r.json()
+
+def create_multisig_payment(from_address, to_address, color_id, amount):
+
+    contract = Contract.objects.get(multisig_address=from_address)
+    oracles = contract.oracles.all()
+
+    data = {
+        'from_address': from_address,
+        'to_address': to_address,
+        'color_id': color_id,
+        'amount': amount
+    }
+    r = prepare_multisig_payment_tx(**data)
+
+    raw_tx = r.get('raw_tx')
+    if raw_tx is None:
+        return {'error': 'prepare multisig payment failed'}
+
+    # multisig sign
+    for oracle in oracles:
+        data = {
+            'transaction': raw_tx,
+            'multisig_address': from_address,
+            'user_address': to_address,
+            'color_id': color_id,
+            'amount': amount,
+            'script': contract.multisig_script
+        }
+        r = requests.post(oracle.url+'/sign/', data=data)
+
+        signature = r.json().get('signature')
+        if signature is not None:
+            # sign success, update raw_tx
+            raw_tx = signature
+
+    # send
+    r = send_multisig_payment_tx(raw_tx)
+    tx_id = r.get('tx_id')
+    if tx_id is None:
+        return {'error': 'sign multisig payment failed'}
+    return {'tx_id': tx_id}
+
+@csrf_exempt
+def withdraw_from_contract(request):
+    form = WithdrawForm(request.POST)
+
+    if form.is_valid():
+        multisig_address = form.cleaned_data['multisig_address']
+        user_address = form.cleaned_data['user_address']
+
+        user_evm_address = wallet_address_to_evm(user_address)
+        # read evm state
+        try:
+            with open('../oracle/{multisig_address}'.format(multisig_address=multisig_address)) as f:
+                content = json.load(f)
+                account = content['accounts'].get(user_evm_address)
+                if account is None:
+                    response = {'error': 'user_address not found'}
+                    return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+                colors = []
+                amounts = []
+                for key, value in account['balance'].items():
+                    colors.append(key)
+                    amounts.append(value)
+
+        except IOError:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        # create payment for each color and store the results
+        # in tx list or error list
+        txs = []
+        errors = []
+        for color_id, amount in zip(colors, amounts):
+            color_id = int(color_id)
+            amount = int(amount)
+            if amount == 0:
+                errors.append({color_id: 'amount is zero'})
+                continue
+
+            r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            tx_id = r.get('tx_id')
+            if tx_id is None:
+                errors.append({color_id: r})
+                continue
+            txs.append(tx_id)
+
+        response = {'txs': txs, 'errors': errors}
+        if txs:
+            return JsonResponse(response)
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+    response = {'error': form.errors}
+    return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 class Contracts(APIView):
 
@@ -75,7 +201,7 @@ class Contracts(APIView):
             'Insufficient funds in address %s to create a contract.' % address
         )
 
-    def _get_pubkey_from_oracle(self, url, source_code, pubkeys):
+    def _get_pubkey_from_oracle(self, url, source_code, url_map_pubkeys):
         '''
             get public keys from an oracle
         '''
@@ -85,7 +211,11 @@ class Contracts(APIView):
         }
         r = requests.post(url + '/proposals/', data=json.dumps(data))
         pubkey = json.loads(r.text)['public_key']
-        pubkeys.append(pubkey)
+        url_map_pubkey = {
+            "url": url,
+            "pubkey": pubkey
+        }
+        url_map_pubkeys.append(url_map_pubkey)
 
     def _get_multisig_addr(self, oracle_list, source_code, m):
         """
@@ -94,19 +224,22 @@ class Contracts(APIView):
 
         if len(oracle_list) < m:
             raise ValueError("The m in 'm of n' is bigger than n.")
+        url_map_pubkeys = []
         pubkeys = []
         threads = []
         for oracle in oracle_list:
             t = Thread(target=self._get_pubkey_from_oracle,
-                    args=(oracle['url'], source_code, pubkeys)
+                    args=(oracle['url'], source_code, url_map_pubkeys)
             )
             t.start()
             threads.append(t)
         for t in threads:
             t.join()
-        script = mk_multisig_script(pubkeys, m)
-        multisig_addr = scriptaddr(script)
-        return multisig_addr
+        for url_map_pubkey in url_map_pubkeys:
+            pubkeys.append(url_map_pubkey["pubkey"])
+        multisig_script = mk_multisig_script(pubkeys, m)
+        multisig_addr = scriptaddr(multisig_script)
+        return multisig_addr, multisig_script, url_map_pubkeys
 
     def _get_oracle_list(self, oracle_list):
 
@@ -135,7 +268,7 @@ class Contracts(APIView):
         abi = str2[3]
         abi =json.loads(abi)
         interface = []
-        ids = 1 
+        ids = 1
         for func in abi:
             try:
                 func["id"] = ids
@@ -183,6 +316,15 @@ class Contracts(APIView):
         tx_hex = make_raw_tx(inputs, outputs, self.CONTRACT_TX_TYPE)
         return tx_hex
 
+    def _save_multisig_addr(self, multisig_addr, url_map_pubkeys):
+        for url_map_pubkey in url_map_pubkeys:
+            url =  url_map_pubkey["url"]
+            data = {
+                "pubkey": url_map_pubkey["pubkey"],
+                "multisig_addr": multisig_addr
+            }
+            r = requests.post(url+"/multisigaddress/", data=json.dumps(data))
+
     def post(self, request):
 
         # required parameters
@@ -203,26 +345,29 @@ class Contracts(APIView):
 
         try:
             oracle_list = self._get_oracle_list(oracle_list)
-            multisig_addr = self._get_multisig_addr(oracle_list, source_code, m)
+            multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(oracle_list, source_code, m)
             compiled_code, interface = self._compile_code_and_interface(source_code)
             txid, vout, script, value, color = self._select_utxo(address)
             tx_hex = self._make_contract_tx(
                     txid, vout, script, address, value, color,
                     multisig_addr, compiled_code
             )
-
-            oracles = []
-            for i in oracle_list:
-                oracles.append(i["url"])
-            oracles = ','.join(oracles)
-
+            self._save_multisig_addr(multisig_addr, url_map_pubkeys)
             contract = Contract(
                     source_code = source_code,
                     multisig_address = multisig_addr,
-                    oracles = oracles,
-                    interface = interface
+                    multisig_script = multisig_script,
+                    interface = interface,
+                    color_id = 1,
+                    amount = 0
             )
             contract.save()
+            for i in oracle_list:
+                contract.oracles.add(Oracle.objects.get(url=i["url"]))
+            data = {
+                "multisig_addr" : multisig_addr,
+                "compiled_code" : compiled_code
+            }
         except:
             response = {'status': 'Bad request.'}
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
@@ -237,8 +382,9 @@ class Contracts(APIView):
 
 class ContractFunc(APIView):
 
-    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
+    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
+    EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
     def _get_function_list(self, interface):
 
@@ -355,12 +501,14 @@ class ContractFunc(APIView):
             value = json.dumps(r.json())
             value = "'" + value + "'"
             sender_address_hex = prefixed_wallet_address_to_evm_address(from_address)
+            multisig_address_hex = prefixed_wallet_address_to_evm_address(multisig_address)
             save_contract_path = self.CONTRACTS_PATH + multisig_address
 
             command = "../go-ethereum/build/bin/evm" + " --fund " + value\
                        +  " --read " + save_contract_path + " --sender " + sender_address_hex\
                        + " --value " + value + evm_input_code + " --dump "\
-                       + " --write " + save_contract_path
+                       + " --write " + save_contract_path\
+                       + " --receiver " + multisig_address_hex
             try:
                 check_call(command, shell=True)
             except CalledProcessError:

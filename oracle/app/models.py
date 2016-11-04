@@ -14,7 +14,9 @@ from django.db import models
 class Proposal(models.Model):
     source_code   = models.TextField()
     public_key    = models.CharField(max_length=100)
+    multisig_addr = models.CharField(max_length=100, blank=True)
     created       = models.DateTimeField(auto_now_add=True)
+    address       = models.CharField(max_length=100)
 
     class Meta:
         ordering = ('public_key',)
