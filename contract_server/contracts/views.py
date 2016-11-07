@@ -140,8 +140,7 @@ def withdraw_from_contract(request):
         for color_id, amount in zip(colors, amounts):
             color_id = int(color_id)
             amount = int(amount)
-            if amount == 0:
-                errors.append({color_id: 'amount is zero'})
+            if amount == 0: # it will always show color = 0 at evm
                 continue
 
             r = create_multisig_payment(multisig_address, user_address, color_id, amount)
@@ -238,7 +237,11 @@ class Contracts(APIView):
         for url_map_pubkey in url_map_pubkeys:
             pubkeys.append(url_map_pubkey["pubkey"])
         multisig_script = mk_multisig_script(pubkeys, m)
-        multisig_addr = scriptaddr(multisig_script)
+        # must do in python2
+        cmd = 'python2 scriptaddr.py ' + multisig_script
+        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        multisig_addr = stdout.decode("utf-8").strip()
         return multisig_addr, multisig_script, url_map_pubkeys
 
     def _get_oracle_list(self, oracle_list):
