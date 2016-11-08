@@ -436,6 +436,7 @@ class ContractFunc(APIView):
 
         input_code = ' --input ' + k.hexdigest()[:8]
         for i in function_values:
+            i = hex(int(i))[2:]
             input_code += '0'*(64-len(i)) + i
         return input_code
 
