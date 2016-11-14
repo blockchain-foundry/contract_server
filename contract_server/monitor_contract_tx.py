@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import django
 from binascii import unhexlify
 import json
 import os
@@ -60,6 +60,7 @@ def get_contracts_info(tx_hash_list):
     for tx_hash in tx_hash_list:
         tx = get_tx_info(tx_hash)
         if tx.type == 'CONTRACT':
+            django.setup()
             try:
                 multisig_addr, bytecode = get_multisig_addr_and_bytecode(tx)
                 oracles = get_related_oracles(multisig_addr)
@@ -78,7 +79,7 @@ def get_related_oracles(multisig_addr):
 
     DELIMETER = ','
     contract = Contract.objects.get(multisig_address=multisig_addr)
-    oracles = contract.oracles.split(DELIMETER)
+    oracles = [oracle.url for oracle in contract.oracles.all()]
     # contract.oracles should be in the form of
     # 'http://localhost:8000,http://localhost:8080,...'
     try:
