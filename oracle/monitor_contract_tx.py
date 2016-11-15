@@ -87,7 +87,7 @@ def get_contracts_info(tx):
         value[v] = str(value[v])
     return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
 
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
@@ -104,12 +104,12 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/' + multisig_addr
 
     if is_deploy:
-        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex + str(_time)
     else:
-        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'"  + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex + " --read " + contract_path
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'"  + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex + " --read " + contract_path + str(_time)
     check_call(command, shell=True)
 
-def deploy_contracts(tx_hash_list):
+def deploy_contracts(tx_hash_list, _time):
     """
         May be slow when one block contains seas of transactions.
         Using thread doesn't help due to the fact that rpc getrawtransaction
@@ -123,12 +123,15 @@ def deploy_contracts(tx_hash_list):
             sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
         except:
             continue
-        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy)
-
+        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time)
+        
 def deploy_block_contracts(block_hash):
 
     tx_hash_list = get_tx_hash_list_from_block(block_hash)
-    deploy_contracts(tx_hash_list)
+    c = gcoinrpc.connect_to_local()
+    b = c.getblock(block_hash)
+    _time = b['time']
+    deploy_contracts(tx_hash_list, _time)
 
 def main():
     block_hash = sys.argv[1]
