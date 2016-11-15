@@ -14,8 +14,8 @@ class ContractFunctionPostForm(forms.Form):
     function_inputs = forms.CharField()
     from_address = forms.CharField()
     to_address = forms.CharField(required=False)
-    amount = forms.IntegerField(required=False, min_value=1)
-    color = forms.IntegerField(required=False, min_value=0)
+    amount = forms.IntegerField( min_value=1)
+    color = forms.IntegerField(min_value=0)
 
     is_payment = False
 
