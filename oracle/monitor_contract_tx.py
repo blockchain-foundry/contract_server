@@ -94,7 +94,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
    
-    EVM_PATH = " ~/Smart-Contract/go-ethereum/build/bin/evm" 
+    EVM_PATH = "../go-ethereum/build/bin/evm" 
     multisig_hex = base58.b58decode(multisig_addr)
     multisig_hex = hexlify(multisig_hex)
     multisig_hex = "0x" + hash160(multisig_hex)
