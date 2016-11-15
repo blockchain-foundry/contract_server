@@ -7,7 +7,7 @@ urlpatterns = [
     url(r'^contracts/$', views.Contracts.as_view()),
     url(r'^contracts/(?P<multisig_address>[A-Za-z0-9]+)/', views.ContractFunc.as_view()),
     url(r'^contractlist/$', views.ContractList.as_view()),
-    url(r'^functions/$', views.transfer_money_to_account),
+   # url(r'^functions/$', views.transfer_money_to_account),
     url(r'^execute/$', views.create_multisig_payment),
     url(r'^withdraw/$', views.withdraw_from_contract),
 ]

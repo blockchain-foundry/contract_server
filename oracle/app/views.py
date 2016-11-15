@@ -6,11 +6,11 @@ from django.http import HttpResponse, JsonResponse
 import base58
 from rest_framework import status
 from rest_framework.views import APIView
-
 import gcoinrpc
 from app.models import Proposal, Registration
 from app.serializers import ProposalSerializer, RegistrationSerializer
 from gcoin import *
+
 
 try:
     import http.client as httplib
@@ -25,8 +25,13 @@ def wallet_address_to_evm(address):
     address = hash160(address)
     return address
 
-
 class Proposes(APIView):
+    """
+    Give the publicKey when invoked.
+    
+
+    """
+
     def post(self, request):
         # Return public key to Contract-Server
         body_unicode = request.body.decode('utf-8')
@@ -35,13 +40,14 @@ class Proposes(APIView):
             source_code = json_data['source_code']
         except:
             response = {'status':'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST,  content_type="application/json")
+            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
         connection = gcoinrpc.connect_to_local()
         connection.keypoolrefill(1)
         address = connection.getnewaddress()
         public_key = connection.validateaddress(address).pubkey
         p = Proposal(source_code=source_code, public_key=public_key, address=address)
         p.save()
+
         response = {'public_key':public_key}
         return JsonResponse(response, status=httplib.OK)
 
@@ -65,6 +71,7 @@ class Multisig_addr(APIView):
         return JsonResponse(response)
 
 class Registrate(APIView):
+
     def post(self, request):
         body_unicode = request.body.decode('utf-8')
         json_data = json.loads(body_unicode)
@@ -83,7 +90,10 @@ class Registrate(APIView):
         response = {'status':'success'}
         return HttpResponse(json.dumps(response), content_type="aplication/json")
 
+
+#  TODO: to be removed
 class Deploy(APIView):
+
     def post(self, request):
         EVM_PATH = "../go-ethereum/build/bin/evm" 
         body_unicode = request.body.decode('utf-8')
@@ -93,6 +103,7 @@ class Deploy(APIView):
         multisig_hex = base58.b58decode(multisig)
         multisig_hex = hexlify(multisig_hex)
         multisig_hex = "0x" + hash160(multisig_hex)
+        ## TODO:  Oracle should be careful writing the state file, cause it'll change the state of the contract, which matters when the user want their money back.
         command = [EVM_PATH, "--deploy", "--write", multisig, "--code", compiled_code, "--receiver", multisig_hex]
         response = {}
         try:
@@ -107,6 +118,7 @@ class Deploy(APIView):
                 "status":"fail"
             }
         return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+
 
 class Sign(APIView):
 
@@ -143,14 +155,21 @@ class Sign(APIView):
 
 
 class ProposalList(APIView):
+
     def get(self, request):
         proposals = Proposal.objects.all()
         serializer = ProposalSerializer(proposals, many=True)
         response = {'proposal': serializer.data}
         return HttpResponse(json.dumps(response), content_type = "application/json")
+
+
 class RegistrationList(APIView):
+
     def get(self, request):
         registrations = Registration.objects.all()
         serializer = RegistrationSerializer(registrations, many=True)
         response = {'registration': serializer.data}
         return HttpResponse(json.dumps(response), content_type = "application/json")
+
+
+
