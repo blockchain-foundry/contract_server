@@ -100,6 +100,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     multisig_hex = hexlify(multisig_hex)
     multisig_hex = "0x" + hash160(multisig_hex)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/' + multisig_addr
+
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_addr + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
     else:
