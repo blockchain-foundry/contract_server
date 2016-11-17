@@ -1,4 +1,7 @@
 # GCoin Smart Contract Server, Oracle Server Environment Setup
+
+- [Installation Guide for Contract Server, Oracle Server](https://github.com/OpenNetworking/Smart-Contract/wiki)
+
 ## Clone gcoin-rpc first
 
 	$ git clone https://github.com/OpenNetworking/gcoin-rpc.git
