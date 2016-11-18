@@ -98,12 +98,15 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     multisig_hex = base58.b58decode(multisig_addr)
     multisig_hex = hexlify(multisig_hex)
     multisig_hex = "0x" + hash160(multisig_hex)
+    sender_hex = base58.b58decode(sender_addr)
+    sender_hex = hexlify(sender_hex)
+    sender_hex = "0x" + hash160(sender_hex)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/' + multisig_addr
 
     if is_deploy:
-        command = EVM_PATH + " --sender " + sender_addr + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
     else:
-        command = EVM_PATH + " --sender " + sender_addr + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex 
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex 
     check_call(command, shell=True)
 
 def deploy_contracts(tx_hash_list):
