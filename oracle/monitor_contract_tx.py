@@ -25,6 +25,7 @@ def get_tx_info(tx_hash):
     c = gcoinrpc.connect_to_local()
     result = c.getrawtransaction(tx_hash, 1) # verbose
     return result
+
 def get_sender_addr(txid, vout):
     try:
         c = gcoinrpc.connect_to_local()
@@ -93,15 +94,19 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
-   
-    EVM_PATH = "../go-ethereum/build/bin/evm" 
+    EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../go-ethereum/build/bin/evm'
     multisig_hex = base58.b58decode(multisig_addr)
     multisig_hex = hexlify(multisig_hex)
     multisig_hex = "0x" + hash160(multisig_hex)
+    sender_hex = base58.b58decode(sender_addr)
+    sender_hex = hexlify(sender_hex)
+    sender_hex = "0x" + hash160(sender_hex)
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/' + multisig_addr
+
     if is_deploy:
-        command = EVM_PATH + " --sender " + sender_addr + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + multisig_addr + " --code " + byte_code +  " --receiver " + multisig_hex
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
     else:
-        command = EVM_PATH + " --sender " + sender_addr + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + multisig_addr + " --input " + byte_code +  " --receiver " + multisig_hex 
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex 
     check_call(command, shell=True)
 
 def deploy_contracts(tx_hash_list):
@@ -119,7 +124,7 @@ def deploy_contracts(tx_hash_list):
         except:
             continue
         deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy)
-        
+
 def deploy_block_contracts(block_hash):
 
     tx_hash_list = get_tx_hash_list_from_block(block_hash)
