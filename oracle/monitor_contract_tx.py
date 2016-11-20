@@ -106,7 +106,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy):
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex
     else:
-        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex 
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'"  + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex + " --read " + contract_path
     check_call(command, shell=True)
 
 def deploy_contracts(tx_hash_list):

@@ -107,31 +107,16 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
 
 @csrf_exempt
 def withdraw_from_contract(request):
-    form = WithdrawForm(request.POST)
+    json_data = json.loads(request.body.decode('utf8'))
 
-    if form.is_valid():
-        multisig_address = form.cleaned_data['multisig_address']
-        user_address = form.cleaned_data['user_address']
+    if json_data is not None:
+        multisig_address = json_data['multisig_address']
+        user_address = json_data['user_address']
+        colors = json_data['colors']
+        amounts = json_data['amounts']
+
 
         user_evm_address = wallet_address_to_evm(user_address)
-        # read evm state
-        try:
-            with open('../oracle/{multisig_address}'.format(multisig_address=multisig_address)) as f:
-                content = json.load(f)
-                account = content['accounts'].get(user_evm_address)
-                if account is None:
-                    response = {'error': 'user_address not found'}
-                    return JsonResponse(response, status=httplib.BAD_REQUEST)
-
-                colors = []
-                amounts = []
-                for key, value in account['balance'].items():
-                    colors.append(key)
-                    amounts.append(value)
-
-        except IOError:
-            response = {'error': 'contract not found'}
-            return JsonResponse(response, status=httplib.NOT_FOUND)
 
         # create payment for each color and store the results
         # in tx list or error list
@@ -434,7 +419,7 @@ class ContractFunc(APIView):
         k = sha3.keccak_256()
         k.update(function_name)
 
-        input_code = ' --input ' + k.hexdigest()[:8]
+        input_code = k.hexdigest()[:8]
         for i in function_values:
             i = hex(int(i))[2:]
             input_code += '0'*(64-len(i)) + i
@@ -477,19 +462,15 @@ class ContractFunc(APIView):
         `function_inputs` is a list
         '''
 
-        form = ContractFunctionPostForm(request.POST)
-        if form.is_valid():
-            if not form.is_payment:
-                response = _handle_payment_parameter_error(form)
-                return JsonResponse(response, status=httplib.BAD_REQUEST)
+        json_data = json.loads(request.body.decode('utf8'))
 
-            from_address = form.cleaned_data['from_address']
+        if json_data is not None:
+            from_address = json_data['from_address']
             to_address = multisig_address
-            amount = form.cleaned_data['amount']
-            color = form.cleaned_data['color']
-
-            function_id = form.cleaned_data['function_id']
-            function_inputs = form.cleaned_data['function_inputs']
+            amount = int(json_data['amount'])
+            color = int(json_data['color'])
+            function_id = json_data['function_id']
+            function_inputs = json_data['function_inputs']
 
             try:
                 contract = Contract.objects.get(multisig_address=multisig_address)
@@ -511,15 +492,26 @@ class ContractFunc(APIView):
             })
 
             try:
-                utxo = _general_select_utxo(
-                    from_address, amount, color
-                )
-                
-                txhex = _general_make_contract_tx(
-                    utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
-                    from_address, utxo['value'], utxo['color'],
-                    to_address, code, amount,
-                )
+                if color == 1:
+                    utxo = _general_select_utxo(from_address, amount, color)
+                    txhex = _general_make_contract_tx_with_diqi(
+                        utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
+                        from_address, utxo['value'], utxo['color'],
+                        to_address, code, amount
+                    )
+                else:
+                    diqi_utxo = _general_select_utxo(
+                        from_address, 0, 1
+                    )
+                    utxo = _nofee_select_utxo(
+                        from_address, amount, color)
+
+                    txhex = _general_make_contract_tx(
+                        utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
+                        from_address, utxo['value'], utxo['color'],
+                        to_address, code, amount,
+                        diqi_utxo['txid'], diqi_utxo['vout'], diqi_utxo['scriptPubKey'], diqi_utxo['value']
+                    )
             except ValueError:
                 response = {'error': 'Insufficient funds'}
                 return JsonResponse(response, status=httplib.BAD_REQUEST)
@@ -538,6 +530,16 @@ class ContractList(APIView):
         return JsonResponse(response)
 
 
+def _nofee_select_utxo(address, amount, color):
+    conn = gcoinrpc.connect_to_local()
+    utxos = conn.gettxoutaddress(address)
+    for utxo in utxos:
+        if utxo['color'] == color and utxo['value'] >=  amount:
+            return utxo
+    raise ValueError(
+        'Insufficient funds in address %s to get utxo' % address
+    )
+
 def _general_select_utxo(address, amount, color):
     # select a uxto with color=`color`
     # and value >= TX_FEE+CONTRACT_FEE+`amount`
@@ -553,28 +555,92 @@ def _general_select_utxo(address, amount, color):
     )
 
 def _general_make_contract_tx(txid, vout, script, address, value, color,
-                              multisig_address, code, amount):
+                              multisig_address, code, amount,
+                              diqi_txid=None, diqi_vout=None, diqi_script=None, diqi_value=None):
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
-    if value <= TX_FEE + CONTRACT_FEE:
+    if diqi_value <= TX_FEE + CONTRACT_FEE or value < amount:
         raise ValueError(
             'Insufficient funds in address %s to create contract' % address
         )
-    inputs = [{
-        'tx_id': txid,
-        'index': vout,
-        'script': script
-    }]
+
+    inputs = [
+        {
+            'tx_id': txid,
+            'index': vout,
+            'script': script
+        },
+        {
+            'tx_id': diqi_txid,
+            'index': diqi_vout,
+            'script': diqi_script
+        }
+    ]
+ 
     op_return_script = mk_op_return_script(code)
     outputs = [
         {
             'address': address,
-            'value': int((value - CONTRACT_FEE - TX_FEE - amount) * BTC2SATOSHI),
+            'value': int((diqi_value - CONTRACT_FEE - TX_FEE) * BTC2SATOSHI),
+            'color': 1
+        },
+        {
+            'address': address,
+            'value': int((value  - amount) * BTC2SATOSHI),
             'color': color
         },
         {
             'address': multisig_address,
-            'value': int((amount + CONTRACT_FEE + TX_FEE) * BTC2SATOSHI),
+            'value': int((CONTRACT_FEE) * BTC2SATOSHI),
+            'color': 1
+        },
+        {
+            'script': op_return_script,
+            'value': 0,
+            'color': 0
+        }
+    ]
+    if amount != 0:
+        outputs.append(
+            {
+                'address': multisig_address,
+                'value': int((amount) * BTC2SATOSHI),
+                'color': color
+            }
+        )
+    tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
+    return tx_hex
+
+def _general_make_contract_tx_with_diqi(txid, vout, script, address, value, color,
+                                         multisig_address, code, amount):
+    # `value` should at least greater than TX_FEE + CONTRACT_FEE
+    # `code` is a string
+    if value <= amount + TX_FEE + CONTRACT_FEE:
+        raise ValueError(
+            'Insufficient funds in address %s to create contract' % address
+        )
+    inputs = [
+        {
+            'tx_id': txid,
+            'index': vout,
+            'script': script
+        }
+    ]
+    op_return_script = mk_op_return_script(code)
+    outputs = [
+        {
+            'address': address,
+            'value': int((value - amount - CONTRACT_FEE - TX_FEE) * BTC2SATOSHI),
+            'color': color
+        },
+        {
+            'address': multisig_address,
+            'value': int((CONTRACT_FEE) * BTC2SATOSHI),
+            'color': 1
+        },
+        {
+            'address': multisig_address,
+            'value': int((amount) * BTC2SATOSHI),
             'color': color
         },
         {

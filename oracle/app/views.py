@@ -141,7 +141,7 @@ class Sign(APIView):
             # Log
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
-        if amount < data['amount']:
+        if int(amount) < int(data['amount']):
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
         connection = gcoinrpc.connect_to_local()
