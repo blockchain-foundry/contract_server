@@ -171,5 +171,21 @@ class RegistrationList(APIView):
         response = {'registration': serializer.data}
         return HttpResponse(json.dumps(response), content_type = "application/json")
 
+class GetBalance(APIView):
+
+    def get(self, request, multisig_address, address):
+        EVM_PATH = '../oracle/' + multisig_address
+        user_evm_address = wallet_address_to_evm(address)
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                account = content['accounts'][user_evm_address]
+                amount = account['balance']
+                response = amount
+                return JsonResponse(response, status=httplib.OK)
+        except:
+            response = {}
+            return JsonResponse(response, status=httplib.OK)
+
 
 
