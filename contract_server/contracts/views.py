@@ -559,7 +559,7 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
                               diqi_txid=None, diqi_vout=None, diqi_script=None, diqi_value=None):
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
-    if diqi_value <= TX_FEE + CONTRACT_FEE or value < amount:
+    if diqi_value < TX_FEE + CONTRACT_FEE or value < amount:
         raise ValueError(
             'Insufficient funds in address %s to create contract' % address
         )
@@ -615,7 +615,7 @@ def _general_make_contract_tx_with_diqi(txid, vout, script, address, value, colo
                                          multisig_address, code, amount):
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
-    if value <= amount + TX_FEE + CONTRACT_FEE:
+    if value < amount + TX_FEE + CONTRACT_FEE:
         raise ValueError(
             'Insufficient funds in address %s to create contract' % address
         )
