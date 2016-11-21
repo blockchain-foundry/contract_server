@@ -24,6 +24,9 @@ from oracles.serializers import *
 from .config import *
 from .forms import ContractFunctionPostForm, WithdrawForm
 
+from contract_server import ERROR_CODE
+from .exceptions import *
+
 try:
     import http.client as httplib
 except ImportError:
@@ -179,7 +182,7 @@ class Contracts(APIView):
                 return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
                        i['color']
                 )
-        raise ValueError(
+        raise Insufficient_utxo_error(
             'Insufficient funds in address %s to create a contract.' % address
         )
 
@@ -205,7 +208,7 @@ class Contracts(APIView):
         """
         
         if len(oracle_list) < m:
-            raise ValueError("The m in 'm of n' is bigger than n.")
+            raise Multisig_error("The m in 'm of n' is bigger than n.")
         url_map_pubkeys = []
         pubkeys = []
         threads = []
@@ -219,6 +222,8 @@ class Contracts(APIView):
             t.join()
         for url_map_pubkey in url_map_pubkeys:
             pubkeys.append(url_map_pubkey["pubkey"])
+        if len(pubkeys) != len(oracle_list):
+            raise Multisig_error('there are some oracles that did not response')
         multisig_script = mk_multisig_script(pubkeys, m)
         # must do in python2
         cmd = 'python2 scriptaddr.py ' + multisig_script
@@ -249,7 +254,7 @@ class Contracts(APIView):
         r = str(p.communicate(input=bytes(source_code, "utf8"))[0], "utf8")
         r = r.strip()
         if p.returncode != 0:
-            raise ValueError("Error occurs when compiling source code.")
+            raise Compiled_error(str(r))
         
         str1 = r.split('Binary:')
         str2 = str1[1].split('\n')
@@ -319,11 +324,20 @@ class Contracts(APIView):
             body_unicode = request.body.decode('utf-8')
             json_data = json.loads(body_unicode)
             source_code = str(json_data['source_code'])
+        except:
+            response = { 
+                'status': 'Wrong inputs.',
+                'message': 'no source code or in wrong data type'}
+            return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
+        try:    
             address = json_data['address']
             m = json_data['m']
         except:
-            response = {'status': 'Bad request.'}
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            response = {
+                'status': 'Wrong inputs.',
+                'message': 'no address or in wrong data type'
+            }
+            return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
         # optional parameters
         try:
             oracle_list = json_data['oracles']
@@ -356,6 +370,18 @@ class Contracts(APIView):
                 "multisig_addr" : multisig_addr,
                 "compiled_code" : compiled_code
             }
+        except Compiled_error as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+        except Multisig_error as e:
+            response = {
+                'code': ERROR_CODE['multisig_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
         except:
             response = {'status': 'Bad request.'}
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
@@ -463,7 +489,6 @@ class ContractFunc(APIView):
         '''
 
         json_data = json.loads(request.body.decode('utf8'))
-
         if json_data is not None:
             from_address = json_data['from_address']
             to_address = multisig_address
@@ -550,8 +575,8 @@ def _general_select_utxo(address, amount, color):
         if(utxo['color'] == color and
                 utxo['value'] >= TX_FEE + CONTRACT_FEE + amount):
             return utxo
-    raise ValueError(
-        'Insufficient funds in address %s to get utxo' % address
+    raise Insufficient_utxo_error(
+        'Insufficient funds in address %s to get utxo' % address,
     )
 
 def _general_make_contract_tx(txid, vout, script, address, value, color,
@@ -560,10 +585,10 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
     if diqi_value < TX_FEE + CONTRACT_FEE or value < amount:
-        raise ValueError(
+        raise Insufficient_utxo_error(
             'Insufficient funds in address %s to create contract' % address
         )
-
+    
     inputs = [
         {
             'tx_id': txid,
@@ -616,7 +641,7 @@ def _general_make_contract_tx_with_diqi(txid, vout, script, address, value, colo
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
     if value < amount + TX_FEE + CONTRACT_FEE:
-        raise ValueError(
+        raise Insufficient_utxo_error(
             'Insufficient funds in address %s to create contract' % address
         )
     inputs = [
@@ -663,4 +688,3 @@ def _handle_payment_parameter_error(form):
         elif not form.cleaned_data.get(i):
             errors.append({i: 'require parameter {}'.format(i)})
     return {'errors': errors}
-
