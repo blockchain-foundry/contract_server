@@ -25,7 +25,7 @@ blocknotify=SCRIPTS_ABSOLUTE_PATH %s
 ```
 For example,
 ```config
-blocknotify=/home/kevin/Smart-Contract/contract_server/monitor_contract_tx.py %s
+blocknotify=/home/kevin/Smart-Contract/oracle/monitor_contract_tx.py %s
 ```
 
 Second, restart the gcoin daemon
