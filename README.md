@@ -17,9 +17,6 @@ This also requires the access permission in OpenNetworking group.
 To install setup the environment.
 	$ ./setup_venv.sh
 
-### Install the rest packages
-	$ pip install -r requirements.txt
-
 ## Install GCoin
 Please refer to [Gcoin github](https://github.com/OpenNetworking/gcoin-community)
 
@@ -40,3 +37,12 @@ and you'll get **rpcuser**, **rpcpassword**.
 	port=12321
 
 	// save and leave
+    // every one need to have own port and rpcport
+## Install Evm
+    $ cd go-ethereum
+    $ make evm
+
+## Install Solidity
+    $ cd solidity
+    $ cmake3 .
+    $ make

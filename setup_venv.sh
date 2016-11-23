@@ -9,6 +9,7 @@
 #
 ORIGIN=$(dirname "$0")
 PATH_gcoin_rpc=$ORIGIN/gcoin-rpc
+PATH_pygcointools=$ORIGIN/pygcointools
 
 # check whether venv works
 virtualenv_module="venv"
@@ -34,5 +35,6 @@ fi
 . $ORIGIN/env/bin/activate
 
 # install required packages
+pip install -e $PATH_pygcointools
 pip install -e $PATH_gcoin_rpc
 pip install -r requirements.txt
