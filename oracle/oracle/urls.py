@@ -26,9 +26,10 @@ urlpatterns = [
     url(r'^deploy/', Deploy.as_view()),
     url(r'^sign/', Sign.as_view()),
     url(r'^multisigaddress/', Multisig_addr.as_view()),
-    url(r'^proposallist/',ProposalList.as_view()),
-    url(r'^balance/(?P<multisig_address>[a-zA-Z0-9]+)/(?P<address>[a-zA-Z0-9]+)$',GetBalance.as_view()),
-    url(r'^registrationlist/', RegistrationList.as_view())
+    url(r'^proposallist/', ProposalList.as_view()),
+    url(r'^balance/(?P<multisig_address>[a-zA-Z0-9]+)/(?P<address>[a-zA-Z0-9]+)$', GetBalance.as_view()),
+    url(r'^registrationlist/', RegistrationList.as_view()),
+    url(r'^getcontract/(?P<multisig_address>[a-zA-Z0-9]+)/', CheckContractCode.as_view())
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
