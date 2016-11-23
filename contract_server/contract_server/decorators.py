@@ -1,9 +1,15 @@
 import logging
 import traceback
 
+try:
+    import http.client as httplib
+except ImportError:
+    import httplib
+
 from django.http import HttpRequest
 from django.http import JsonResponse
 from functools import wraps
+
 
 
 logger = logging.getLogger(__name__)
@@ -23,7 +29,6 @@ def handle_uncaught_exception(view_func):
             logger.error(traceback.format_exc())
             response = {"errors": [{
                     "message": 'internal server error',
-                    "code": ERROR_CODE['internal_server_error'],
                 }]
             }
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
