@@ -115,12 +115,13 @@ def deploy_contracts(tx_hash_list, _time):
     contract_tx_info_list = []
     for tx_hash in tx_hash_list:
         tx = get_tx_info(tx_hash)
-        try:
-            sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
-        except:
-            continue
-        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time)
-        
+        if tx.type == 'CONTRACT':
+            try:
+                sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
+            except:
+                continue
+            deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time)
+
 def deploy_block_contracts(block_hash):
 
     tx_hash_list = get_tx_hash_list_from_block(block_hash)
