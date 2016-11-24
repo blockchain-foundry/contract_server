@@ -188,4 +188,18 @@ class GetBalance(APIView):
             return JsonResponse(response, status=httplib.OK)
 
 
-
+class CheckContractCode(APIView):
+    
+    def get(self, request, multisig_address):
+        EVM_PATH = '../oracle/' + multisig_address
+        contract_evm_address = wallet_address_to_evm(multisig_address)
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                account = content['accounts'][contract_evm_address]
+                code = account['code']
+                response = {'code' : code}
+                return JsonResponse(response, status=httplib.OK)
+        except:
+            response = {'status' : 'Contract code not found'}
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
