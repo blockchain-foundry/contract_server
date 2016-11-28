@@ -72,13 +72,13 @@ def get_contracts_info(tx):
                 vout['scriptPubKey']['addresses'][0] == multisig_addr):
                 if value.get(vout['color']) == None:
                     value[vout['color']] = int(vout['value'])
+                else:
                     value[vout['color']] += int(vout['value'])
                     # for color in value:
                     #value[color] = str(value[color])
     except:
         print("ERROR finding address")
-    if is_deploy:
-        value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
+    value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
     if multisig_addr is None or bytecode is None or sender_addr is None:
         raise ValueError(
                 "Contract tx %s not valid." % tx.txid
