@@ -17,6 +17,6 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 urlpatterns = [
-    url(r'^', include('oracles.urls')),
+    url(r'^oracles/', include('oracles.urls')),
     url(r'^', include('contracts.urls')),
 ]
