@@ -42,10 +42,10 @@ def ping(host, port):
 class OracleList(APIView):
     def get(self, request, format=None):
         response = {}
+        oracle_list = []
 
         oracles = Oracle.objects.all()
         # Have to ping all oracles to check if they are alive
-        index = 1;
         for oracle in oracles:
             url = oracle.url
             parsed_url = urlparse(url)
@@ -57,8 +57,8 @@ class OracleList(APIView):
                 reachable_oracles = {
                     "name": oracle.name,
                     "url": oracle.url}
-                response[index] = reachable_oracles;
-                index = index + 1
+                oracle_list.append(reachable_oracles)
+        response['oracles'] = oracle_list;
 
         return JsonResponse(response, status=httplib.OK);
 
