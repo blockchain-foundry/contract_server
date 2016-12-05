@@ -48,15 +48,11 @@ def get_contracts_info(tx):
     is_deploy = True 
 
     for vout in tx.vout:
-        if (vout['scriptPubKey']['type'] == 'scripthash' and
-            vout['color'] == CONTRACT_FEE_COLOR and
-            vout['value'] == CONTRACT_FEE_AMOUNT):
-            
-            multisig_addr = vout['scriptPubKey']['addresses'][0]
         if vout['scriptPubKey']['type'] == 'nulldata':
             # 'OP_RETURN 3636......'
             bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
             data = json.loads(bytecode.decode('utf-8'))
+            multisig_addr = data.get('multisig_addr')
             if data.get('source_code'):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
@@ -104,9 +100,9 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/' + multisig_addr
 
     if is_deploy:
-        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex + str(_time)
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --deploy " + " --write " + contract_path + " --code " + byte_code +  " --receiver " + multisig_hex + " --time " + str(_time)
     else:
-        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'"  + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex + " --read " + contract_path + str(_time)
+        command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'"  + " --write " + contract_path + " --input " + byte_code +  " --receiver " + multisig_hex + " --read " + contract_path  + " --time "  + str(_time)
     check_call(command, shell=True)
 
 def deploy_contracts(tx_hash_list, _time):

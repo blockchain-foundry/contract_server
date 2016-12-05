@@ -351,7 +351,7 @@ class Contracts(APIView):
             multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(oracle_list, source_code, m)
             compiled_code, interface = self._compile_code_and_interface(source_code)
             txid, vout, script, value, color = self._select_utxo(address)
-            code = json.dumps({'source_code': compiled_code})
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr' : multisig_addr})
             tx_hex = self._make_contract_tx(
                     txid, vout, script, address, value, color,
                     multisig_addr, code
@@ -515,7 +515,8 @@ class ContractFunc(APIView):
                 input_value.append(i['value'])
             evm_input_code = self._evm_input_code(function, input_value)
             code = json.dumps({
-                "function_inputs_hash": evm_input_code
+                "function_inputs_hash" : evm_input_code,
+                "multisig_addr" : multisig_address
             })
 
             try:
