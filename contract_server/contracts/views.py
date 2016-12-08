@@ -420,7 +420,7 @@ class ContractFunc(APIView):
 
         return function_list
 
-    def _get_function_by_id(self, interface, function_id):
+    def _get_function_by_name(self, interface, function_name):
         '''
         interface is string of a list of dictionary containing id, name, type, inputs and outputs
         '''
@@ -429,8 +429,8 @@ class ContractFunc(APIView):
 
         interface = json.loads(interface.replace("'", '"'))
         for i in interface:
-            fid = i.get('id')
-            if fid == function_id and i['type'] == 'function':
+            name = i.get('name')
+            if name == function_name and i['type'] == 'function':
                 return i
         return {}
 
@@ -496,7 +496,7 @@ class ContractFunc(APIView):
             to_address = multisig_address
             amount = int(json_data['amount'])
             color = int(json_data['color'])
-            function_id = json_data['function_id']
+            function_name = json_data['function_name']
             function_inputs = json_data['function_inputs']
 
             try:
@@ -505,7 +505,7 @@ class ContractFunc(APIView):
                 response = {'error': 'contract not found'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)
 
-            function = self._get_function_by_id(contract.interface, function_id)
+            function = self._get_function_by_name(contract.interface, function_name)
             if not function:
                 response = {'error': 'function not found'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)
