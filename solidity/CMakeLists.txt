@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.0)
-
+set(Boost_INCLUDE_DIR "/usr/local/boost_1_54_0/include")
+set(BOOST_LIBRARYDIR "/usr/local/boost_1_54_0/lib")
 set(ETH_CMAKE_DIR   "${CMAKE_CURRENT_LIST_DIR}/cmake"   CACHE PATH "The the path to the cmake directory")
 list(APPEND CMAKE_MODULE_PATH ${ETH_CMAKE_DIR})
 

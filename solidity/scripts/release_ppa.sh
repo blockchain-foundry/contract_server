@@ -52,17 +52,17 @@ mv solidity solc
 # Determine version
 cd solc
 version=`grep -oP "PROJECT_VERSION \"?\K[0-9.]+(?=\")"? CMakeLists.txt`
-commithash=`git rev-parse --short HEAD`
+commithash=`git rev-parse --short=8 HEAD`
 committimestamp=`git show --format=%ci HEAD | head -n 1`
-commitdate=`git show --format=%ci HEAD | head -n 1 | cut - -b1-10`
+commitdate=`git show --format=%ci HEAD | head -n 1 | cut - -b1-10 | sed -e 's/-0?/./' | sed -e 's/-0?/./'`
 
-# TODO store the commit hash in a file so that the build info mechanism can pick it up even without git
-
+echo "$commithash" > commit_hash.txt
 if [ $branch = develop ]
 then
-    debversion="$version-nightly-$commitdate-$commithash"
+    debversion="$version-develop-$commitdate-$commithash"
 else
     debversion="$version"
+    echo -n > prerelease.txt # proper release
 fi
 
 # gzip will create different tars all the time and we are not allowed

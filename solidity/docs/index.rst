@@ -46,6 +46,9 @@ Available Solidity Integrations
 
 * `Atom Solidity Linter <https://atom.io/packages/linter-solidity>`_
     Plugin for the Atom editor that provides Solidity linting.
+    
+* `Solium <https://github.com/duaraghav8/Solium/>`_
+    A commandline linter for Solidity which strictly follows the rules prescribed by the `Solidity Style Guide <http://solidity.readthedocs.io/en/latest/style-guide.html>`_.
 
 * `Visual Studio Code extension <http://juan.blanco.ws/solidity-contracts-in-visual-studio-code/>`_
     Solidity plugin for Microsoft Visual Studio Code that includes syntax highlighting and the Solidity compiler.
@@ -56,6 +59,9 @@ Available Solidity Integrations
 * `Vim Solidity <https://github.com/tomlion/vim-solidity/>`_
     Plugin for the Vim editor providing syntax highlighting.
 
+* `Vim Syntastic <https://github.com/scrooloose/syntastic>`_
+    Plugin for the Vim editor providing compile checking.
+
 Discontinued:
 
 * `Mix IDE <https://github.com/ethereum/mix/>`_
@@ -63,11 +69,14 @@ Discontinued:
 
 
 Solidity Tools
--------------------------------
+--------------
+
+* `Dapple <https://github.com/nexusdev/dapple>`_
+    Package and deployment manager for Solidity.
 
 * `Solidity REPL <https://github.com/raineorshine/solidity-repl>`_
     Try Solidity instantly with a command-line Solidity console.
-    
+
 * `solgraph <https://github.com/raineorshine/solgraph>`_
     Visualize Solidity control flow and highlight potential security vulnerabilities.
 
@@ -110,4 +119,5 @@ Contents
    security-considerations.rst
    style-guide.rst
    common-patterns.rst
+   contributing.rst
    frequently-asked-questions.rst

@@ -36,7 +36,7 @@ class SourceUnit;
 /**
  * Simple translator from Solidity to Why3.
  *
- * @todo detect side effects in sub-expressions and limit them to one per statement.
+ * @todo detect side effects in sub-expressions and limit them to one per statement. #1043
  * @todo `x = y = z`
  * @todo implicit and explicit type conversion
  */
@@ -60,9 +60,10 @@ private:
 	/// Appends imports and constants use throughout the formal code.
 	void appendPreface();
 
-	/// @returns a string representation of the corresponding formal type or the empty string
-	/// if the type is not supported.
+	/// @returns a string representation of the corresponding formal type or throws NoFormalType exception.
 	std::string toFormalType(Type const& _type) const;
+	using errinfo_noFormalTypeFrom = boost::error_info<struct tag_noFormalTypeFrom, std::string /* name of the type that cannot be translated */ >;
+	struct NoFormalType: virtual Exception {};
 
 	void indent() { newLine(); m_lines.back().indentation++; }
 	void unindent();
@@ -93,6 +94,7 @@ private:
 	virtual bool visit(IndexAccess const& _node) override;
 	virtual bool visit(Identifier const& _node) override;
 	virtual bool visit(Literal const& _node) override;
+	virtual bool visit(PragmaDirective const& _node) override;
 
 	virtual bool visitNode(ASTNode const& _node) override
 	{
@@ -108,7 +110,7 @@ private:
 	/// @returns a string representing an expression that is a copy of this.storage
 	std::string copyOfStorage() const;
 
-	/// Visits the givin statement and indents it unless it is a block
+	/// Visits the given statement and indents it unless it is a block
 	/// (which does its own indentation).
 	void visitIndentedUnlessBlock(Statement const& _statement);
 

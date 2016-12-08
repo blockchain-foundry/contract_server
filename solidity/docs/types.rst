@@ -57,6 +57,8 @@ Operators:
 Division always truncates (it just maps to the DIV opcode of the EVM), but it does not truncate if both
 operators are :ref:`literals<rational_literals>` (or literal expressions).
 
+Division by zero and modulus with zero throws an exception.
+
 .. index:: address, balance, send, call, callcode, delegatecall
 
 .. _address:
@@ -104,7 +106,7 @@ the function ``call`` is provided which takes an arbitrary number of arguments o
 
     address nameReg = 0x72ba7d8e73fe8eb666ea66babc8116a41bfb10e2;
     nameReg.call("register", "MyName");
-    nameReg.call(bytes4(sha3("fun(uint256)")), a);
+    nameReg.call(bytes4(keccak256("fun(uint256)")), a);
 
 ``call`` returns a boolean indicating whether the invoked function terminated (``true``) or caused an EVM exception (``false``). It is not possible to access the actual data returned (for this we would need to know the encoding and size in advance).
 
@@ -147,10 +149,10 @@ Dynamically-sized byte array
 ``bytes``:
     Dynamically-sized byte array, see :ref:`arrays`. Not a value-type!
 ``string``:
-    Dynamically-sized UTF8-encoded string, see :ref:`arrays`. Not a value-type!
+    Dynamically-sized UTF-8-encoded string, see :ref:`arrays`. Not a value-type!
 
 As a rule of thumb, use ``bytes`` for arbitrary-length raw byte data and ``string``
-for arbitrary-length string (utf-8) data. If you can limit the length to a certain
+for arbitrary-length string (UTF-8) data. If you can limit the length to a certain
 number of bytes, always use one of ``bytes1`` to ``bytes32`` because they are much cheaper.
 
 .. index:: ! ufixed, ! fixed, ! fixed point number
@@ -184,7 +186,7 @@ the type ``ufixed0x256`` because ``1/3`` is not finitely representable in binary
 approximated.
 
 Any operator that can be applied to integers can also be applied to literal expressions as
-long as the operators are integers. If any of the two is fractional, bit operations are disallowed
+long as the operands are integers. If any of the two is fractional, bit operations are disallowed
 and exponentiation is disallowed if the exponent is fractional (because that might result in
 a non-rational number).
 
@@ -214,9 +216,18 @@ a non-rational number).
 String Literals
 ---------------
 
-String Literals are written with double quotes (``"abc"``). As with integer literals, their type can vary, but they are implicitly convertible to ``bytes1``, ..., ``bytes32`` if they fit, to ``bytes`` and to ``string``.
+String literals are written with either double or single-quotes (``"foo"`` or ``'bar'``). As with integer literals, their type can vary, but they are implicitly convertible to ``bytes1``, ..., ``bytes32``, if they fit, to ``bytes`` and to ``string``.
 
-String Literals support escape characters, such as ``\n``, ``\xNN`` and ``\uNNNN``. ``\xNN`` takes a hex value and inserts the appropriate byte, while ``\uNNNN`` takes a Unicode codepoint and inserts an UTF8 sequence.
+String literals support escape characters, such as ``\n``, ``\xNN`` and ``\uNNNN``. ``\xNN`` takes a hex value and inserts the appropriate byte, while ``\uNNNN`` takes a Unicode codepoint and inserts an UTF-8 sequence.
+
+.. index:: literal, bytes
+
+Hexadecimal Literals
+--------------------
+
+Hexademical Literals are prefixed with the keyword ``hex`` and are enclosed in double or single-quotes (``hex"001122FF"``). Their content must be a hexadecimal string and their value will be the binary representation of those values.
+
+Hexademical Literals behave like String Literals and have the same convertibility restrictions.
 
 .. index:: enum
 
@@ -229,6 +240,8 @@ Enums are one way to create a user-defined type in Solidity. They are explicitly
 to and from all integer types but implicit conversion is not allowed.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract test {
         enum ActionChoices { GoLeft, GoRight, GoStraight, SitStill }
@@ -288,6 +301,8 @@ On the other hand, assignments from a memory stored reference type to another
 memory-stored reference type does not create a copy.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract C {
         uint[] x; // the data location of x is storage
@@ -353,7 +368,7 @@ So ``bytes`` should always be preferred over ``byte[]`` because it is cheaper.
 .. note::
     If you want to access the byte-representation of a string ``s``, use
     ``bytes(s).length`` / ``bytes(s)[7] = 'x';``. Keep in mind
-    that you are accessing the low-level bytes of the utf-8 representation,
+    that you are accessing the low-level bytes of the UTF-8 representation,
     and not the individual characters!
 
 .. index:: ! array;allocating, new
@@ -366,6 +381,8 @@ As opposed to storage arrays, it is **not** possible to resize memory arrays by 
 the ``.length`` member.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract C {
         function f(uint len) {
@@ -386,6 +403,8 @@ assigned to a variable right away.
 
 ::
 
+    pragma solidity ^0.4.0;
+
     contract C {
         function f() {
             g([uint(1), 2, 3]);
@@ -404,6 +423,8 @@ be assigned to dynamically-sized memory arrays, i.e. the following is not
 possible:
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract C {
         function f() {
@@ -440,6 +461,8 @@ Members
 
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract ArrayContract {
         uint[2**20] m_aLotOfIntegers;
@@ -510,6 +533,8 @@ shown in the following example:
 
 ::
 
+    pragma solidity ^0.4.0;
+
     contract CrowdFunding {
         // Defines a new type with two fields.
         struct Funder {
@@ -534,7 +559,7 @@ shown in the following example:
             campaigns[campaignID] = Campaign(beneficiary, goal, 0, 0);
         }
 
-        function contribute(uint campaignID) {
+        function contribute(uint campaignID) payable {
             Campaign c = campaigns[campaignID];
             // Creates a new temporary memory struct, initialised with the given values
             // and copies it over to storage.
@@ -547,9 +572,10 @@ shown in the following example:
             Campaign c = campaigns[campaignID];
             if (c.amount < c.fundingGoal)
                 return false;
-            if (!c.beneficiary.send(c.amount))
-                throw;
+            uint amount = c.amount;
             c.amount = 0;
+            if (!c.beneficiary.send(amount))
+                throw;
             return true;
         }
     }
@@ -584,7 +610,7 @@ can actually be any type, including mappings.
 Mappings can be seen as hashtables which are virtually initialized such that
 every possible key exists and is mapped to a value whose byte-representation is
 all zeros: a type's :ref:`default value <default-value>`. The similarity ends here, though: The key data is not actually stored
-in a mapping, only its ``sha3`` hash used to look up the value.
+in a mapping, only its ``keccak256`` hash used to look up the value.
 
 Because of this, mappings do not have a length or a concept of a key or value being "set".
 
@@ -610,6 +636,8 @@ delete
 It is important to note that ``delete a`` really behaves like an assignment to ``a``, i.e. it stores a new object in ``a``.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract DeleteExample {
         uint data;
@@ -650,13 +678,18 @@ Explicit Conversions
 --------------------
 
 If the compiler does not allow implicit conversion but you know what you are
-doing, an explicit type conversion is sometimes possible::
+doing, an explicit type conversion is sometimes possible. Note that this may
+give you some unexpected behaviour so be sure to test to ensure that the
+result is what you want! Take the following example where you are converting
+a negative ``int8`` to a ``uint``:
+
+::
 
     int8 y = -3;
     uint x = uint(y);
 
 At the end of this code snippet, ``x`` will have the value ``0xfffff..fd`` (64 hex
-characters), which is -3 in two's complement representation of 256 bits.
+characters), which is -3 in the two's complement representation of 256 bits.
 
 If a type is explicitly converted to a smaller type, higher-order bits are
 cut off::

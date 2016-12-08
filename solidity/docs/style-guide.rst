@@ -118,7 +118,7 @@ Source File Encoding
 UTF-8 or ASCII encoding is preferred.
 
 Imports
-==========
+=======
 
 Import statements should always be placed at the top of the file.
 
@@ -273,17 +273,17 @@ No::
         }));
 
 For ``if`` blocks which have an ``else`` or ``else if`` clause, the ``else`` should be
-placed on it's own line following the previous closing parenthesis.  The
-parenthesis for the else block should follow the same rules as the other
-conditional control structures.
+placed on the same line as the ``if``'s closing brace. This is an exception compared
+to the rules of other block-like structures.
 
 Yes::
 
     if (x < 3) {
         x += 1;
-    }
-    else {
+    } else if (x > 7) {
         x -= 1;
+    } else {
+        x = 5;
     }
 
 
@@ -296,7 +296,8 @@ No::
 
     if (x < 3) {
         x += 1;
-    } else {
+    }
+    else {
         x -= 1;
     }
 
@@ -354,7 +355,7 @@ No::
         selfdestruct(owner);
     }
 
-For long function declarations, it is recommended to drop each arguent onto
+For long function declarations, it is recommended to drop each argument onto
 it's own line at the same indentation level as the function body.  The closing
 parenthesis and opening bracket should be placed on their own line as well at
 the same indentation level as the function declaration.
@@ -519,6 +520,18 @@ No::
 Other Recommendations
 =====================
 
+* Strings should be quoted with double-quotes instead of single-quotes.
+
+Yes::
+
+    str = "foo";
+    str = "Hamlet says, 'To be or not to be...'";
+
+No::
+
+    str = 'bar';
+    str = '"Be yourself; everyone else is already taken." -Oscar Wilde';
+
 * Surround operators with a single space on either side.
 
 Yes::
@@ -602,7 +615,7 @@ indistinguishable from the numerals one and zero.
 Contract and Library Names
 ==========================
 
-Contracts should be named using the CapWords style.
+Contracts and libraries should be named using the CapWords style.
 
 
 Events

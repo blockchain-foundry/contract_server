@@ -176,6 +176,34 @@ private:
 };
 
 /**
+ * Pragma directive, only version requirements in the form `pragma solidity "^0.4.0";` are
+ * supported for now.
+ */
+class PragmaDirective: public ASTNode
+{
+public:
+	PragmaDirective(
+		SourceLocation const& _location,
+		std::vector<Token::Value> const& _tokens,
+		std::vector<ASTString> const& _literals
+	): ASTNode(_location), m_tokens(_tokens), m_literals(_literals)
+	{}
+
+	virtual void accept(ASTVisitor& _visitor) override;
+	virtual void accept(ASTConstVisitor& _visitor) const override;
+
+	std::vector<Token::Value> const& tokens() const { return m_tokens; }
+	std::vector<ASTString> const& literals() const { return m_literals; }
+
+private:
+
+	/// Sequence of tokens following the "pragma" keyword.
+	std::vector<Token::Value> m_tokens;
+	/// Sequence of literals following the "pragma" keyword.
+	std::vector<ASTString> m_literals;
+};
+
+/**
  * Import directive for referencing other files / source objects.
  * Example: import "abc.sol" // imports all symbols of "abc.sol" into current scope
  * Source objects are identified by a string which can be a file name but does not have to be.
@@ -512,6 +540,7 @@ public:
 		bool _isDeclaredConst,
 		std::vector<ASTPointer<ModifierInvocation>> const& _modifiers,
 		ASTPointer<ParameterList> const& _returnParameters,
+		bool _isPayable,
 		ASTPointer<Block> const& _body
 	):
 		CallableDeclaration(_location, _name, _visibility, _parameters, _returnParameters),
@@ -519,6 +548,7 @@ public:
 		ImplementationOptional(_body != nullptr),
 		m_isConstructor(_isConstructor),
 		m_isDeclaredConst(_isDeclaredConst),
+		m_isPayable(_isPayable),
 		m_functionModifiers(_modifiers),
 		m_body(_body)
 	{}
@@ -528,6 +558,7 @@ public:
 
 	bool isConstructor() const { return m_isConstructor; }
 	bool isDeclaredConst() const { return m_isDeclaredConst; }
+	bool isPayable() const { return m_isPayable; }
 	std::vector<ASTPointer<ModifierInvocation>> const& modifiers() const { return m_functionModifiers; }
 	std::vector<ASTPointer<VariableDeclaration>> const& returnParameters() const { return m_returnParameters->parameters(); }
 	Block const& body() const { return *m_body; }
@@ -550,6 +581,7 @@ public:
 private:
 	bool m_isConstructor;
 	bool m_isDeclaredConst;
+	bool m_isPayable;
 	std::vector<ASTPointer<ModifierInvocation>> m_functionModifiers;
 	ASTPointer<Block> m_body;
 };

@@ -123,7 +123,7 @@ ostream& Assembly::streamAsm(ostream& _out, string const& _prefix, StringMap con
 			_out << "  " << instructionInfo(i.instruction()).name  << "\t" << i.getJumpTypeAsString();
 			break;
 		case Push:
-			_out << "  PUSH " << hex << i.data();
+			_out << "  PUSH" << dec << max<unsigned>(1, dev::bytesRequired(i.data())) << " 0x" << hex << i.data();
 			break;
 		case PushString:
 			_out << "  PUSH \"" << m_strings.at((h256)i.data()) << "\"";
@@ -296,7 +296,7 @@ AssemblyItem const& Assembly::append(AssemblyItem const& _i)
 
 AssemblyItem Assembly::newPushLibraryAddress(string const& _identifier)
 {
-	h256 h(dev::sha3(_identifier));
+	h256 h(dev::keccak256(_identifier));
 	m_libraries[h] = _identifier;
 	return AssemblyItem(PushLibraryAddress, h);
 }

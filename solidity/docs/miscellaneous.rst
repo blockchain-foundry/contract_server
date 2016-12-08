@@ -15,19 +15,36 @@ Statically-sized variables (everything except mapping and dynamically-sized arra
 - If an elementary type does not fit the remaining part of a storage slot, it is moved to the next storage slot.
 - Structs and array data always start a new slot and occupy whole slots (but items inside a struct or array are packed tightly according to these rules).
 
+.. warning::
+    When using elements that are smaller than 32 bytes, your contract's gas usage may be higher.
+    This is because the EVM operates on 32 bytes at a time. Therefore, if the element is smaller
+    than that, the EVM must use more operations in order to reduce the size of the element from 32
+    bytes to the desired size.
+
+    It is only beneficial to use reduced-size arguments if you are dealing with storage values
+    because the compiler will pack multiple elements into one storage slot, and thus, combine
+    multiple reads or writes into a single operation. When dealing with function arguments or memory
+    values, there is no inherent benefit because the compiler does not pack these values.
+
+    Finally, in order to allow the EVM to optimize for this, ensure that you try to order your
+    storage variables and ``struct`` members such that they can be packed tightly. For example,
+    declaring your storage variables in the order of ``uint128, uint128, uint256`` instead of
+    ``uint128, uint256, uint128``, as the former will only take up two slots of storage whereas the
+    latter will take up three.
+
 The elements of structs and arrays are stored after each other, just as if they were given explicitly.
 
-Due to their unpredictable size, mapping and dynamically-sized array types use a ``sha3``
+Due to their unpredictable size, mapping and dynamically-sized array types use a Keccak-256 hash
 computation to find the starting position of the value or the array data. These starting positions are always full stack slots.
 
 The mapping or the dynamic array itself
 occupies an (unfilled) slot in storage at some position ``p`` according to the above rule (or by
 recursively applying this rule for mappings to mappings or arrays of arrays). For a dynamic array, this slot stores the number of elements in the array (byte arrays and strings are an exception here, see below). For a mapping, the slot is unused (but it is needed so that two equal mappings after each other will use a different hash distribution).
-Array data is located at ``sha3(p)`` and the value corresponding to a mapping key
-``k`` is located at ``sha3(k . p)`` where ``.`` is concatenation. If the value is again a
-non-elementary type, the positions are found by adding an offset of ``sha3(k . p)``.
+Array data is located at ``keccak256(p)`` and the value corresponding to a mapping key
+``k`` is located at ``keccak256(k . p)`` where ``.`` is concatenation. If the value is again a
+non-elementary type, the positions are found by adding an offset of ``keccak256(k . p)``.
 
-``bytes`` and ``string`` store their data in the same slot where also the length is stored if they are short. In particular: If the data is at most ``31`` bytes long, it is stored in the higher-order bytes (left aligned) and the lowest-order byte stores ``length * 2``. If it is longer, the main slot stores ``length * 2 + 1`` and the data is stored as usual in ``sha3(slot)``.
+``bytes`` and ``string`` store their data in the same slot where also the length is stored if they are short. In particular: If the data is at most ``31`` bytes long, it is stored in the higher-order bytes (left aligned) and the lowest-order byte stores ``length * 2``. If it is longer, the main slot stores ``length * 2 + 1`` and the data is stored as usual in ``keccak256(slot)``.
 
 So for the following contract snippet::
 
@@ -37,7 +54,7 @@ So for the following contract snippet::
       mapping(uint => mapping(uint => s)) data;
     }
 
-The position of ``data[4][9].b`` is at ``sha3(uint256(9) . sha3(uint256(4) . uint256(1))) + 1``.
+The position of ``data[4][9].b`` is at ``keccak256(uint256(9) . keccak256(uint256(4) . uint256(1))) + 1``.
 
 *****************
 Esoteric Features
@@ -66,7 +83,7 @@ Calling ``select(false, x)`` will compute ``x * x`` and ``select(true, x)`` will
 .. index:: optimizer, common subexpression elimination, constant propagation
 
 *************************
-Internals - the Optimizer
+Internals - The Optimizer
 *************************
 
 The Solidity optimizer operates on assembly, so it can be and also is used by other languages. It splits the sequence of instructions into basic blocks at JUMPs and JUMPDESTs. Inside these blocks, the instructions are analysed and every modification to the stack, to memory or storage is recorded as an expression which consists of an instruction and a list of arguments which are essentially pointers to other expressions. The main idea is now to find expressions that are always equal (on every input) and combine them into an expression class. The optimizer first tries to find each new expression in a list of already known expressions. If this does not work, the expression is simplified according to rules like ``constant + constant = sum_of_constants`` or ``X * 1 = X``. Since this is done recursively, we can also apply the latter rule if the second factor is a more complex expression where we know that it will always evaluate to one. Modifications to storage and memory locations have to erase knowledge about storage and memory locations which are not known to be different: If we first write to location x and then to location y and both are input variables, the second could overwrite the first, so we actually do not know what is stored at x after we wrote to y. On the other hand, if a simplification of the expression x - y evaluates to a non-zero constant, we know that we can keep our knowledge about what is stored at x.
@@ -195,7 +212,6 @@ Tips and Tricks
 * Make your state variables public - the compiler will create :ref:`getters <visibility-and-accessors>` for you for free.
 * If you end up checking conditions on input or state a lot at the beginning of your functions, try using :ref:`modifiers`.
 * If your contract has a function called ``send`` but you want to use the built-in send-function, use ``address(contractVariable).send(amount)``.
-* If you do **not** want your contracts to receive ether when called via ``send``, you can add a throwing fallback function ``function() { throw; }``.
 * Initialise storage structs with a single assignment: ``x = MyStruct({a: 1, b: 2});``
 
 **********
@@ -228,7 +244,7 @@ The following is the order of precedence for operators, listed in order of evalu
 +            +-------------------------------------+--------------------------------------------+
 |            | Unary plus and minus                | ``+``, ``-``                               |
 +            +-------------------------------------+--------------------------------------------+
-|            | Unary operations                    | ``after``, ``delete``                      |
+|            | Unary operations                    | ``delete``                                 |
 +            +-------------------------------------+--------------------------------------------+
 |            | Logical NOT                         | ``!``                                      |
 +            +-------------------------------------+--------------------------------------------+
@@ -265,7 +281,7 @@ The following is the order of precedence for operators, listed in order of evalu
 | *16*       | Comma operator                      | ``,``                                      |
 +------------+-------------------------------------+--------------------------------------------+
 
-.. index:: block, coinbase, difficulty, number, block;number, timestamp, block;timestamp, msg, data, gas, sender, value, now, gas price, origin, sha3, ripemd160, sha256, ecrecover, addmod, mulmod, cryptography, this, super, selfdestruct, balance, send
+.. index:: block, coinbase, difficulty, number, block;number, timestamp, block;timestamp, msg, data, gas, sender, value, now, gas price, origin, keccak256, ripemd160, sha256, ecrecover, addmod, mulmod, cryptography, this, super, selfdestruct, balance, send
 
 Global Variables
 ================
@@ -283,10 +299,11 @@ Global Variables
 - ``now`` (``uint``): current block timestamp (alias for ``block.timestamp``)
 - ``tx.gasprice`` (``uint``): gas price of the transaction
 - ``tx.origin`` (``address``): sender of the transaction (full call chain)
-- ``sha3(...) returns (bytes32)``: compute the Ethereum-SHA-3 (KECCAK-256) hash of the (tightly packed) arguments
+- ``keccak256(...) returns (bytes32)``: compute the Ethereum-SHA-3 (Keccak-256) hash of the (tightly packed) arguments
+- ``sha3(...) returns (bytes32)``: an alias to `keccak256()`
 - ``sha256(...) returns (bytes32)``: compute the SHA-256 hash of the (tightly packed) arguments
 - ``ripemd160(...) returns (bytes20)``: compute the RIPEMD-160 hash of the (tightly packed) arguments
-- ``ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) returns (address)``: recover address associated with the public key from elliptic curve signature
+- ``ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) returns (address)``: recover address associated with the public key from elliptic curve signature, return zero on error
 - ``addmod(uint x, uint y, uint k) returns (uint)``: compute ``(x + y) % k`` where the addition is performed with arbitrary precision and does not wrap around at ``2**256``
 - ``mulmod(uint x, uint y, uint k) returns (uint)``: compute ``(x * y) % k`` where the multiplication is performed with arbitrary precision and does not wrap around at ``2**256``
 - ``this`` (current contract's type): the current contract, explicitly convertible to ``address``
@@ -321,4 +338,12 @@ Modifiers
 - ``constant`` for functions: Disallows modification of state - this is not enforced yet.
 - ``anonymous`` for events: Does not store event signature as topic.
 - ``indexed`` for event parameters: Stores the parameter as topic.
+- ``payable`` for functions: Allows them to receive Ether together with a call.
 
+Reserved Keywords
+=================
+
+These keywords are reserved in Solidity. They might become part of the syntax in the future:
+
+``abstract``, ``after``, ``case``, ``catch``, ``final``, ``in``, ``inline``, ``interface``, ``let``, ``match``,
+``of``, ``pure``, ``relocatable``, ``static``, ``switch``, ``try``, ``type``, ``typeof``, ``view``.

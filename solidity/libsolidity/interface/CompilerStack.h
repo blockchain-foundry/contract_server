@@ -63,8 +63,7 @@ enum class DocumentationType: uint8_t
 {
 	NatspecUser = 1,
 	NatspecDev,
-	ABIInterface,
-	ABISolidityInterface
+	ABIInterface
 };
 
 /**
@@ -86,14 +85,13 @@ public:
 
 	/// Creates a new compiler stack.
 	/// @param _readFile callback to used to read files for import statements. Should return
-	/// @param _addStandardSources Adds standard sources if @a _addStandardSources.
-	explicit CompilerStack(bool _addStandardSources = true, ReadFileCallback const& _readFile = ReadFileCallback());
+	explicit CompilerStack(ReadFileCallback const& _readFile = ReadFileCallback());
 
 	/// Sets path remappings in the format "context:prefix=target"
 	void setRemappings(std::vector<std::string> const& _remappings);
 
 	/// Resets the compiler to a state where the sources are not parsed or even removed.
-	void reset(bool _keepSources = false, bool _addStandardSources = true);
+	void reset(bool _keepSources = false);
 
 	/// Adds a source object (e.g. file) to the parser. After this, parse has to be called again.
 	/// @returns true if a source object by the name already existed and was replaced.
@@ -167,9 +165,6 @@ public:
 	/// @returns a string representing the contract interface in JSON.
 	/// Prerequisite: Successful call to parse or compile.
 	std::string const& interface(std::string const& _contractName = "") const;
-	/// @returns a string representing the contract interface in Solidity.
-	/// Prerequisite: Successful call to parse or compile.
-	std::string const& solidityInterface(std::string const& _contractName = "") const;
 	/// @returns a string representing the contract's documentation in JSON.
 	/// Prerequisite: Successful call to parse or compile.
 	/// @param type The type of the documentation to get.
@@ -219,7 +214,6 @@ private:
 		eth::LinkerObject runtimeObject;
 		eth::LinkerObject cloneObject;
 		mutable std::unique_ptr<std::string const> interface;
-		mutable std::unique_ptr<std::string const> solidityInterface;
 		mutable std::unique_ptr<std::string const> userDocumentation;
 		mutable std::unique_ptr<std::string const> devDocumentation;
 		mutable std::unique_ptr<std::string const> sourceMapping;

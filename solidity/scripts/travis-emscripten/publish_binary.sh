@@ -33,8 +33,11 @@ set -e
 VER=$(cat CMakeLists.txt | grep 'set(PROJECT_VERSION' | sed -e 's/.*set(PROJECT_VERSION "\(.*\)".*/\1/')
 test -n "$VER"
 VER="v$VER"
-COMMIT=$(git rev-parse --short HEAD)
-DATE=$(date --date="$(git log -1 --date=iso --format=%ad HEAD)" --utc +%F)
+COMMIT=$(git rev-parse --short=8 HEAD)
+DATE=$(date --date="$(git log -1 --date=iso --format=%ad HEAD)" --utc +%Y.%-m.%-d)
+
+# remove leading zeros in components - they are not semver-compatible
+COMMIT=$(echo "$COMMIT" | sed -e 's/^0*//')
 
 ENCRYPTED_KEY_VAR="encrypted_${ENCRYPTION_LABEL}_key"
 ENCRYPTED_IV_VAR="encrypted_${ENCRYPTION_LABEL}_iv"
@@ -51,25 +54,38 @@ git config user.name "travis"
 git config user.email "chris@ethereum.org"
 git checkout -B gh-pages origin/gh-pages
 git clean -f -d -x
-# We only want one release per day and we do not want to push the same commit twice.
-if ls ./bin/soljson-"$VER-$DATE"-*.js || ls ./bin/soljson-*-"$COMMIT.js"
+
+
+FULLVERSION=INVALID
+if [ "$TRAVIS_BRANCH" = release ]
 then
-  echo "Not publishing, we already published this version today."
-  exit 0
+    # We only want one file with this version
+    if ls ./bin/soljson-"$VER+"*.js
+    then
+      echo "Not publishing, we already published this version."
+      exit 0
+    fi
+    FULLVERSION="$VER+commit.$COMMIT"
+elif [ "$TRAVIS_BRANCH" = develop ]
+then
+    # We only want one release per day and we do not want to push the same commit twice.
+    if ls ./bin/soljson-"$VER-nightly.$DATE"*.js || ls ./bin/soljson-*"commit.$COMMIT.js"
+    then
+      echo "Not publishing, we already published this version today."
+      exit 0
+    fi
+    FULLVERSION="$VER-nightly.$DATE+commit.$COMMIT"
+else
+    echo "Not publishing, wrong branch."
+    exit 0
 fi
 
-echo "Would have published."
-# disable publishing for now
-exit 0
 
 # This file is assumed to be the product of the build_emscripten.sh script.
-cp ../soljson.js ./bin/"soljson-$VER-$DATE-$COMMIT.js"
-./update-index.sh
+cp ../soljson.js ./bin/"soljson-$FULLVERSION.js"
+node ./update
 cd bin
-LATEST=$(ls -r soljson-v* | head -n 1)
-cp "$LATEST" soljson-latest.js
-cp soljson-latest.js ../soljson.js
 git add .
 git add ../soljson.js
-git commit -m "Added compiler version $LATEST"
+git commit -m "Added compiler version $FULLVERSION"
 git push origin gh-pages

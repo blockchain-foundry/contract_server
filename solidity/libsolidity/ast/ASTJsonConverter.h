@@ -51,18 +51,29 @@ public:
 	void print(std::ostream& _stream);
 	Json::Value const& json();
 
+	bool visit(SourceUnit const& _node) override;
+	bool visit(PragmaDirective const& _node) override;
 	bool visit(ImportDirective const& _node) override;
 	bool visit(ContractDefinition const& _node) override;
+	bool visit(InheritanceSpecifier const& _node) override;
+	bool visit(UsingForDirective const& _node) override;
 	bool visit(StructDefinition const& _node) override;
+	bool visit(EnumDefinition const& _node) override;
+	bool visit(EnumValue const& _node) override;
 	bool visit(ParameterList const& _node) override;
 	bool visit(FunctionDefinition const& _node) override;
 	bool visit(VariableDeclaration const& _node) override;
+	bool visit(ModifierDefinition const& _node) override;
+	bool visit(ModifierInvocation const& _node) override;
+	bool visit(EventDefinition const& _node) override;
 	bool visit(TypeName const& _node) override;
 	bool visit(ElementaryTypeName const& _node) override;
 	bool visit(UserDefinedTypeName const& _node) override;
 	bool visit(Mapping const& _node) override;
+	bool visit(ArrayTypeName const& _node) override;
 	bool visit(InlineAssembly const& _node) override;
 	bool visit(Block const& _node) override;
+	bool visit(PlaceholderStatement const& _node) override;
 	bool visit(IfStatement const& _node) override;
 	bool visit(WhileStatement const& _node) override;
 	bool visit(ForStatement const& _node) override;
@@ -85,18 +96,29 @@ public:
 	bool visit(ElementaryTypeNameExpression const& _node) override;
 	bool visit(Literal const& _node) override;
 
+	void endVisit(SourceUnit const&) override;
+	void endVisit(PragmaDirective const&) override;
 	void endVisit(ImportDirective const&) override;
 	void endVisit(ContractDefinition const&) override;
+	void endVisit(InheritanceSpecifier const&) override;
+	void endVisit(UsingForDirective const&) override;
 	void endVisit(StructDefinition const&) override;
+	void endVisit(EnumDefinition const&) override;
+	void endVisit(EnumValue const&) override;
 	void endVisit(ParameterList const&) override;
 	void endVisit(FunctionDefinition const&) override;
 	void endVisit(VariableDeclaration const&) override;
+	void endVisit(ModifierDefinition const&) override;
+	void endVisit(ModifierInvocation const&) override;
+	void endVisit(EventDefinition const&) override;
 	void endVisit(TypeName const&) override;
 	void endVisit(ElementaryTypeName const&) override;
 	void endVisit(UserDefinedTypeName const&) override;
 	void endVisit(Mapping const&) override;
+	void endVisit(ArrayTypeName const&) override;
 	void endVisit(InlineAssembly const&) override;
 	void endVisit(Block const&) override;
+	void endVisit(PlaceholderStatement const&) override;
 	void endVisit(IfStatement const&) override;
 	void endVisit(WhileStatement const&) override;
 	void endVisit(ForStatement const&) override;
@@ -121,11 +143,10 @@ public:
 
 private:
 	void process();
-	void addKeyValue(Json::Value& _obj, std::string const& _key, std::string const& _val);
 	void addJsonNode(
 		ASTNode const& _node,
 		std::string const& _nodeName,
-		std::initializer_list<std::pair<std::string const, std::string const>> _list,
+		std::initializer_list<std::pair<std::string const, Json::Value const>> _attributes,
 		bool _hasChildren
 	);
 	std::string sourceLocationToString(SourceLocation const& _location) const;

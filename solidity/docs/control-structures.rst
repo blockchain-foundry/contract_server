@@ -10,7 +10,7 @@ Control Structures
 Most of the control structures from C/JavaScript are available in Solidity
 except for ``switch`` and ``goto``. So
 there is: ``if``, ``else``, ``while``, ``for``, ``break``, ``continue``, ``return``, ``? :``, with
-the usual semantics known from C / JavaScript.
+the usual semantics known from C or JavaScript.
 
 Parentheses can *not* be omitted for conditionals, but curly brances can be omitted
 around single-statement bodies.
@@ -44,8 +44,12 @@ contract can be called internally.
 External Function Calls
 -----------------------
 
-The expression ``this.g(8);`` is also a valid function call, but this time, the function
+The expressions ``this.g(8);`` and ``c.g(2);`` (where ``g`` is a contract
+instance) are also valid function calls, but this time, the function
 will be called "externally", via a message call and not directly via jumps.
+Please note that function calls on ``this`` cannot be used in the constructor, as the
+actual contract has not been created yet.
+
 Functions of other contracts have to be called externally. For an external call,
 all function arguments have to be copied to memory.
 
@@ -53,7 +57,7 @@ When calling functions
 of other contracts, the amount of Wei sent with the call and the gas can be specified::
 
     contract InfoFeed {
-        function info() returns (uint ret) { return 42; }
+        function info() payable returns (uint ret) { return 42; }
     }
 
 
@@ -63,11 +67,23 @@ of other contracts, the amount of Wei sent with the call and the gas can be spec
         function callFeed() { feed.info.value(10).gas(800)(); }
     }
 
+The modifier ``payable`` has to be used for ``info``, because otherwise,
+we would not be able to send Ether to it in the call ``feed.info.value(10).gas(800)()``.
+
 Note that the expression ``InfoFeed(addr)`` performs an explicit type conversion stating
 that "we know that the type of the contract at the given address is ``InfoFeed``" and
-this does not execute a constructor. We could also have used ``function setFeed(InfoFeed _feed) { feed = _feed; }`` directly.  Be careful about the fact that ``feed.info.value(10).gas(800)``
+this does not execute a constructor. Explicit type conversions have to be
+handled with extreme caution. Never call a function on a contract where you
+are not sure about its type.
+
+We could also have used ``function setFeed(InfoFeed _feed) { feed = _feed; }`` directly.
+Be careful about the fact that ``feed.info.value(10).gas(800)``
 only (locally) sets the value and amount of gas sent with the function call and only the
 parentheses at the end perform the actual call.
+
+Function calls cause exceptions if the called contract does not exist (in the
+sense that the account does not contain code) or if the called contract itself
+throws an exception or goes out of gas.
 
 .. warning::
     Any interaction with another contract imposes a potential danger, especially
@@ -82,15 +98,19 @@ parentheses at the end perform the actual call.
     that the called contract can change state variables of the calling contract
     via its functions. Write your functions in a way that, for example, calls to
     external functions happen after any changes to state variables in your contract
-    so your contract is not vulnerable to a recursive call exploit.
+    so your contract is not vulnerable to a reentrancy exploit.
 
 Named Calls and Anonymous Function Parameters
 ---------------------------------------------
 
-Function call arguments can also be given by name, in any order, and the names
-of unused parameters (especially return parameters) can be omitted.
+Function call arguments can also be given by name, in any order,
+if they are enclosed in ``{ }`` as can be seen in the following
+example. The argument list has to coincide by name with the list of
+parameters from the function declaration, but can be in arbitrary order.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract C {
         function f(uint key, uint value) { ... }
@@ -99,12 +119,66 @@ of unused parameters (especially return parameters) can be omitted.
             // named arguments
             f({value: 2, key: 3});
         }
+    }
 
-        // omitted parameters
+Omitted Function Parameter Names
+--------------------------------
+
+The names of unused parameters (especially return parameters) can be omitted.
+Those names will still be present on the stack, but they are inaccessible.
+
+::
+
+    pragma solidity ^0.4.0;
+
+    contract C {
+        // omitted name for parameter
         function func(uint k, uint) returns(uint) {
             return k;
         }
     }
+    
+
+.. index:: ! new, contracts;creating
+
+.. _creating-contracts:
+
+Creating Contracts via ``new``
+==============================
+
+A contract can create a new contract using the ``new`` keyword. The full
+code of the contract being created has to be known and, thus, recursive
+creation-dependencies are now possible.
+
+::
+
+    pragma solidity ^0.4.0;
+
+    contract D {
+        uint x;
+        function D(uint a) payable {
+            x = a;
+        }
+    }
+
+
+    contract C {
+        D d = new D(4); // will be executed as part of C's constructor
+
+        function createD(uint arg) {
+            D newD = new D(arg);
+        }
+
+        function createAndEndowD(uint arg, uint amount) {
+            // Send ether along with the creation
+            D newD = (new D).value(amount)(arg);
+        }
+    }
+
+As seen in the example, it is possible to forward Ether to the creation,
+but it is not possible to limit the amount of gas. If the creation fails
+(due to out-of-stack, not enough balance or other problems), an exception
+is thrown.
 
 Order of Evaluation of Expressions
 ==================================
@@ -179,6 +253,8 @@ This happens because Solidity inherits its scoping rules from JavaScript.
 This is in contrast to many languages where variables are only scoped where they are declared until the end of the semantic block.
 As a result, the following code is illegal and cause the compiler to throw an error, ``Identifier already declared``::
 
+    pragma solidity ^0.4.0;
+
     contract ScopingErrors {
         function scoping() {
             uint i = 0;
@@ -219,8 +295,7 @@ As a result, the following code is legal, despite being poorly written::
         uint bar = 5;
         if (true) {
             bar += baz;
-        }
-        else {
+        } else {
             uint baz = 10;// never executes
         }
         return bar;// returns 5
@@ -237,19 +312,24 @@ Catching exceptions is not yet possible.
 
 In the following example, we show how ``throw`` can be used to easily revert an Ether transfer and also how to check the return value of ``send``::
 
+    pragma solidity ^0.4.0;
+
     contract Sharer {
-        function sendHalf(address addr) returns (uint balance) {
+        function sendHalf(address addr) payable returns (uint balance) {
             if (!addr.send(msg.value / 2))
                 throw; // also reverts the transfer to Sharer
             return this.balance;
         }
     }
 
-Currently, there are three situations, where exceptions happen automatically in Solidity:
+Currently, there are six situations, where exceptions happen automatically in Solidity:
 
-1. If you access an array beyond its length (i.e. ``x[i]`` where ``i >= x.length``)
+1. If you access an array beyond its length (i.e. ``x[i]`` where ``i >= x.length``).
 2. If a function called via a message call does not finish properly (i.e. it runs out of gas or throws an exception itself).
 3. If a non-existent function on a library is called or Ether is sent to a library.
+4. If you divide or modulo by zero (e.g. ``5 / 0`` or ``23 % 0``).
+5. If you perform an external function call targeting a contract that contains no code.
+6. If a contract-creation call using the ``new`` keyword fails.
 
 Internally, Solidity performs an "invalid jump" when an exception is thrown and thus causes the EVM to revert all changes made to the state. The reason for this is that there is no safe way to continue execution, because an expected effect did not occur. Because we want to retain the atomicity of transactions, the safest thing to do is to revert all changes and make the whole transaction (or at least call) without effect.
 
@@ -273,8 +353,9 @@ arising when writing manual assembly by the following features:
 We now want to describe the inline assembly language in detail.
 
 .. warning::
-    Inline assembly is still a relatively new feature and might change if it does not prove useful,
-    so please try to keep up to date.
+    Inline assembly is a way to access the Ethereum Virtual Machine
+    at a low level. This discards several important safety
+    features of Solidity.
 
 Example
 -------
@@ -284,6 +365,8 @@ load it into a ``bytes`` variable. This is not possible at all with "plain Solid
 idea is that assembly libraries will be used to enhance the language in such ways.
 
 .. code::
+
+    pragma solidity ^0.4.0;
 
     library GetCode {
         function at(address _addr) returns (bytes o_code) {
@@ -309,6 +392,8 @@ the compiler does not perform checks, so you should use it for complex things on
 you really know what you are doing.
 
 .. code::
+
+    pragma solidity ^0.4.0;
 
     library VectorSum {
         // This function is less efficient because the optimizer currently fails to
@@ -337,7 +422,7 @@ Inline assembly parses comments, literals and identifiers exactly as Solidity, s
 usual ``//`` and ``/* */`` comments. Inline assembly is initiated by ``assembly { ... }`` and inside
 these curly braces, the following can be used (see the later sections for more details)
 
- - literals, i.e. ``0x123``, ``42`` or ``"abc"`` (strings up to 32 characters)
+ - literals, e.g. ``0x123``, ``42`` or ``"abc"`` (strings up to 32 characters)
  - opcodes (in "instruction style"), e.g. ``mload sload dup1 sstore``, for a list see below
  - opcodes in functional style, e.g. ``add(1, mlod(0))``
  - labels, e.g. ``name:``
@@ -446,9 +531,9 @@ The opcodes ``pushi`` and ``jumpdest`` cannot be used directly.
 +-------------------------+------+-----------------------------------------------------------------+
 | callvalue               |      | wei sent together with the current call                         |
 +-------------------------+------+-----------------------------------------------------------------+
-| calldataload(p)         |      | call data starting from position p (32 bytes)                   |
+| calldataload(p)         |      | calldata starting from position p (32 bytes)                    |
 +-------------------------+------+-----------------------------------------------------------------+
-| calldatasize            |      | size of call data in bytes                                      |
+| calldatasize            |      | size of calldata in bytes                                       |
 +-------------------------+------+-----------------------------------------------------------------+
 | calldatacopy(t, f, s)   | `-`  | copy s bytes from calldata at position f to mem at position t   |
 +-------------------------+------+-----------------------------------------------------------------+
@@ -463,14 +548,15 @@ The opcodes ``pushi`` and ``jumpdest`` cannot be used directly.
 | create(v, p, s)         |      | create new contract with code mem[p..(p+s)) and send v wei      |
 |                         |      | and return the new address                                      |
 +-------------------------+------+-----------------------------------------------------------------+
-| call(g, a, v, in,       |      | call contract at address a with input mem[in..(in+insize)]      |
+| call(g, a, v, in,       |      | call contract at address a with input mem[in..(in+insize))      |
 | insize, out, outsize)   |      | providing g gas and v wei and output area                       |
-|                         |      | mem[out..(out+outsize)] returting 1 on error (out of gas)       |
+|                         |      | mem[out..(out+outsize)) returning 0 on error (eg. out of gas)   |
+|                         |      | and 1 on success                                                |
 +-------------------------+------+-----------------------------------------------------------------+
-| callcode(g, a, v, in,   |      | identical to call but only use the code from a and stay         |
+| callcode(g, a, v, in,   |      | identical to `call` but only use the code from a and stay       |
 | insize, out, outsize)   |      | in the context of the current contract otherwise                |
 +-------------------------+------+-----------------------------------------------------------------+
-| delegatecall(g, a, in,  |      | identical to callcode but also keep ``caller``                  |
+| delegatecall(g, a, in,  |      | identical to `callcode` but also keep ``caller``                |
 | insize, out, outsize)   |      | and ``callvalue``                                               |
 +-------------------------+------+-----------------------------------------------------------------+
 | return(p, s)            | `*`  | end execution, return data mem[p..(p+s))                        |
@@ -564,6 +650,8 @@ It is planned that the stack height changes can be specified in inline assembly.
 
 .. code::
 
+    pragma solidity ^0.4.0;
+
     contract C {
         uint b;
         function f(uint x) returns (uint r) {
@@ -637,6 +725,8 @@ is reached. You need to provide an initial value for the variable which can
 be just ``0``, but it can also be a complex functional-style expression.
 
 .. code::
+
+    pragma solidity ^0.4.0;
 
     contract C {
         function f(uint x) returns (uint b) {

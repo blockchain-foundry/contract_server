@@ -36,6 +36,10 @@ bool Why3Translator::process(SourceUnit const& _source)
 		appendPreface();
 		_source.accept(*this);
 	}
+	catch (NoFormalType&)
+	{
+		solAssert(false, "There is a call to toFormalType() that does not catch NoFormalType exceptions.");
+	}
 	catch (FatalError& /*_e*/)
 	{
 		solAssert(m_errorOccured, "");
@@ -77,14 +81,30 @@ string Why3Translator::toFormalType(Type const& _type) const
 			return "uint256";
 	}
 	else if (auto type = dynamic_cast<ArrayType const*>(&_type))
+	{
 		if (!type->isByteArray() && type->isDynamicallySized() && type->dataStoredIn(DataLocation::Memory))
 		{
+			// Not catching NoFormalType exception.  Let the caller deal with it.
 			string base = toFormalType(*type->baseType());
-			if (!base.empty())
-				return "array " + base;
+			return "array " + base;
 		}
+	}
+	else if (auto mappingType = dynamic_cast<MappingType const*>(&_type))
+	{
+		solAssert(mappingType->keyType(), "A mappingType misses a keyType.");
+		if (dynamic_cast<IntegerType const*>(&*mappingType->keyType()))
+		{
+			//@TODO Use the information from the key type and specify the length of the array as an invariant.
+			// Also the constructor need to specify the length of the array.
+			solAssert(mappingType->valueType(), "A mappingType misses a valueType.");
+			// Not catching NoFormalType exception.  Let the caller deal with it.
+			string valueTypeFormal = toFormalType(*mappingType->valueType());
+			return "array " + valueTypeFormal;
+		}
+	}
 
-	return "";
+	BOOST_THROW_EXCEPTION(NoFormalType()
+		<< errinfo_noFormalTypeFrom(_type.toString(true)));
 }
 
 void Why3Translator::addLine(string const& _line)
@@ -142,9 +162,17 @@ bool Why3Translator::visit(ContractDefinition const& _contract)
 		m_currentContract.stateVariables = _contract.stateVariables();
 		for (VariableDeclaration const* variable: m_currentContract.stateVariables)
 		{
-			string varType = toFormalType(*variable->annotation().type);
-			if (varType.empty())
-				fatalError(*variable, "Type not supported for state variable.");
+			string varType;
+			try
+			{
+				varType = toFormalType(*variable->annotation().type);
+			}
+			catch (NoFormalType &err)
+			{
+				string const* typeNamePtr = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+				string typeName = typeNamePtr ? " \"" + *typeNamePtr + "\"" : "";
+				fatalError(*variable, "Type" + typeName + " not supported for state variable.");
+			}
 			addLine("mutable _" + variable->name() + ": " + varType);
 		}
 		unindent();
@@ -218,9 +246,16 @@ bool Why3Translator::visit(FunctionDefinition const& _function)
 	add(" (this: account)");
 	for (auto const& param: _function.parameters())
 	{
-		string paramType = toFormalType(*param->annotation().type);
-		if (paramType.empty())
-			error(*param, "Parameter type not supported.");
+		string paramType;
+		try
+		{
+			paramType = toFormalType(*param->annotation().type);
+		}
+		catch (NoFormalType &err)
+		{
+			string const* typeName = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+			error(*param, "Parameter type \"" + (typeName ? *typeName : "") + "\" not supported.");
+		}
 		if (param->name().empty())
 			error(*param, "Anonymous function parameters not supported.");
 		add(" (arg_" + param->name() + ": " + paramType + ")");
@@ -232,9 +267,16 @@ bool Why3Translator::visit(FunctionDefinition const& _function)
 	string retString = "(";
 	for (auto const& retParam: _function.returnParameters())
 	{
-		string paramType = toFormalType(*retParam->annotation().type);
-		if (paramType.empty())
-			error(*retParam, "Parameter type not supported.");
+		string paramType;
+		try
+		{
+			paramType = toFormalType(*retParam->annotation().type);
+		}
+		catch (NoFormalType &err)
+		{
+			string const* typeName = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+			error(*retParam, "Parameter type " + (typeName ? *typeName : "") + " not supported.");
+		}
 		if (retString.size() != 1)
 			retString += ", ";
 		retString += paramType;
@@ -264,14 +306,32 @@ bool Why3Translator::visit(FunctionDefinition const& _function)
 	{
 		if (variable->name().empty())
 			error(*variable, "Unnamed return variables not yet supported.");
-		string varType = toFormalType(*variable->annotation().type);
+		string varType;
+		try
+		{
+			varType = toFormalType(*variable->annotation().type);
+		}
+		catch (NoFormalType &err)
+		{
+			string const* typeNamePtr = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+			error(*variable, "Type " + (typeNamePtr ? *typeNamePtr : "") + "in return parameter not yet supported.");
+		}
 		addLine("let _" + variable->name() + ": ref " + varType + " = ref (of_int 0) in");
 	}
 	for (VariableDeclaration const* variable: _function.localVariables())
 	{
 		if (variable->name().empty())
 			error(*variable, "Unnamed variables not yet supported.");
-		string varType = toFormalType(*variable->annotation().type);
+		string varType;
+		try
+		{
+			varType = toFormalType(*variable->annotation().type);
+		}
+		catch (NoFormalType &err)
+		{
+			string const* typeNamePtr = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+			error(*variable, "Type " + (typeNamePtr ? *typeNamePtr : "") + "in variable declaration not yet supported.");
+		}
 		addLine("let _" + variable->name() + ": ref " + varType + " = ref (of_int 0) in");
 	}
 	addLine("try");
@@ -434,8 +494,15 @@ bool Why3Translator::visit(TupleExpression const& _node)
 
 bool Why3Translator::visit(UnaryOperation const& _unaryOperation)
 {
-	if (toFormalType(*_unaryOperation.annotation().type).empty())
-		error(_unaryOperation, "Type not supported in unary operation.");
+	try
+	{
+		toFormalType(*_unaryOperation.annotation().type);
+	}
+	catch (NoFormalType &err)
+	{
+		string const* typeNamePtr = boost::get_error_info<errinfo_noFormalTypeFrom>(err);
+		error(_unaryOperation, "Type \"" + (typeNamePtr ? *typeNamePtr : "") + "\" supported in unary operation.");
+	}
 
 	switch (_unaryOperation.getOperator())
 	{
@@ -466,7 +533,8 @@ bool Why3Translator::visit(BinaryOperation const& _binaryOperation)
 		auto const& constantNumber = dynamic_cast<RationalNumberType const&>(commonType);
 		if (constantNumber.isFractional())
 			error(_binaryOperation, "Fractional numbers not supported.");
-		add("(of_int " + toString(commonType.literalValue(nullptr)) + ")");
+		else
+			add("(of_int " + toString(commonType.literalValue(nullptr)) + ")");
 		return false;
 	}
 	static const map<Token::Value, char const*> optrans({
@@ -488,7 +556,10 @@ bool Why3Translator::visit(BinaryOperation const& _binaryOperation)
 		{Token::GreaterThanOrEqual, " >= "}
 	});
 	if (!optrans.count(c_op))
+	{
 		error(_binaryOperation, "Operator not supported.");
+		return true;
+	}
 
 	add("(");
 	leftExpression.accept(*this);
@@ -576,7 +647,7 @@ bool Why3Translator::visit(FunctionCall const& _node)
 	case FunctionType::Location::SetValue:
 	{
 		add("let amount = ");
-		solAssert(_node.arguments().size() == 1, "");
+		solAssert(_node.arguments().size() == 2, "");
 		_node.arguments()[0]->accept(*this);
 		add(" in ");
 		return false;
@@ -676,12 +747,27 @@ bool Why3Translator::visit(Literal const& _literal)
 		auto const& constantNumber = dynamic_cast<RationalNumberType const&>(*type);
 		if (constantNumber.isFractional())
 			error(_literal, "Fractional numbers not supported.");
-		add("(of_int " + toString(type->literalValue(&_literal)) + ")");
+		else
+			add("(of_int " + toString(type->literalValue(&_literal)) + ")");
 		break;
-	}	
+	}
 	default:
 		error(_literal, "Not supported.");
 	}
+	return false;
+}
+
+bool Why3Translator::visit(PragmaDirective const& _pragma)
+{
+	if (_pragma.tokens().empty())
+		error(_pragma, "Not supported");
+	else if (_pragma.literals().empty())
+		error(_pragma, "Not supported");
+	else if (_pragma.literals()[0] != "solidity")
+		error(_pragma, "Not supported");
+	else if (_pragma.tokens()[0] != Token::Identifier)
+		error(_pragma, "A literal 'solidity' is not an identifier.  Strange");
+
 	return false;
 }
 
@@ -792,6 +878,15 @@ module UInt256
 	clone export mach.int.Unsigned with
 		type t = uint256,
 		constant max = max_uint256
+end
+
+module Address
+	use import mach.int.Unsigned
+	type address
+	constant max_address: int = 0xffffffffffffffffffffffffffffffffffffffff (* 160 bit = 40 f's *)
+	clone export mach.int.Unsigned with
+		type t = address,
+		constant max = max_address
 end
    )", 0});
 }

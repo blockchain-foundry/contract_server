@@ -65,7 +65,6 @@ namespace solidity
 {
 
 static string const g_argAbiStr = "abi";
-static string const g_argSolInterfaceStr = "interface";
 static string const g_argSignatureHashes = "hashes";
 static string const g_argGas = "gas";
 static string const g_argAsmStr = "asm";
@@ -116,7 +115,6 @@ static bool needsHumanTargetedStdout(po::variables_map const& _args)
 		return false;
 	for (string const& arg: {
 		g_argAbiStr,
-		g_argSolInterfaceStr,
 		g_argSignatureHashes,
 		g_argNatspecUserStr,
 		g_argAstJson,
@@ -215,11 +213,6 @@ void CommandLineInterface::handleMeta(DocumentationType _type, string const& _co
 		suffix = ".abi";
 		title = "Contract JSON ABI";
 		break;
-	case DocumentationType::ABISolidityInterface:
-		argName = g_argSolInterfaceStr;
-		suffix = "_interface.sol";
-		title = "Contract Solidity ABI";
-		break;
 	case DocumentationType::NatspecUser:
 		argName = g_argNatspecUserStr;
 		suffix = ".docuser";
@@ -310,21 +303,18 @@ void CommandLineInterface::handleFormal()
 
 void CommandLineInterface::readInputFilesAndConfigureRemappings()
 {
+	vector<string> inputFiles;
+	bool addStdin = false;
 	if (!m_args.count("input-file"))
-	{
-		string s;
-		while (!cin.eof())
-		{
-			getline(cin, s);
-			m_sourceCodes[g_stdinFileName].append(s + '\n');
-		}
-	}
+		addStdin = true;
 	else
 		for (string path: m_args["input-file"].as<vector<string>>())
 		{
 			auto eq = find(path.begin(), path.end(), '=');
 			if (eq != path.end())
 				path = string(eq + 1, path.end());
+			else if (path == "-")
+				addStdin = true;
 			else
 			{
 				auto infile = boost::filesystem::path(path);
@@ -345,6 +335,15 @@ void CommandLineInterface::readInputFilesAndConfigureRemappings()
 			}
 			m_allowedDirectories.push_back(boost::filesystem::path(path).remove_filename());
 		}
+	if (addStdin)
+	{
+		string s;
+		while (!cin.eof())
+		{
+			getline(cin, s);
+			m_sourceCodes[g_stdinFileName].append(s + '\n');
+		}
+	}
 }
 
 bool CommandLineInterface::parseLibraryOption(string const& _input)
@@ -399,9 +398,9 @@ bool CommandLineInterface::parseArguments(int _argc, char** _argv)
 	po::options_description desc(
 		R"(solc, the Solidity commandline compiler.
 Usage: solc [options] [input_file...]
-Compiles the given Solidity input files (or the standard input if none given) and
-outputs the components specified in the options at standard output or in files in
-the output directory, if specified.
+Compiles the given Solidity input files (or the standard input if none given or
+"-" is used as a file name) and outputs the components specified in the options
+at standard output or in files in the output directory, if specified.
 Example: solc --bin -o /tmp/solcoutput contract.sol
 
 Allowed options)",
@@ -455,7 +454,6 @@ Allowed options)",
 		(g_argRuntimeBinaryStr.c_str(), "Binary of the runtime part of the contracts in hex.")
 		(g_argCloneBinaryStr.c_str(), "Binary of the clone contracts in hex.")
 		(g_argAbiStr.c_str(), "ABI specification of the contracts.")
-		(g_argSolInterfaceStr.c_str(), "Solidity interface of the contracts.")
 		(g_argSignatureHashes.c_str(), "Function signature hashes of the contracts.")
 		(g_argNatspecUserStr.c_str(), "Natspec user documentation of all contracts.")
 		(g_argNatspecDevStr.c_str(), "Natspec developer documentation of all contracts.")
@@ -473,7 +471,7 @@ Allowed options)",
 	try
 	{
 		po::command_line_parser cmdLineParser(_argc, _argv);
-		cmdLineParser.options(allOptions).positional(filesPositions).allow_unregistered();
+		cmdLineParser.options(allOptions).positional(filesPositions);
 		po::store(cmdLineParser.run(), m_args);
 	}
 	catch (po::error const& _exception)
@@ -562,7 +560,7 @@ bool CommandLineInterface::processInput()
 		}
 	};
 
-	m_compiler.reset(new CompilerStack(m_args.count(g_argAddStandard) > 0, fileReader));
+	m_compiler.reset(new CompilerStack(fileReader));
 	auto scannerFromSourceName = [&](string const& _sourceName) -> solidity::Scanner const& { return m_compiler->scanner(_sourceName); };
 	try
 	{
@@ -643,8 +641,6 @@ void CommandLineInterface::handleCombinedJSON()
 	for (string const& contractName: contracts)
 	{
 		Json::Value contractData(Json::objectValue);
-		if (requests.count("interface"))
-			contractData["interface"] = m_compiler->solidityInterface(contractName);
 		if (requests.count("abi"))
 			contractData["abi"] = m_compiler->interface(contractName);
 		if (requests.count("bin"))
@@ -782,37 +778,43 @@ void CommandLineInterface::actOnInput()
 
 bool CommandLineInterface::link()
 {
+	// Map from how the libraries will be named inside the bytecode to their addresses.
+	map<string, h160> librariesReplacements;
+	int const placeholderSize = 40; // 20 bytes or 40 hex characters
+	for (auto const& library: m_libraries)
+	{
+		string const& name = library.first;
+		// Library placeholders are 40 hex digits (20 bytes) that start and end with '__'.
+		// This leaves 36 characters for the library name, while too short library names are
+		// padded on the right with '_' and too long names are truncated.
+		string replacement = "__";
+		for (size_t i = 0; i < placeholderSize - 4; ++i)
+			replacement.push_back(i < name.size() ? name[i] : '_');
+		replacement += "__";
+		librariesReplacements[replacement] = library.second;
+	}
 	for (auto& src: m_sourceCodes)
 	{
 		auto end = src.second.end();
 		for (auto it = src.second.begin(); it != end;)
 		{
 			while (it != end && *it != '_') ++it;
-			auto insertStart = it;
-			while (it != end && *it == '_') ++it;
-			auto nameStart = it;
-			while (it != end && *it != '_') ++it;
-			auto nameEnd = it;
-			while (it != end && *it == '_') ++it;
-			auto insertEnd = it;
-
-			if (insertStart == end)
-				break;
-
-			if (insertEnd - insertStart != 40)
+			if (it == end) break;
+			if (end - it < placeholderSize)
 			{
-				cerr << "Error in binary object file " << src.first << " at position " << (insertStart - src.second.begin()) << endl;
+				cerr << "Error in binary object file " << src.first << " at position " << (end - src.second.begin()) << endl;
 				return false;
 			}
 
-			string name(nameStart, nameEnd);
-			if (m_libraries.count(name))
+			string name(it, it + placeholderSize);
+			if (librariesReplacements.count(name))
 			{
-				string hexStr(toHex(m_libraries.at(name).asBytes()));
-				copy(hexStr.begin(), hexStr.end(), insertStart);
+				string hexStr(toHex(librariesReplacements.at(name).asBytes()));
+				copy(hexStr.begin(), hexStr.end(), it);
 			}
 			else
 				cerr << "Reference \"" << name << "\" in file \"" << src.first << "\" still unresolved." << endl;
+			it += placeholderSize;
 		}
 	}
 	return true;
@@ -901,7 +903,6 @@ void CommandLineInterface::outputCompilationResults()
 		handleBytecode(contract);
 		handleSignatureHashes(contract);
 		handleMeta(DocumentationType::ABIInterface, contract);
-		handleMeta(DocumentationType::ABISolidityInterface, contract);
 		handleMeta(DocumentationType::NatspecDev, contract);
 		handleMeta(DocumentationType::NatspecUser, contract);
 	} // end of contracts iteration

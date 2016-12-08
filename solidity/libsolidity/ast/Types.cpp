@@ -306,7 +306,7 @@ TypePointer IntegerType::unaryOperatorResult(Token::Value _operator) const
 	// for non-address integers, we allow +, -, ++ and --
 	else if (_operator == Token::Add || _operator == Token::Sub ||
 			_operator == Token::Inc || _operator == Token::Dec ||
-			_operator == Token::After || _operator == Token::BitNot)
+			_operator == Token::BitNot)
 		return shared_from_this();
 	else
 		return TypePointer();
@@ -361,25 +361,25 @@ MemberList::MemberMap IntegerType::nativeMembers(ContractDefinition const*) cons
 {
 	if (isAddress())
 		return {
-		  {"balance", make_shared<FunctionType >(strings{"uint"},strings{"uint"},FunctionType::Location::GetBalance,true)},
-		    {"call", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::Bare, true)},
-		      {"callcode", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareCallCode, true)},
+			{"balance", make_shared<FunctionType >(strings{"uint"},strings{"uint"},FunctionType::Location::GetBalance,true)},
+			{"call", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::Bare, true, false, true)},
+			{"callcode", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareCallCode, true, false, true)},
 			{"delegatecall", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareDelegateCall, true)},
-			  {"send", make_shared<FunctionType>(strings{"uint","uint"}, strings{"bool"}, FunctionType::Location::Send)}
+			{"send", make_shared<FunctionType>(strings{"uint", "uint"}, strings{"bool"}, FunctionType::Location::Send)}
 		};
 	else
-	  return MemberList::MemberMap();
+		return MemberList::MemberMap();
 }
 
 FixedPointType::FixedPointType(int _integerBits, int _fractionalBits, FixedPointType::Modifier _modifier):
 	m_integerBits(_integerBits), m_fractionalBits(_fractionalBits), m_modifier(_modifier)
 {
 	solAssert(
-		m_integerBits + m_fractionalBits > 0 && 
-		m_integerBits + m_fractionalBits <= 256 && 
-		m_integerBits % 8 == 0 && 
+		m_integerBits + m_fractionalBits > 0 &&
+		m_integerBits + m_fractionalBits <= 256 &&
+		m_integerBits % 8 == 0 &&
 		m_fractionalBits % 8 == 0,
-		"Invalid bit number(s) for fixed type: " + 
+		"Invalid bit number(s) for fixed type: " +
 		dev::toString(_integerBits) + "x" + dev::toString(_fractionalBits)
 	);
 }
@@ -413,11 +413,10 @@ TypePointer FixedPointType::unaryOperatorResult(Token::Value _operator) const
 		return make_shared<TupleType>();
 	// for fixed, we allow +, -, ++ and --
 	else if (
-		_operator == Token::Add || 
+		_operator == Token::Add ||
 		_operator == Token::Sub ||
-		_operator == Token::Inc || 
-		_operator == Token::Dec ||
-		_operator == Token::After
+		_operator == Token::Inc ||
+		_operator == Token::Dec
 	)
 		return shared_from_this();
 	else
@@ -474,25 +473,25 @@ tuple<bool, rational> RationalNumberType::isValidLiteral(Literal const& _literal
 	{
 		rational numerator;
 		rational denominator(1);
-		
+
 		auto radixPoint = find(_literal.value().begin(), _literal.value().end(), '.');
 		if (radixPoint != _literal.value().end())
 		{
 			if (
-				!all_of(radixPoint + 1, _literal.value().end(), ::isdigit) || 
-				!all_of(_literal.value().begin(), radixPoint, ::isdigit) 
+				!all_of(radixPoint + 1, _literal.value().end(), ::isdigit) ||
+				!all_of(_literal.value().begin(), radixPoint, ::isdigit)
 			)
 				throw;
 			//Only decimal notation allowed here, leading zeros would switch to octal.
 			auto fractionalBegin = find_if_not(
-				radixPoint + 1, 
-				_literal.value().end(), 
+				radixPoint + 1,
+				_literal.value().end(),
 				[](char const& a) { return a == '0'; }
 			);
 
 			denominator = bigint(string(fractionalBegin, _literal.value().end()));
 			denominator /= boost::multiprecision::pow(
-				bigint(10), 
+				bigint(10),
 				distance(radixPoint + 1, _literal.value().end())
 			);
 			numerator = bigint(string(_literal.value().begin(), radixPoint));
@@ -683,7 +682,7 @@ TypePointer RationalNumberType::binaryOperatorResult(Token::Value _operator, Typ
 			}
 			else
 				value = m_value.numerator() % other.m_value.numerator();
-			break;	
+			break;
 		case Token::Exp:
 		{
 			using boost::multiprecision::pow;
@@ -729,7 +728,7 @@ u256 RationalNumberType::literalValue(Literal const*) const
 	// its value.
 
 	u256 value;
-	bigint shiftedValue; 
+	bigint shiftedValue;
 
 	if (!isFractional())
 		shiftedValue = m_value.numerator();
@@ -782,7 +781,7 @@ shared_ptr<FixedPointType const> RationalNumberType::fixedPointType() const
 	bool negative = (m_value < 0);
 	unsigned fractionalBits = 0;
 	rational value = abs(m_value); // We care about the sign later.
-	rational maxValue = negative ? 
+	rational maxValue = negative ?
 		rational(bigint(1) << 255, 1):
 		rational((bigint(1) << 256) - 1, 1);
 
@@ -791,7 +790,7 @@ shared_ptr<FixedPointType const> RationalNumberType::fixedPointType() const
 		value *= 0x100;
 		fractionalBits += 8;
 	}
-	
+
 	if (value > maxValue)
 		return shared_ptr<FixedPointType const>();
 	// u256(v) is the actual value that will be put on the stack
@@ -1330,16 +1329,10 @@ MemberList::MemberMap ContractType::nativeMembers(ContractDefinition const*) con
 	return members;
 }
 
-shared_ptr<FunctionType const> const& ContractType::constructorType() const
+shared_ptr<FunctionType const> const& ContractType::newExpressionType() const
 {
 	if (!m_constructorType)
-	{
-		FunctionDefinition const* constructor = m_contract.constructor();
-		if (constructor)
-			m_constructorType = make_shared<FunctionType>(*constructor);
-		else
-			m_constructorType = make_shared<FunctionType>(TypePointers(), TypePointers());
-	}
+		m_constructorType = FunctionType::newExpressionType(m_contract);
 	return m_constructorType;
 }
 
@@ -1654,6 +1647,7 @@ TypePointer TupleType::closestTemporaryType(TypePointer const& _targetType) cons
 FunctionType::FunctionType(FunctionDefinition const& _function, bool _isInternal):
 	m_location(_isInternal ? Location::Internal : Location::External),
 	m_isConstant(_function.isDeclaredConst()),
+	m_isPayable(_function.isPayable()),
 	m_declaration(&_function)
 {
 	TypePointers params;
@@ -1738,7 +1732,7 @@ FunctionType::FunctionType(VariableDeclaration const& _varDecl):
 	swap(retParamNames, m_returnParameterNames);
 }
 
-FunctionType::FunctionType(const EventDefinition& _event):
+FunctionType::FunctionType(EventDefinition const& _event):
 	m_location(Location::Event), m_isConstant(true), m_declaration(&_event)
 {
 	TypePointers params;
@@ -1752,6 +1746,35 @@ FunctionType::FunctionType(const EventDefinition& _event):
 	}
 	swap(params, m_parameterTypes);
 	swap(paramNames, m_parameterNames);
+}
+
+FunctionTypePointer FunctionType::newExpressionType(ContractDefinition const& _contract)
+{
+	FunctionDefinition const* constructor = _contract.constructor();
+	TypePointers parameters;
+	strings parameterNames;
+	bool payable = false;
+
+	if (constructor)
+	{
+		for (ASTPointer<VariableDeclaration> const& var: constructor->parameters())
+		{
+			parameterNames.push_back(var->name());
+			parameters.push_back(var->annotation().type);
+		}
+		payable = constructor->isPayable();
+	}
+	return make_shared<FunctionType>(
+		parameters,
+		TypePointers{make_shared<ContractType>(_contract)},
+		parameterNames,
+		strings{""},
+		Location::Creation,
+		false,
+		nullptr,
+		false,
+		payable
+	);
 }
 
 vector<string> FunctionType::parameterNames() const
@@ -1872,7 +1895,12 @@ FunctionTypePointer FunctionType::interfaceFunctionType() const
 	if (variable && retParamTypes.empty())
 		return FunctionTypePointer();
 
-	return make_shared<FunctionType>(paramTypes, retParamTypes, m_parameterNames, m_returnParameterNames, m_location, m_arbitraryParameters);
+	return make_shared<FunctionType>(
+		paramTypes, retParamTypes,
+		m_parameterNames, m_returnParameterNames,
+		m_location, m_arbitraryParameters,
+		m_declaration, m_isConstant, m_isPayable
+	);
 }
 
 MemberList::MemberMap FunctionType::nativeMembers(ContractDefinition const*) const
@@ -1883,6 +1911,7 @@ MemberList::MemberMap FunctionType::nativeMembers(ContractDefinition const*) con
 	case Location::Creation:
 	case Location::ECRecover:
 	case Location::SHA256:
+	case Location::CheckTx:
 	case Location::RIPEMD160:
 	case Location::Bare:
 	case Location::BareCallCode:
@@ -1890,20 +1919,25 @@ MemberList::MemberMap FunctionType::nativeMembers(ContractDefinition const*) con
 	{
 		MemberList::MemberMap members;
 		if (m_location != Location::BareDelegateCall && m_location != Location::DelegateCall)
-			members.push_back(MemberList::Member(
-				"value",
-				make_shared<FunctionType>(
-							  parseElementaryTypeVector({"uint","uint"}),
-					TypePointers{copyAndSetGasOrValue(false, true)},
-					strings(),
-					strings(),
-					Location::SetValue,
-					false,
-					nullptr,
-					m_gasSet,
-					m_valueSet
-				)
-			));
+		{
+			if (m_isPayable)
+				members.push_back(MemberList::Member(
+					"value",
+					make_shared<FunctionType>(
+						parseElementaryTypeVector({"uint", "uint"}),
+						TypePointers{copyAndSetGasOrValue(false, true)},
+						strings(),
+						strings(),
+						Location::SetValue,
+						false,
+						nullptr,
+						false,
+						false,
+						m_gasSet,
+						m_valueSet
+					)
+				));
+		}
 		if (m_location != Location::Creation)
 			members.push_back(MemberList::Member(
 				"gas",
@@ -1915,6 +1949,8 @@ MemberList::MemberMap FunctionType::nativeMembers(ContractDefinition const*) con
 					Location::SetGas,
 					false,
 					nullptr,
+					false,
+					false,
 					m_gasSet,
 					m_valueSet
 				)
@@ -1998,7 +2034,7 @@ string FunctionType::externalSignature() const
 
 u256 FunctionType::externalIdentifier() const
 {
-	return FixedHash<4>::Arith(FixedHash<4>(dev::sha3(externalSignature())));
+	return FixedHash<4>::Arith(FixedHash<4>(dev::keccak256(externalSignature())));
 }
 
 TypePointers FunctionType::parseElementaryTypeVector(strings const& _types)
@@ -2020,6 +2056,8 @@ TypePointer FunctionType::copyAndSetGasOrValue(bool _setGas, bool _setValue) con
 		m_location,
 		m_arbitraryParameters,
 		m_declaration,
+		m_isConstant,
+		m_isPayable,
 		m_gasSet || _setGas,
 		m_valueSet || _setValue,
 		m_bound
@@ -2065,6 +2103,8 @@ FunctionTypePointer FunctionType::asMemberFunction(bool _inLibrary, bool _bound)
 		location,
 		m_arbitraryParameters,
 		m_declaration,
+		m_isConstant,
+		m_isPayable,
 		m_gasSet,
 		m_valueSet,
 		_bound
@@ -2091,7 +2131,8 @@ vector<string> const FunctionType::returnParameterTypeNames(bool _addDataLocatio
 
 TypePointer FunctionType::selfType() const
 {
-	solAssert(bound(), "");
+	solAssert(bound(), "Function is not bound.");
+	solAssert(m_parameterTypes.size() > 0, "Function has no self type.");
 	return m_parameterTypes.at(0);
 }
 
@@ -2274,10 +2315,10 @@ MemberList::MemberMap MagicType::nativeMembers(ContractDefinition const*) const
 		});
 	case Kind::Message:
 		return MemberList::MemberMap({
-		    {"sender", make_shared<IntegerType>(0, IntegerType::Modifier::Address)},
-		      {"gas", make_shared<IntegerType>(256)},
-			{"value", make_shared<FunctionType>(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue)},
-			  {"data", make_shared<ArrayType>(DataLocation::CallData)},
+			{"sender", make_shared<IntegerType>(0, IntegerType::Modifier::Address)},
+			{"gas", make_shared<IntegerType>(256)},
+			{"value", make_shared<FunctionType >(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue,true)},
+			{"data", make_shared<ArrayType>(DataLocation::CallData)},
 			{"sig", make_shared<FixedBytesType>(4)}
 		});
 	case Kind::Transaction:

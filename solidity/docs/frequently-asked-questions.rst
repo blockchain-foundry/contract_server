@@ -317,17 +317,12 @@ providing any data or if someone messed up the types so that they tried to
 call a function that does not exist.
 
 The default behaviour (if no fallback function is explicitly given) in
-these situations is to just accept the call and do nothing.
-This is desireable in many cases, but should only be used if there is
-a way to pull out Ether from a contract.
+these situations is to throw an exception.
 
-If the contract is not meant to receive Ether with simple transfers, you
+If the contract is meant to receive Ether with simple transfers, you
 should implement the fallback function as
 
-``function() { throw; }``
-
-this will cause all transactions to this contract that do not call an
-existing function to be reverted, so that all Ether is sent back.
+``function() payable { }``
 
 Another use of the fallback function is to e.g. register that your
 contract received ether by using an event.
@@ -399,7 +394,7 @@ What character set does Solidity use?
 =====================================
 
 Solidity is character set agnostic concerning strings in the source code, although
-utf-8 is recommended. Identifiers (variables, functions, ...) can only use
+UTF-8 is recommended. Identifiers (variables, functions, ...) can only use
 ASCII.
 
 What are some examples of basic string manipulation (``substring``, ``indexOf``, ``charAt``, etc)?
@@ -461,16 +456,17 @@ If you do not want to throw, you can return a pair::
 
         function getCounter(uint index)
             returns (uint counter, bool error) {
-                if (index >= counters.length) return (0, true);
-                else return (counters[index], false);
+                if (index >= counters.length)
+                    return (0, true);
+                else
+                    return (counters[index], false);
         }
 
         function checkCounter(uint index) {
             var (counter, error) = getCounter(index);
             if (error) {
                 ...
-            }
-            else {
+            } else {
                 ...
             }
         }
@@ -487,6 +483,8 @@ What happens if you send ether along with a function call to a contract?
 ========================================================================
 
 It gets added to the total balance of the contract, just like when you send ether when creating a contract.
+You can only send ether along to a function that has the ``payable`` modifier,
+otherwise an exception is thrown.
 
 Is it possible to get a tx receipt for a transaction executed contract-to-contract?
 ===================================================================================
@@ -741,15 +739,15 @@ see a 32-byte hex value, this is just ``"stringliteral"`` in hex.
 The type ``bytes`` is similar, only that it can change its length.
 
 Finally, ``string`` is basically identical to ``bytes`` only that it is assumed
-to hold the utf-8 encoding of a real string. Since ``string`` stores the
-data in utf-8 encoding it is quite expensive to compute the number of
+to hold the UTF-8 encoding of a real string. Since ``string`` stores the
+data in UTF-8 encoding it is quite expensive to compute the number of
 characters in the string (the encoding of some characters takes more
 than a single byte). Because of that, ``string s; s.length`` is not yet
 supported and not even index access ``s[2]``. But if you want to access
 the low-level byte encoding of the string, you can use
 ``bytes(s).length`` and ``bytes(s)[2]`` which will result in the number
-of bytes in the utf-8 encoding of the string (not the number of
-characters) and the second byte (not character) of the utf-8 encoded
+of bytes in the UTF-8 encoding of the string (not the number of
+characters) and the second byte (not character) of the UTF-8 encoded
 string, respectively.
 
 

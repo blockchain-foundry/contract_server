@@ -159,7 +159,8 @@ const std::map<std::string, Instruction> dev::solidity::c_instructions =
 	{ "CALLCODE", Instruction::CALLCODE },
 	{ "RETURN", Instruction::RETURN },
 	{ "DELEGATECALL", Instruction::DELEGATECALL },
-	{ "SUICIDE", Instruction::SUICIDE }
+	{ "SUICIDE", Instruction::SUICIDE },
+	{ "CHECKTX", Instruction::CHECKTX}
 };
 
 static const std::map<Instruction, InstructionInfo> c_instructionInfo =
@@ -288,12 +289,13 @@ static const std::map<Instruction, InstructionInfo> c_instructionInfo =
 	{ Instruction::LOG2,		{ "LOG2",			0, 4, 0, true, SpecialTier } },
 	{ Instruction::LOG3,		{ "LOG3",			0, 5, 0, true, SpecialTier } },
 	{ Instruction::LOG4,		{ "LOG4",			0, 6, 0, true, SpecialTier } },
-	{ Instruction::CREATE,		{ "CREATE",			0, 3, 1, true, SpecialTier } },
+	{ Instruction::CREATE,		{ "CREATE",			0, 4, 1, true, SpecialTier } },
 	{ Instruction::CALL,		{ "CALL",			0, 8, 1, true, SpecialTier } },
 	{ Instruction::CALLCODE,	{ "CALLCODE",		0, 7, 1, true, SpecialTier } },
 	{ Instruction::RETURN,		{ "RETURN",			0, 2, 0, true, ZeroTier } },
 	{ Instruction::DELEGATECALL,{ "DELEGATECALL",	0, 6, 1, true, SpecialTier } },
-	{ Instruction::SUICIDE,		{ "SUICIDE",		0, 1, 0, true, ZeroTier } }
+	{ Instruction::SUICIDE,		{ "SUICIDE",		0, 1, 0, true, ZeroTier } },
+	{ Instruction::CHECKTX,		{ "CHECKTX",		0, 1, 1, false, SpecialTier}}
 };
 
 void dev::solidity::eachInstruction(

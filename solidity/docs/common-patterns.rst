@@ -2,6 +2,111 @@
 Common Patterns
 ###############
 
+.. index:: withdrawal
+
+.. _withdrawal_pattern:
+
+*************************
+Withdrawal from Contracts
+*************************
+
+The recommended method of sending funds after an effect
+is using the withdrawal pattern. Although the most intuitive
+method of sending Ether, as a result of an effect, is a
+direct ``send`` call, this is not recommended as it
+introduces a potential security risk. You may read
+more about this on the :ref:`security_considerations` page.
+
+This is an example of the withdrawal pattern in practice in
+a contract where the goal is to send the most money to the
+contract in order to become the "richest", inspired by
+`King of the Ether <https://www.kingoftheether.com/>`_.
+
+In the following contract, if you are usurped as the richest,
+you will recieve the funds of the person who has gone on to
+become the new richest.
+
+::
+
+    pragma solidity ^0.4.0;
+
+    contract WithdrawalContract {
+        address public richest;
+        uint public mostSent;
+
+        mapping (address => uint) pendingWithdrawals;
+
+        function WithdrawalContract() payable {
+            richest = msg.sender;
+            mostSent = msg.value;
+        }
+
+        function becomeRichest() payable returns (bool) {
+            if (msg.value > mostSent) {
+                pendingWithdrawals[richest] += msg.value;
+                richest = msg.sender;
+                mostSent = msg.value;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function withdraw() returns (bool) {
+            uint amount = pendingWithdrawals[msg.sender];
+            // Remember to zero the pending refund before
+            // sending to prevent re-entrancy attacks
+            pendingWithdrawals[msg.sender] = 0;
+            if (msg.sender.send(amount)) {
+                return true;
+            } else {
+                pendingWithdrawals[msg.sender] = amount;
+                return false;
+            }
+        }
+    }
+
+This is as opposed to the more intuitive sending pattern:
+
+::
+
+    pragma solidity ^0.4.0;
+
+    contract SendContract {
+        address public richest;
+        uint public mostSent;
+
+        function SendContract() payable {
+            richest = msg.sender;
+            mostSent = msg.value;
+        }
+
+        function becomeRichest() returns (bool) {
+            if (msg.value > mostSent) {
+                // Check if call succeeds to prevent an attacker
+                // from trapping the previous person's funds in
+                // this contract through a callstack attack
+                if (!richest.send(msg.value)) {
+                    throw;
+                }
+                richest = msg.sender;
+                mostSent = msg.value;
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+Notice that, in this example, an attacker could trap the
+contract into an unusable state by causing ``richest`` to be
+the address of a  contract that has a fallback function
+which consumes more than the 2300 gas stipend.  That way,
+whenever ``send`` is called to deliver funds to the
+"poisoned" contract, it will cause execution to always fail
+because there will not be enough gas to finish the execution
+of the fallback function.
+
 .. index:: access;restricting
 
 ******************
@@ -30,6 +135,8 @@ restrictions highly readable.
 
 ::
 
+    pragma solidity ^0.4.0;
+
     contract AccessRestriction {
         // These will be assigned at the construction
         // phase, where `msg.sender` is the account
@@ -47,10 +154,10 @@ restrictions highly readable.
         {
             if (msg.sender != _account)
                 throw;
-            // Do not forget the "_"! It will
+            // Do not forget the "_;"! It will
             // be replaced by the actual function
-            // body when the modifier is invoked.
-            _
+            // body when the modifier is used.
+            _;
         }
 
         /// Make `_newOwner` the new owner of this
@@ -63,7 +170,7 @@ restrictions highly readable.
 
         modifier onlyAfter(uint _time) {
             if (now < _time) throw;
-            _
+            _;
         }
 
         /// Erase ownership information.
@@ -80,15 +187,14 @@ restrictions highly readable.
         // fee being associated with a function call.
         // If the caller sent too much, he or she is
         // refunded, but only after the function body.
-        // This is dangerous, because if the function
-        // uses `return` explicitly, this will not be
-        // done!
+        // This was dangerous before Solidity version 0.4.0,
+        // where it was possible to skip the part after `_;`.
         modifier costs(uint _amount) {
             if (msg.value < _amount)
                 throw;
-            _
+            _;
             if (msg.value > _amount)
-                msg.sender.send(_amount - msg.value);
+                msg.sender.send(msg.value - _amount);
         }
 
         function forceOwnerChange(address _newOwner)
@@ -97,10 +203,10 @@ restrictions highly readable.
             owner = _newOwner;
             // just some example condition
             if (uint(owner) & 0 == 1)
-                // in this case, overpaid fees will not
-                // be refunded
+                // This did not refund for Solidity
+                // before version 0.4.0.
                 return;
-            // otherwise, refund overpaid fees
+            // refund overpaid fees
         }
     }
 
@@ -158,14 +264,19 @@ function finishes.
 
 .. note::
     **Modifier May be Skipped**.
+    This only applies to Solidity before version 0.4.0:
     Since modifiers are applied by simply replacing
     code and not by using a function call,
     the code in the transitionNext modifier
     can be skipped if the function itself uses
     return. If you want to do that, make sure
     to call nextStage manually from those functions.
+    Starting with version 0.4.0, modifier code
+    will run even if the function explicitly returns.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract StateMachine {
         enum Stages {
@@ -183,7 +294,7 @@ function finishes.
 
         modifier atStage(Stages _stage) {
             if (stage != _stage) throw;
-            _
+            _;
         }
 
         function nextStage() internal {
@@ -201,11 +312,12 @@ function finishes.
                     now >= creationTime + 12 days)
                 nextStage();
             // The other stages transition by transaction
-            _
+            _;
         }
 
         // Order of the modifiers matters here!
         function bid()
+            payable
             timedTransitions
             atStage(Stages.AcceptingBlindedBids)
         {
@@ -220,12 +332,9 @@ function finishes.
 
         // This modifier goes to the next stage
         // after the function is done.
-        // If you use `return` in the function,
-        // `nextStage` will not be called
-        // automatically.
         modifier transitionNext()
         {
-            _
+            _;
             nextStage();
         }
 
@@ -234,8 +343,6 @@ function finishes.
             atStage(Stages.AnotherStage)
             transitionNext
         {
-            // If you want to use `return` here,
-            // you have to call `nextStage()` manually.
         }
 
         function h()

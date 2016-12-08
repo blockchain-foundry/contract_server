@@ -23,6 +23,7 @@
 #include <utility>
 #include <numeric>
 #include <boost/range/adaptor/reversed.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <libdevcore/Common.h>
 #include <libdevcore/SHA3.h>
 #include <libsolidity/ast/AST.h>
@@ -237,19 +238,19 @@ bool ExpressionCompiler::visit(TupleExpression const& _tuple)
 	if (_tuple.isInlineArray())
 	{
 		ArrayType const& arrayType = dynamic_cast<ArrayType const&>(*_tuple.annotation().type);
-		
+
 		solAssert(!arrayType.isDynamicallySized(), "Cannot create dynamically sized inline array.");
 		m_context << max(u256(32u), arrayType.memorySize());
 		utils().allocateMemory();
 		m_context << Instruction::DUP1;
-	
+
 		for (auto const& component: _tuple.components())
 		{
 			component->accept(*this);
 			utils().convertType(*component->annotation().type, *arrayType.baseType(), true);
-			utils().storeInMemoryDynamic(*arrayType.baseType(), true);				
+			utils().storeInMemoryDynamic(*arrayType.baseType(), true);
 		}
-		
+
 		m_context << Instruction::POP;
 	}
 	else
@@ -296,9 +297,6 @@ bool ExpressionCompiler::visit(UnaryOperation const& _unaryOperation)
 		break;
 	case Token::BitNot: // ~
 		m_context << Instruction::NOT;
-		break;
-	case Token::After: // after
-		m_context << Instruction::TIMESTAMP << Instruction::ADD;
 		break;
 	case Token::Delete: // delete
 		solAssert(!!m_currentLValue, "LValue not retrieved.");
@@ -395,7 +393,6 @@ bool ExpressionCompiler::visit(BinaryOperation const& _binaryOperation)
 	// do not visit the child nodes, we already did that explicitly
 	return false;
 }
-
 bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 {
 	CompilerContext::LocationSetter locationSetter(m_context, _functionCall);
@@ -532,12 +529,20 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			// need: size, offset, endowment
 			utils().toSizeAfterFreeMemoryPointer();
 			if (function.valueSet())
-				m_context << dupInstruction(3);
+				{
+					m_context << dupInstruction(3);
+					m_context << dupInstruction(4);
+				}
 			else
-				m_context << u256(0);
+				{
+					m_context << u256(0);
+					m_context << u256(0);
+				}
 			m_context << Instruction::CREATE;
 			if (function.valueSet())
-				m_context << swapInstruction(1) << Instruction::POP;
+				{
+					m_context << swapInstruction(2) << Instruction::POP << Instruction::POP;
+				}
 			break;
 		}
 		case Location::SetGas:
@@ -570,47 +575,41 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			arguments[1]->accept(*this); // color
 			break;
 		case Location::Send:
-		  /*		  m_context <<u256(0);
-		  m_context <<u256(0);
-		  m_context <<u256(0);
-		  m_context <<u256(0);
+		_functionCall.expression().accept(*this);
+		// Provide the gas stipend manually at first because we may send zero ether.
+		// Will be zeroed if we send more than zero ether.
+		m_context << u256(eth::GasCosts::callStipend);
+		arguments.front()->accept(*this);
+		utils().convertType(
+			*arguments.front()->annotation().type,
+			*function.parameterTypes().front(), true
+		);
+		arguments[1]->accept(*this);
+		utils().convertType(
+			*arguments[1]->annotation().type,
+			*function.parameterTypes()[1], true
+		);
+		// gas <- gas * !value
+		m_context << Instruction::SWAP2 << Instruction::DUP2;
+		m_context << Instruction::ISZERO << Instruction::MUL << Instruction::SWAP2;
+		appendExternalFunctionCall(
+			FunctionType(
+				TypePointers{},
+				TypePointers{},
+				strings(),
+				strings(),
+				Location::Bare,
+				false,
+				nullptr,
+				false,
+				false,
+				true,
+				true
+			),
+			{}
+		);
+//m_context << u256(0);
 
-		  m_context <<u256(0); 
-
-		  arguments.front()->accept(*this); //value
-		  utils().convertType(*arguments.front()->annotation().type,*function.parameterTypes().front());
-		  arguments[1]->accept(*this);
-		  utils().convertType(*arguments[1]->annotation().type,*function.parameterTypes()[1]); //color
-		  _functionCall.expression().accept(*this); //address
-		  m_context << u256(0); //gas
-		  m_context <<Instruction::CALL;
-*/
-		  _functionCall.expression().accept(*this);
-		  m_context<<u256(0);
-		  arguments.front()->accept(*this);
-		  utils().convertType(*arguments.front()->annotation().type,*function.parameterTypes().front());
-		  arguments[1]->accept(*this);
-		  utils().convertType(*arguments[1]->annotation().type,*function.parameterTypes()[1]);
-		  appendExternalFunctionCall( FunctionType(
-							   TypePointers{},
-							   TypePointers{},
-							   strings(),
-							   strings(),
-							   Location::Bare,
-							   false,
-							  nullptr,
-							   true,
-							   true
-							   ),
-					      {}
-					      );
-	      
-			
-			
-			//utils().convertType(u256(0),IntegerType(256));
-		
-			//	m_context <<Instruction::POP;
-		       
 			break;
 		case Location::Selfdestruct:
 			arguments.front()->accept(*this);
@@ -629,6 +628,14 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			utils().encodeToMemory(argumentTypes, TypePointers(), function.padArguments(), true);
 			utils().toSizeAfterFreeMemoryPointer();
 			m_context << Instruction::SHA3;
+			break;
+		}
+		case Location::CheckTx:
+		{
+			_functionCall.expression().accept(*this);
+			arguments[0]->accept(*this);
+			utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
+			m_context << Instruction::CHECKTX;
 			break;
 		}
 		case Location::Log0:
@@ -686,7 +693,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				}
 			if (!event.isAnonymous())
 			{
-				m_context << u256(h256::Arith(dev::sha3(function.externalSignature())));
+				m_context << u256(h256::Arith(dev::keccak256(function.externalSignature())));
 				++numIndexed;
 			}
 			solAssert(numIndexed <= 4, "Too many indexed arguments.");
@@ -780,24 +787,22 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				StorageByteArrayElement(m_context).storeValue(*type, _functionCall.location(), true);
 			break;
 		}
-		  case Location::GetValue:
-		    {
-		      _functionCall.expression().accept(*this);
-		      arguments[0]->accept(*this);
-		      utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
-		      
-		      m_context << Instruction::CALLVALUE;
-		      break;
-		    }
-		  case Location::GetBalance:
-		    {
-		      _functionCall.expression().accept(*this);
-		      arguments[0]->accept(*this);
-		      utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
-		      // cout<<"GETBALANCE"<<endl;
-		      m_context << Instruction::BALANCE;
-		      break;
-		    }
+		case Location::GetValue:
+    {
+      _functionCall.expression().accept(*this);
+      arguments[0]->accept(*this);
+      utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
+      m_context << Instruction::CALLVALUE;
+      break;
+    }
+  case Location::GetBalance:
+    {
+      _functionCall.expression().accept(*this);
+      arguments[0]->accept(*this);
+      utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
+      m_context << Instruction::BALANCE;
+      break;
+    }
 		case Location::ObjectCreation:
 		{
 			// Will allocate at the end of memory (MSIZE) and not write at all unless the base
@@ -848,13 +853,14 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			m_context << Instruction::POP;
 			break;
 		}
-		
+
 		default:
 			BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Invalid function type."));
 		}
 	}
 	return false;
 }
+
 
 bool ExpressionCompiler::visit(NewExpression const&)
 {
@@ -971,13 +977,12 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 	case Type::Category::Integer:
 		if (member == "balance")
 		{
-			utils().convertType(
-				*_memberAccess.expression().annotation().type,
-				IntegerType(0, IntegerType::Modifier::Address),
-				true
-			);
-			
-			//			m_context << Instruction::BALANCE;
+		//	utils().convertType(
+		//		*_memberAccess.expression().annotation().type,
+		//		IntegerType(0, IntegerType::Modifier::Address),
+		//		true
+		//	);
+	//		m_context << Instruction::BALANCE;
 		}
 		else if ((set<string>{"send", "call", "callcode", "delegatecall"}).count(member))
 			utils().convertType(
@@ -1007,7 +1012,8 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 		else if (member == "sender")
 			m_context << Instruction::CALLER;
 		else if (member == "value")
-			; // Bytecodes are pushed at somewhere else
+//			m_context << Instruction::CALLVALUE;
+;
 		else if (member == "origin")
 			m_context << Instruction::ORIGIN;
 		else if (member == "gas")
@@ -1268,7 +1274,7 @@ void ExpressionCompiler::endVisit(Literal const& _literal)
 {
 	CompilerContext::LocationSetter locationSetter(m_context, _literal);
 	TypePointer type = _literal.annotation().type;
-	
+
 	switch (type->category())
 	{
 	case Type::Category::RationalNumber:
@@ -1367,11 +1373,18 @@ void ExpressionCompiler::appendArithmeticOperatorCode(Token::Value _operator, Ty
 		m_context << Instruction::MUL;
 		break;
 	case Token::Div:
-		m_context  << (c_isSigned ? Instruction::SDIV : Instruction::DIV);
-		break;
 	case Token::Mod:
-		m_context << (c_isSigned ? Instruction::SMOD : Instruction::MOD);
+	{
+		// Test for division by zero
+		m_context << Instruction::DUP2 << Instruction::ISZERO;
+		m_context.appendConditionalJumpTo(m_context.errorTag());
+
+		if (_operator == Token::Div)
+			m_context << (c_isSigned ? Instruction::SDIV : Instruction::DIV);
+		else
+			m_context << (c_isSigned ? Instruction::SMOD : Instruction::MOD);
 		break;
+	}
 	case Token::Exp:
 		m_context << Instruction::EXP;
 		break;
@@ -1412,14 +1425,15 @@ void ExpressionCompiler::appendShiftOperatorCode(Token::Value _operator)
 	default:
 		BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Unknown shift operator."));
 	}
-}
+}/*
 
 void ExpressionCompiler::appendExternalFunctionCall(
 	FunctionType const& _functionType,
 	vector<ASTPointer<Expression const>> const& _arguments
 )
 {
-    //cout<<"Append External functioncall" <<endl;
+	// This is the modified appendExternalFunctionclll supporting call with multi-color.
+	//cout<<"Append External functioncall" <<endl;
 	solAssert(
 		_functionType.takesArbitraryParameters() ||
 		_arguments.size() == _functionType.parameterTypes().size(), ""
@@ -1537,7 +1551,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	    m_context << dupInstruction(myValueStackPos+1); // value
 	    m_context << dupInstruction(myValueStackPos+1); // color
 	  }
-	else	  
+	else
 	  {
 	    m_context << u256(0);
 	    m_context << u256(0);
@@ -1547,7 +1561,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	if (_functionType.gasSet())
 		m_context << dupInstruction(m_context.baseToCurrentStackOffset(gasStackPos));
 	else
-	  
+
 	{
 		// send all gas except the amount needed to execute "SUB" and "CALL"
 		// @todo this retains too much gas for now, needs to be fine-tuned.
@@ -1570,7 +1584,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 
 	unsigned remainsSize =
 		2 + // contract address, input_memory_end
-	  _functionType.valueSet() * 2 + // value + color 
+	  _functionType.valueSet() * 2 + // value + color
 		_functionType.gasSet() +
 		(!_functionType.isBareCall() || manualFunctionId);
 
@@ -1612,7 +1626,254 @@ void ExpressionCompiler::appendExternalFunctionCall(
 			m_context << Instruction::POP;
 	}
 }
+*/
+void ExpressionCompiler::appendExternalFunctionCall(
+	FunctionType const& _functionType,
+	vector<ASTPointer<Expression const>> const& _arguments
+)
+{
+	solAssert(
+		_functionType.takesArbitraryParameters() ||
+		_arguments.size() == _functionType.parameterTypes().size(), ""
+	);
 
+	// Assumed stack content here:
+	// <stack top>
+	// color [if _functionType.valueSet()]
+	// value [if _functionType.valueSet()]
+	// gas [if _functionType.gasSet()]
+	// self object [if bound - moved to top right away]
+	// function identifier [unless bare]
+	// contract address
+
+	unsigned selfSize = _functionType.bound() ? _functionType.selfType()->sizeOnStack() : 0;
+	unsigned gasValueSize = (_functionType.gasSet() ? 1 : 0) + (_functionType.valueSet() ? 2 : 0);
+	unsigned contractStackPos = m_context.currentToBaseStackOffset(1 + gasValueSize + selfSize + (_functionType.isBareCall() ? 0 : 1));
+	unsigned gasStackPos = m_context.currentToBaseStackOffset(gasValueSize);
+	unsigned valueStackPos = m_context.currentToBaseStackOffset(1);
+
+	// move self object to top
+	if (_functionType.bound())
+		utils().moveToStackTop(gasValueSize, _functionType.selfType()->sizeOnStack());
+
+	using FunctionKind = FunctionType::Location;
+	FunctionKind funKind = _functionType.location();
+	bool returnSuccessCondition = funKind == FunctionKind::Bare || funKind == FunctionKind::BareCallCode;
+	bool isCallCode = funKind == FunctionKind::BareCallCode || funKind == FunctionKind::CallCode;
+	bool isDelegateCall = funKind == FunctionKind::BareDelegateCall || funKind == FunctionKind::DelegateCall;
+
+	unsigned retSize = 0;
+	if (returnSuccessCondition)
+		retSize = 0; // return value actually is success condition
+	else
+		for (auto const& retType: _functionType.returnParameterTypes())
+		{
+			solAssert(!retType->isDynamicallySized(), "Unable to return dynamic type from external call.");
+			retSize += retType->calldataEncodedSize();
+		}
+
+	// Evaluate arguments.
+	TypePointers argumentTypes;
+	TypePointers parameterTypes = _functionType.parameterTypes();
+	bool manualFunctionId =
+		(funKind == FunctionKind::Bare || funKind == FunctionKind::BareCallCode || funKind == FunctionKind::BareDelegateCall) &&
+		!_arguments.empty() &&
+		_arguments.front()->annotation().type->mobileType()->calldataEncodedSize(false) ==
+			CompilerUtils::dataStartOffset;
+	if (manualFunctionId)
+	{
+		// If we have a Bare* and the first type has exactly 4 bytes, use it as
+		// function identifier.
+		_arguments.front()->accept(*this);
+		utils().convertType(
+			*_arguments.front()->annotation().type,
+			IntegerType(8 * CompilerUtils::dataStartOffset),
+			true
+		);
+		for (unsigned i = 0; i < gasValueSize; ++i)
+			m_context << swapInstruction(gasValueSize - i);
+		gasStackPos++;
+		valueStackPos++;
+	}
+	if (_functionType.bound())
+	{
+		argumentTypes.push_back(_functionType.selfType());
+		parameterTypes.insert(parameterTypes.begin(), _functionType.selfType());
+	}
+	for (size_t i = manualFunctionId ? 1 : 0; i < _arguments.size(); ++i)
+	{
+		_arguments[i]->accept(*this);
+		argumentTypes.push_back(_arguments[i]->annotation().type);
+	}
+
+	if (funKind == FunctionKind::ECRecover)
+	{
+		// Clears 32 bytes of currently free memory and advances free memory pointer.
+		// Output area will be "start of input area" - 32.
+		// The reason is that a failing ECRecover cannot be detected, it will just return
+		// zero bytes (which we cannot detect).
+		solAssert(0 < retSize && retSize <= 32, "");
+		utils().fetchFreeMemoryPointer();
+		m_context << Instruction::DUP1 << u256(0) << Instruction::MSTORE;
+		m_context << u256(32) << Instruction::ADD;
+		utils().storeFreeMemoryPointer();
+	}
+
+	// Touch the end of the output area so that we do not pay for memory resize during the call
+	// (which we would have to subtract from the gas left)
+	// We could also just use MLOAD; POP right before the gas calculation, but the optimizer
+	// would remove that, so we use MSTORE here.
+	if (!_functionType.gasSet() && retSize > 0)
+	{
+		m_context << u256(0);
+		utils().fetchFreeMemoryPointer();
+		// This touches too much, but that way we save some rounding arithmetics
+		m_context << u256(retSize) << Instruction::ADD << Instruction::MSTORE;
+	}
+
+	// Copy function identifier to memory.
+	utils().fetchFreeMemoryPointer();
+	if (!_functionType.isBareCall() || manualFunctionId)
+	{
+		m_context << dupInstruction(2 + gasValueSize + CompilerUtils::sizeOnStack(argumentTypes));
+		utils().storeInMemoryDynamic(IntegerType(8 * CompilerUtils::dataStartOffset), false);
+	}
+	// If the function takes arbitrary parameters, copy dynamic length data in place.
+	// Move arguments to memory, will not update the free memory pointer (but will update the memory
+	// pointer on the stack).
+	utils().encodeToMemory(
+		argumentTypes,
+		parameterTypes,
+		_functionType.padArguments(),
+		_functionType.takesArbitraryParameters(),
+		isCallCode || isDelegateCall
+	);
+
+	// Stack now:
+	// <stack top>
+	// input_memory_end
+	// color [if _functionType.valueSet()]
+	// value [if _functionType.valueSet()]
+	// gas [if _functionType.gasSet()]
+	// function identifier [unless bare]
+	// contract address
+
+	// Output data will replace input data, unless we have ECRecover (then, output
+	// area will be 32 bytes just before input area).
+	// put on stack: <size of output> <memory pos of output> <size of input> <memory pos of input>
+	m_context << u256(retSize);
+	utils().fetchFreeMemoryPointer(); // This is the start of input
+	if (funKind == FunctionKind::ECRecover)
+	{
+		// In this case, output is 32 bytes before input and has already been cleared.
+		m_context << u256(32) << Instruction::DUP2 << Instruction::SUB << Instruction::SWAP1;
+		// Here: <input end> <output size> <outpos> <input pos>
+		m_context << Instruction::DUP1 << Instruction::DUP5 << Instruction::SUB;
+		m_context << Instruction::SWAP1;
+	}
+	else
+	{
+		m_context << Instruction::DUP1 << Instruction::DUP4 << Instruction::SUB;
+		m_context << Instruction::DUP2;
+	}
+
+	// CALL arguments: outSize, outOff, inSize, inOff (already present up to here)
+	// [value,] addr, gas (stack top)
+	if (isDelegateCall)
+		solAssert(!_functionType.valueSet(), "Value set for delegatecall");
+	else if (_functionType.valueSet())
+	{
+		m_context << dupInstruction(m_context.baseToCurrentStackOffset(valueStackPos-1));
+		m_context << dupInstruction(m_context.baseToCurrentStackOffset(valueStackPos));
+	}
+	else
+		{
+			m_context << u256(0);
+			m_context << u256(0);
+		}
+	m_context << dupInstruction(m_context.baseToCurrentStackOffset(contractStackPos));
+
+	bool existenceChecked = false;
+	// Check the the target contract exists (has code) for non-low-level calls.
+	if (funKind == FunctionKind::External || funKind == FunctionKind::CallCode || funKind == FunctionKind::DelegateCall)
+	{
+		m_context << Instruction::DUP1 << Instruction::EXTCODESIZE << Instruction::ISZERO;
+		m_context.appendConditionalJumpTo(m_context.errorTag());
+		existenceChecked = true;
+	}
+
+	if (_functionType.gasSet())
+		m_context << dupInstruction(m_context.baseToCurrentStackOffset(gasStackPos));
+	else
+	{
+		// send all gas except the amount needed to execute "SUB" and "CALL"
+		// @todo this retains too much gas for now, needs to be fine-tuned.
+		u256 gasNeededByCaller = eth::GasCosts::callGas + 10;
+		if (_functionType.valueSet())
+			gasNeededByCaller += eth::GasCosts::callValueTransferGas;
+		if (!isCallCode && !isDelegateCall && !existenceChecked)
+			gasNeededByCaller += eth::GasCosts::callNewAccountGas; // we never know
+		m_context << gasNeededByCaller << Instruction::GAS << Instruction::SUB;
+	}
+	if (isDelegateCall)
+		m_context << Instruction::DELEGATECALL;
+	else if (isCallCode)
+		m_context << Instruction::CALLCODE;
+	else
+		m_context << Instruction::CALL;
+
+	unsigned remainsSize =
+		2 + // contract address, input_memory_end
+		_functionType.valueSet() * 2  +
+		_functionType.gasSet() +
+		(!_functionType.isBareCall() || manualFunctionId);
+
+	if (returnSuccessCondition)
+		m_context << swapInstruction(remainsSize);
+	else
+	{
+		//Propagate error condition (if CALL pushes 0 on stack).
+		m_context << Instruction::ISZERO;
+		m_context.appendConditionalJumpTo(m_context.errorTag());
+	}
+
+	utils().popStackSlots(remainsSize);
+
+	if (returnSuccessCondition)
+	{
+		// already there
+	}
+	else if (funKind == FunctionKind::RIPEMD160)
+	{
+		// fix: built-in contract returns right-aligned data
+		utils().fetchFreeMemoryPointer();
+		utils().loadFromMemoryDynamic(IntegerType(160), false, true, false);
+		utils().convertType(IntegerType(160), FixedBytesType(20));
+	}
+	else if (funKind == FunctionKind::ECRecover)
+	{
+		// Output is 32 bytes before input / free mem pointer.
+		// Failing ecrecover cannot be detected, so we clear output before the call.
+		m_context << u256(32);
+		utils().fetchFreeMemoryPointer();
+		m_context << Instruction::SUB << Instruction::MLOAD;
+	}
+	else if (!_functionType.returnParameterTypes().empty())
+	{
+		utils().fetchFreeMemoryPointer();
+		bool memoryNeeded = false;
+		for (auto const& retType: _functionType.returnParameterTypes())
+		{
+			utils().loadFromMemoryDynamic(*retType, false, true, true);
+			if (dynamic_cast<ReferenceType const*>(retType.get()))
+				memoryNeeded = true;
+		}
+		if (memoryNeeded)
+			utils().storeFreeMemoryPointer();
+		else
+			m_context << Instruction::POP;
+	}
+}
 void ExpressionCompiler::appendExpressionCopyToMemory(Type const& _expectedType, Expression const& _expression)
 {
 	solAssert(_expectedType.isValueType(), "Not implemented for non-value types.");

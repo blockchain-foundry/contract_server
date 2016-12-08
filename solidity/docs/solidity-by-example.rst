@@ -36,6 +36,8 @@ of votes.
 
 ::
 
+    pragma solidity ^0.4.0;
+
     /// @title Voting with delegation.
     contract Ballot {
         // This declares a new complex type which will
@@ -133,8 +135,7 @@ of votes.
                 // If the delegate already voted,
                 // directly add to the number of votes
                 proposals[delegate.vote].voteCount += sender.weight;
-            }
-            else {
+            } else {
                 // If the delegate did not vote yet,
                 // add to her weight.
                 delegate.weight += sender.weight;
@@ -191,6 +192,8 @@ contract into a blind auction where it is not
 possible to see the actual bid until the bidding
 period ends.
 
+.. _simple_auction:
+
 Simple Open Auction
 ===================
 
@@ -206,6 +209,8 @@ beneficiary to receive his money - contracts cannot
 activate themselves.
 
 ::
+
+    pragma solidity ^0.4.0;
 
     contract SimpleAuction {
         // Parameters of the auction. Times are either
@@ -250,10 +255,12 @@ activate themselves.
         /// together with this transaction.
         /// The value will only be refunded if the
         /// auction is not won.
-        function bid() {
+        function bid() payable {
             // No arguments are necessary, all
             // information is already part of
-            // the transaction.
+            // the transaction. The keyword payable
+            // is required for the function to
+            // be able to receive Ether.
             if (now > auctionStart + biddingTime) {
                 // Revert the call if the bidding
                 // period is over.
@@ -269,7 +276,7 @@ activate themselves.
                 // highestBidder.send(highestBid) is a security risk
                 // because it can be prevented by the caller by e.g.
                 // raising the call stack to 1023. It is always safer
-                // to let the recipient withdraw their money themselves. 
+                // to let the recipient withdraw their money themselves.
                 pendingReturns[highestBidder] += highestBid;
             }
             highestBidder = msg.sender;
@@ -278,14 +285,21 @@ activate themselves.
         }
 
         /// Withdraw a bid that was overbid.
-        function withdraw() {
+        function withdraw() returns (bool) {
             var amount = pendingReturns[msg.sender];
-            // It is important to set this to zero because the recipient
-            // can call this function again as part of the receiving call
-            // before `send` returns.
-            pendingReturns[msg.sender] = 0;
-            if (!msg.sender.send(amount))
-                throw; // If anything fails, this will revert the changes above
+            if (amount > 0) {
+                // It is important to set this to zero because the recipient
+                // can call this function again as part of the receiving call
+                // before `send` returns.
+                pendingReturns[msg.sender] = 0;
+
+                if (!msg.sender.send(amount)) { 
+                    // No need to call throw here, just reset the amount owing
+                    pendingReturns[msg.sender] = amount;
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// End the auction and send the highest bid
@@ -317,16 +331,6 @@ activate themselves.
             // 3. Interaction
             if (!beneficiary.send(highestBid))
                 throw;
-        }
-
-        function () {
-            // This function gets executed if a
-            // transaction with invalid data is sent to
-            // the contract or just ether without data.
-            // We revert the send so that no-one
-            // accidentally loses money when using the
-            // contract.
-            throw;
         }
     }
 
@@ -369,6 +373,8 @@ high or low invalid bids.
 
 ::
 
+    pragma solidity ^0.4.0;
+
     contract BlindAuction {
         struct Bid {
             bytes32 blindedBid;
@@ -395,8 +401,8 @@ high or low invalid bids.
         /// functions. `onlyBefore` is applied to `bid` below:
         /// The new function body is the modifier's body where
         /// `_` is replaced by the old function body.
-        modifier onlyBefore(uint _time) { if (now >= _time) throw; _ }
-        modifier onlyAfter(uint _time) { if (now <= _time) throw; _ }
+        modifier onlyBefore(uint _time) { if (now >= _time) throw; _; }
+        modifier onlyAfter(uint _time) { if (now <= _time) throw; _; }
 
         function BlindAuction(
             uint _biddingTime,
@@ -409,7 +415,7 @@ high or low invalid bids.
             revealEnd = biddingEnd + _revealTime;
         }
 
-        /// Place a blinded bid with `_blindedBid` = sha3(value,
+        /// Place a blinded bid with `_blindedBid` = keccak256(value,
         /// fake, secret).
         /// The sent ether is only refunded if the bid is correctly
         /// revealed in the revealing phase. The bid is valid if the
@@ -419,6 +425,7 @@ high or low invalid bids.
         /// still make the required deposit. The same address can
         /// place multiple bids.
         function bid(bytes32 _blindedBid)
+            payable
             onlyBefore(biddingEnd)
         {
             bids[msg.sender].push(Bid({
@@ -452,7 +459,7 @@ high or low invalid bids.
                 var bid = bids[msg.sender][i];
                 var (value, fake, secret) =
                         (_values[i], _fake[i], _secret[i]);
-                if (bid.blindedBid != sha3(value, fake, secret)) {
+                if (bid.blindedBid != keccak256(value, fake, secret)) {
                     // Bid was not actually revealed.
                     // Do not refund deposit.
                     continue;
@@ -489,15 +496,22 @@ high or low invalid bids.
         }
 
         /// Withdraw a bid that was overbid.
-        function withdraw() {
+        function withdraw() returns (bool) {
             var amount = pendingReturns[msg.sender];
-            // It is important to set this to zero because the recipient
-            // can call this function again as part of the receiving call
-            // before `send` returns (see the remark above about
-            // conditions -> effects -> interaction).
-            pendingReturns[msg.sender] = 0;
-            if (!msg.sender.send(amount))
-                throw; // If anything fails, this will revert the changes above
+            if (amount > 0) {
+                // It is important to set this to zero because the recipient
+                // can call this function again as part of the receiving call
+                // before `send` returns (see the remark above about
+                // conditions -> effects -> interaction).
+                pendingReturns[msg.sender] = 0;
+
+                if (!msg.sender.send(amount)){
+                    // No need to call throw here, just reset the amount owing
+                    pendingReturns[msg.sender] = amount;
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// End the auction and send the highest bid
@@ -514,10 +528,6 @@ high or low invalid bids.
             if (!beneficiary.send(this.balance))
                 throw;
         }
-
-        function () {
-            throw;
-        }
     }
 
 .. index:: purchase, remote purchase, escrow
@@ -528,6 +538,8 @@ Safe Remote Purchase
 
 ::
 
+    pragma solidity ^0.4.0;
+
     contract Purchase {
         uint public value;
         address public seller;
@@ -535,7 +547,7 @@ Safe Remote Purchase
         enum State { Created, Locked, Inactive }
         State public state;
 
-        function Purchase() {
+        function Purchase() payable {
             seller = msg.sender;
             value = msg.value / 2;
             if (2 * value != msg.value) throw;
@@ -543,22 +555,22 @@ Safe Remote Purchase
 
         modifier require(bool _condition) {
             if (!_condition) throw;
-            _
+            _;
         }
 
         modifier onlyBuyer() {
             if (msg.sender != buyer) throw;
-            _
+            _;
         }
 
         modifier onlySeller() {
             if (msg.sender != seller) throw;
-            _
+            _;
         }
 
         modifier inState(State _state) {
             if (state != _state) throw;
-            _
+            _;
         }
 
         event aborted();
@@ -585,6 +597,7 @@ Safe Remote Purchase
         function confirmPurchase()
             inState(State.Created)
             require(msg.value == 2 * value)
+            payable
         {
             purchaseConfirmed();
             buyer = msg.sender;
@@ -606,10 +619,6 @@ Safe Remote Purchase
             // block the refund.
             if (!buyer.send(value) || !seller.send(this.balance))
                 throw;
-        }
-
-        function() {
-            throw;
         }
     }
 

@@ -20,6 +20,8 @@ State variables are values which are permanently stored in contract storage.
 
 ::
 
+  pragma solidity ^0.4.0;
+
   contract SimpleStorage {
       uint storedData; // State variable
       // ...
@@ -38,8 +40,10 @@ Functions are the executable units of code within a contract.
 
 ::
 
+  pragma solidity ^0.4.0;
+
   contract SimpleAuction {
-      function bid() { // Function
+      function bid() payable { // Function
           // ...
       }
   }
@@ -58,12 +62,14 @@ Function modifiers can be used to amend the semantics of functions in a declarat
 
 ::
 
+  pragma solidity ^0.4.0;
+
   contract Purchase {
       address public seller;
 
       modifier onlySeller() { // Modifier
           if (msg.sender != seller) throw;
-          _
+          _;
       }
 
       function abort() onlySeller { // Modifier usage
@@ -80,10 +86,12 @@ Events are convenience interfaces with the EVM logging facilities.
 
 ::
 
+  pragma solidity ^0.4.0;
+
   contract SimpleAuction {
       event HighestBidIncreased(address bidder, uint amount); // Event
 
-      function bid() {
+      function bid() payable {
           // ...
           HighestBidIncreased(msg.sender, msg.value); // Triggering event
       }
@@ -101,6 +109,8 @@ Structs are custom defined types that can group several variables (see
 :ref:`structs` in types section).
 
 ::
+
+  pragma solidity ^0.4.0;
 
   contract Ballot {
       struct Voter { // Struct
@@ -120,6 +130,8 @@ Enums can be used to create custom types with a finite set of values (see
 :ref:`enums` in types section).
 
 ::
+
+  pragma solidity ^0.4.0;
 
   contract Purchase {
       enum State { Created, Locked, Inactive } // Enum

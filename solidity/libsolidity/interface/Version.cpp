@@ -35,10 +35,8 @@ char const* dev::solidity::VersionNumber = ETH_PROJECT_VERSION;
 
 string const dev::solidity::VersionString =
 	string(dev::solidity::VersionNumber) +
-	"-" +
-	string(DEV_QUOTED(ETH_COMMIT_HASH)).substr(0, 8) +
-	(ETH_CLEAN_REPO ? "" : "*") +
-	"/" DEV_QUOTED(ETH_BUILD_TYPE) "-" DEV_QUOTED(ETH_BUILD_PLATFORM);
+	(string(SOL_VERSION_PRERELEASE).empty() ? "" : "-" + string(SOL_VERSION_PRERELEASE)) +
+	(string(SOL_VERSION_BUILDINFO).empty() ? "" : "+" + string(SOL_VERSION_BUILDINFO));
 
 
 bytes dev::solidity::binaryVersion()
@@ -60,12 +58,14 @@ bytes dev::solidity::binaryVersion()
 	solAssert(i < VersionString.size() && VersionString[i] == '.', "");
 	++i;
 	ret.push_back(byte(parseDecimal()));
-	solAssert(i < VersionString.size() && VersionString[i] == '-', "");
+	solAssert(i < VersionString.size() && (VersionString[i] == '-' || VersionString[i] == '+'), "");
 	++i;
+	size_t commitpos = VersionString.find("commit.");
+	solAssert(commitpos != string::npos, "");
+	i = commitpos + 7;
 	solAssert(i + 7 < VersionString.size(), "");
 	bytes commitHash = fromHex(VersionString.substr(i, 8));
-	if (commitHash.empty())
-		commitHash = bytes(4, 0);
+	solAssert(!commitHash.empty(), "");
 	ret += commitHash;
 	solAssert(ret.size() == 1 + 3 + 4, "");
 

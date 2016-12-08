@@ -160,7 +160,15 @@ void CompilerUtils::encodeToMemory(
 	TypePointers targetTypes = _targetTypes.empty() ? _givenTypes : _targetTypes;
 	solAssert(targetTypes.size() == _givenTypes.size(), "");
 	for (TypePointer& t: targetTypes)
+	{
+		solAssert(
+			t->mobileType() &&
+			t->mobileType()->interfaceType(_encodeAsLibraryTypes) &&
+			t->mobileType()->interfaceType(_encodeAsLibraryTypes)->encodingType(),
+			"Encoding type \"" + t->toString() + "\" not yet implemented."
+		);
 		t = t->mobileType()->interfaceType(_encodeAsLibraryTypes)->encodingType();
+	}
 
 	// Stack during operation:
 	// <v1> <v2> ... <vn> <mem_start> <dyn_head_1> ... <dyn_head_r> <end_of_mem>
@@ -394,7 +402,6 @@ void CompilerUtils::convertType(Type const& _typeOnStack, Type const& _targetTyp
 			}
 			else
 			{
-			    //cout<< "This is Integer Type" <<endl;
 				IntegerType const& typeOnStack = stackTypeCategory == Type::Category::Integer
 					? dynamic_cast<IntegerType const&>(_typeOnStack) : addressType;
 				// Widening: clean up according to source type width

@@ -75,8 +75,14 @@ bool TypeChecker::visit(ContractDefinition const& _contract)
 	checkContractAbstractConstructors(_contract);
 
 	FunctionDefinition const* function = _contract.constructor();
-	if (function && !function->returnParameters().empty())
-		typeError(function->returnParameterList()->location(), "Non-empty \"returns\" directive for constructor.");
+	if (function) {
+		if (!function->returnParameters().empty())
+			typeError(function->returnParameterList()->location(), "Non-empty \"returns\" directive for constructor.");
+		if (function->isDeclaredConst())
+			typeError(function->location(), "Constructor cannot be defined as constant.");
+		if (function->visibility() != FunctionDefinition::Visibility::Public && function->visibility() != FunctionDefinition::Visibility::Internal)
+			typeError(function->location(), "Constructor must be public or internal.");
+	}
 
 	FunctionDefinition const* fallbackFunction = nullptr;
 	for (FunctionDefinition const* function: _contract.definedFunctions())
@@ -92,8 +98,14 @@ bool TypeChecker::visit(ContractDefinition const& _contract)
 			else
 			{
 				fallbackFunction = function;
+				if (_contract.isLibrary())
+					typeError(fallbackFunction->location(), "Libraries cannot have fallback functions.");
+				if (fallbackFunction->isDeclaredConst())
+					typeError(fallbackFunction->location(), "Fallback function cannot be declared constant.");
 				if (!fallbackFunction->parameters().empty())
 					typeError(fallbackFunction->parameterList().location(), "Fallback function cannot take parameters.");
+				if (!fallbackFunction->returnParameters().empty())
+					typeError(fallbackFunction->returnParameterList()->location(), "Fallback function cannot return values.");
 			}
 		}
 		if (!function->isImplemented())
@@ -268,6 +280,7 @@ void TypeChecker::checkContractIllegalOverrides(ContractDefinition const& _contr
 				if (
 					overriding->visibility() != function->visibility() ||
 					overriding->isDeclaredConst() != function->isDeclaredConst() ||
+					overriding->isPayable() != function->isPayable() ||
 					overridingType != functionType
 				)
 					typeError(overriding->location(), "Override changes extended function signature.");
@@ -344,7 +357,7 @@ void TypeChecker::endVisit(InheritanceSpecifier const& _inheritance)
 		typeError(_inheritance.location(), "Libraries cannot be inherited from.");
 
 	auto const& arguments = _inheritance.arguments();
-	TypePointers parameterTypes = ContractType(*base).constructorType()->parameterTypes();
+	TypePointers parameterTypes = ContractType(*base).newExpressionType()->parameterTypes();
 	if (!arguments.empty() && parameterTypes.size() != arguments.size())
 	{
 		typeError(
@@ -412,6 +425,15 @@ bool TypeChecker::visit(StructDefinition const& _struct)
 bool TypeChecker::visit(FunctionDefinition const& _function)
 {
 	bool isLibraryFunction = dynamic_cast<ContractDefinition const&>(*_function.scope()).isLibrary();
+	if (_function.isPayable())
+	{
+		if (isLibraryFunction)
+			typeError(_function.location(), "Library functions cannot be payable.");
+		if (!_function.isConstructor() && !_function.name().empty() && !_function.isPartOfExternalInterface())
+			typeError(_function.location(), "Internal functions cannot be payable.");
+		if (_function.isDeclaredConst())
+			typeError(_function.location(), "Functions cannot be constant and payable at the same time.");
+	}
 	for (ASTPointer<VariableDeclaration> const& var: _function.parameters() + _function.returnParameters())
 	{
 		if (!type(*var)->canLiveOutsideStorage())
@@ -1252,15 +1274,7 @@ void TypeChecker::endVisit(NewExpression const& _newExpression)
 				"Circular reference for contract creation (cannot create instance of derived or same contract)."
 			);
 
-		auto contractType = make_shared<ContractType>(*contract);
-		TypePointers parameterTypes = contractType->constructorType()->parameterTypes();
-		_newExpression.annotation().type = make_shared<FunctionType>(
-			parameterTypes,
-			TypePointers{contractType},
-			strings(),
-			strings(),
-			FunctionType::Location::Creation
-		);
+		_newExpression.annotation().type = FunctionType::newExpressionType(*contract);
 	}
 	else if (type->category() == Type::Category::Array)
 	{
@@ -1324,14 +1338,16 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 		fatalTypeError(
 			_memberAccess.location(),
 			"Member \"" + memberName + "\" not found or not visible "
-			"after argument-dependent lookup in " + exprType->toString()
+			"after argument-dependent lookup in " + exprType->toString() +
+			(memberName == "value" ? " - did you forget the \"payable\" modifier?" : "")
 		);
 	}
 	else if (possibleMembers.size() > 1)
 		fatalTypeError(
 			_memberAccess.location(),
 			"Member \"" + memberName + "\" not unique "
-			"after argument-dependent lookup in " + exprType->toString()
+			"after argument-dependent lookup in " + exprType->toString() +
+			(memberName == "value" ? " - did you forget the \"payable\" modifier?" : "")
 		);
 
 	auto& annotation = _memberAccess.annotation();
@@ -1422,7 +1438,7 @@ bool TypeChecker::visit(IndexAccess const& _access)
 					length->literalValue(nullptr)
 				));
 			else
-				typeError(index->location(), "Integer constant expected.");
+				fatalTypeError(index->location(), "Integer constant expected.");
 		}
 		break;
 	}

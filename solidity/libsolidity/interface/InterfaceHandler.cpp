@@ -21,8 +21,6 @@ string InterfaceHandler::documentation(
 		return devDocumentation(_contractDef);
 	case DocumentationType::ABIInterface:
 		return abiInterface(_contractDef);
-	case DocumentationType::ABISolidityInterface:
-		return ABISolidityInterface(_contractDef);
 	}
 
 	BOOST_THROW_EXCEPTION(InternalCompilerError() << errinfo_comment("Unknown documentation type"));
@@ -54,6 +52,7 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		method["type"] = "function";
 		method["name"] = it.second->declaration().name();
 		method["constant"] = it.second->isConstant();
+		method["payable"] = it.second->isPayable();
 		method["inputs"] = populateParameters(
 			externalFunctionType->parameterNames(),
 			externalFunctionType->parameterTypeNames(_contractDef.isLibrary())
@@ -76,7 +75,15 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		);
 		abi.append(method);
 	}
-
+	if (_contractDef.fallbackFunction())
+	{
+		auto externalFunctionType = FunctionType(*_contractDef.fallbackFunction()).interfaceFunctionType();
+		solAssert(!!externalFunctionType, "");
+		Json::Value method;
+		method["type"] = "fallback";
+		method["payable"] = externalFunctionType->isPayable();
+		abi.append(method);
+	}
 	for (auto const& it: _contractDef.interfaceEvents())
 	{
 		Json::Value event;
@@ -86,9 +93,10 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		Json::Value params(Json::arrayValue);
 		for (auto const& p: it->parameters())
 		{
+			solAssert(!!p->annotation().type->interfaceType(false), "");
 			Json::Value input;
 			input["name"] = p->name();
-			input["type"] = p->annotation().type->canonicalName(false);
+			input["type"] = p->annotation().type->interfaceType(false)->canonicalName(false);
 			input["indexed"] = p->isIndexed();
 			params.append(input);
 		}
@@ -96,74 +104,6 @@ string InterfaceHandler::abiInterface(ContractDefinition const& _contractDef)
 		abi.append(event);
 	}
 	return Json::FastWriter().write(abi);
-}
-
-string InterfaceHandler::ABISolidityInterface(ContractDefinition const& _contractDef)
-{
-	string ret = (_contractDef.isLibrary() ? "library " : "contract ") + _contractDef.name() + "{";
-
-	auto populateParameters = [](vector<string> const& _paramNames, vector<string> const& _paramTypes)
-	{
-		string ret = "(";
-		for (size_t i = 0; i < _paramNames.size(); ++i)
-			ret += _paramTypes[i] + " " + _paramNames[i] + ",";
-		if (ret.size() != 1)
-			ret.pop_back();
-		return ret + ")";
-	};
-	// If this is a library, include all its enum and struct types. Should be more intelligent
-	// in the future and check what is actually used (it might even use types from other libraries
-	// or contracts or in the global scope).
-	if (_contractDef.isLibrary())
-	{
-		for (auto const& stru: _contractDef.definedStructs())
-		{
-			ret += "struct " + stru->name() + "{";
-			for (ASTPointer<VariableDeclaration> const& _member: stru->members())
-				ret += _member->type()->canonicalName(false) + " " + _member->name() + ";";
-			ret += "}";
-		}
-		for (auto const& enu: _contractDef.definedEnums())
-		{
-			ret += "enum " + enu->name() + "{";
-			for (ASTPointer<EnumValue> const& val: enu->members())
-				ret += val->name() + ",";
-			if (ret.back() == ',')
-				ret.pop_back();
-			ret += "}";
-		}
-	}
-	if (_contractDef.constructor())
-	{
-		auto externalFunction = FunctionType(*_contractDef.constructor()).interfaceFunctionType();
-		solAssert(!!externalFunction, "");
-		ret +=
-			"function " +
-			_contractDef.name() +
-			populateParameters(
-				externalFunction->parameterNames(),
-				externalFunction->parameterTypeNames(_contractDef.isLibrary())
-			) +
-			";";
-	}
-	for (auto const& it: _contractDef.interfaceFunctions())
-	{
-		ret += "function " + it.second->declaration().name() +
-			populateParameters(
-				it.second->parameterNames(),
-				it.second->parameterTypeNames(_contractDef.isLibrary())
-			) + (it.second->isConstant() ? "constant " : "");
-		if (it.second->returnParameterTypes().size())
-			ret += "returns" + populateParameters(
-				it.second->returnParameterNames(),
-				it.second->returnParameterTypeNames(_contractDef.isLibrary())
-			);
-		else if (ret.back() == ' ')
-			ret.pop_back();
-		ret += ";";
-	}
-
-	return ret + "}";
 }
 
 string InterfaceHandler::userDocumentation(ContractDefinition const& _contractDef)

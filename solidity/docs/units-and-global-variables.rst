@@ -7,18 +7,18 @@ Units and Globally Available Variables
 Ether Units
 ===========
 
-A literal number can take a suffix of ``wei``, ``finney``, ``szabo`` or ``ether`` to convert between the subdenominations of Ether, where Ether currency numbers without a postfix are assumed to be "wei", e.g. ``2 ether == 2000 finney`` evaluates to ``true``.
+A literal number can take a suffix of ``wei``, ``finney``, ``szabo`` or ``ether`` to convert between the subdenominations of Ether, where Ether currency numbers without a postfix are assumed to be Wei, e.g. ``2 ether == 2000 finney`` evaluates to ``true``.
 
 .. index:: time, seconds, minutes, hours, days, weeks, years
 
 Time Units
 ==========
 
-Suffixes of ``seconds``, ``minutes``, ``hours``, ``days``, ``weeks`` and
+Suffixes like ``seconds``, ``minutes``, ``hours``, ``days``, ``weeks`` and
 ``years`` after literal numbers can be used to convert between units of time where seconds are the base
 unit and units are considered naively in the following way:
 
- * ``1 == 1 second``
+ * ``1 == 1 seconds``
  * ``1 minutes == 60 seconds``
  * ``1 hours == 60 minutes``
  * ``1 days == 24 hours``
@@ -79,7 +79,7 @@ Block and Transaction Properties
     You can only access the hashes of the most recent 256 blocks, all other
     values will be zero.
 
-.. index:: sha3, ripemd160, sha256, ecrecover, addmod, mulmod, cryptography, this, super, selfdestruct, balance, send
+.. index:: keccak256, ripemd160, sha256, ecrecover, addmod, mulmod, cryptography, this, super, selfdestruct, balance, send
 
 Mathematical and Cryptographic Functions
 ----------------------------------------
@@ -88,26 +88,32 @@ Mathematical and Cryptographic Functions
     compute ``(x + y) % k`` where the addition is performed with arbitrary precision and does not wrap around at ``2**256``.
 ``mulmod(uint x, uint y, uint k) returns (uint)``:
     compute ``(x * y) % k`` where the multiplication is performed with arbitrary precision and does not wrap around at ``2**256``.
+``keccak256(...) returns (bytes32)``:
+    compute the Ethereum-SHA-3 (Keccak-256) hash of the (tightly packed) arguments
 ``sha3(...) returns (bytes32)``:
-    compute the Ethereum-SHA-3 (KECCAK-256) hash of the (tightly packed) arguments
+    alias to `keccak256()`
 ``sha256(...) returns (bytes32)``:
     compute the SHA-256 hash of the (tightly packed) arguments
 ``ripemd160(...) returns (bytes20)``:
     compute RIPEMD-160 hash of the (tightly packed) arguments
 ``ecrecover(bytes32 hash, uint8 v, bytes32 r, bytes32 s) returns (address)``:
-    recover the address associated with the public key from elliptic curve signature
+    recover the address associated with the public key from elliptic curve signature or return zero on error
 
 In the above, "tightly packed" means that the arguments are concatenated without padding.
 This means that the following are all identical::
 
-    sha3("ab", "c")
-    sha3("abc")
-    sha3(0x616263)
-    sha3(6382179)
-    sha3(97, 98, 99)
+    keccak256("ab", "c")
+    keccak256("abc")
+    keccak256(0x616263)
+    keccak256(6382179)
+    keccak256(97, 98, 99)
 
-If padding is needed, explicit type conversions can be used: ``sha3("\x00\x12")`` is the
-same as ``sha3(uint16(0x12))``.
+If padding is needed, explicit type conversions can be used: ``keccak256("\x00\x12")`` is the
+same as ``keccak256(uint16(0x12))``.
+
+Note that constants will be packed using the minimum number of bytes required to store them.
+This means that, for example, ``keccak256(0) == keccak256(uint8(0))`` and
+``keccak256(0x12345678) == keccak256(uint32(0x12345678))``.
 
 It might be that you run into Out-of-Gas for ``sha256``, ``ripemd160`` or ``ecrecover`` on a *private blockchain*. The reason for this is that those are implemented as so-called precompiled contracts and these contracts only really exist after they received the first message (although their contract code is hardcoded). Messages to non-existing contracts are more expensive and thus the execution runs into an Out-of-Gas error. A workaround for this problem is to first send e.g. 1 Wei to each of the contracts before you use them in your actual contracts. This is not an issue on the official or test net.
 

@@ -2,7 +2,36 @@
 Layout of a Solidity Source File
 ********************************
 
-Source files can contain an arbitrary number of contract definitions and include directives.
+Source files can contain an arbitrary number of contract definitions, include directives
+and pragma directives.
+
+.. index:: ! pragma, version
+
+Version Pragma
+==============
+
+Source files can (and should) be annotated with a so-called version pragma to reject
+being compiled with future compiler versions that might introduce incompatible
+changes. We try to keep such changes to an absolute minimum and especially
+introduce changes in a way that changes in semantics will also require changes
+in the syntax, but this is of course not always possible. Because of that, it is always
+a good idea to read through the changelog at least for releases that contain
+breaking changes, those releases will always have versions of the form
+``0.x.0`` or ``x.0.0``.
+
+The version pragma is used as follows::
+
+  pragma solidity ^0.4.0;
+
+Such a source file will not compile with a compiler earlier than version 0.4.0
+and it will also not work on a compiler starting form version 0.5.0 (this
+second condition is added by using ``^``). The idea behind this is that
+there will be no breaking changes until version ``0.5.0``, so we can always
+be sure that our code will compile the way we intended it to. We do not fix
+the exact version of the compiler, so that bugfix releases are still possible.
+
+It is possible to specify much more complex rules for the compiler version,
+the expression follows those used by npm.
 
 .. index:: source file, ! import
 
@@ -61,7 +90,7 @@ It depends on the compiler (see below) how to actually resolve the paths.
 In general, the directory hierarchy does not need to strictly map onto your local
 filesystem, it can also map to resources discovered via e.g. ipfs, http or git.
 
-Use in actual Compilers
+Use in Actual Compilers
 -----------------------
 
 When the compiler is invoked, it is not only possible to specify how to
@@ -101,7 +130,7 @@ and then run the compiler as
 
 As a more complex example, suppose you rely on some module that uses a
 very old version of dapp-bin. That old version of dapp-bin is checked
-out at ``/usr/local/dapp-bin_old``, then you can use 
+out at ``/usr/local/dapp-bin_old``, then you can use
 
 .. code-block:: bash
 
@@ -163,6 +192,8 @@ for the two input parameters and two returned values.
 
 ::
 
+    pragma solidity ^0.4.0;
+
  /** @title Shape calculator.*/
  contract shapeCalculator{
      /**@dev Calculates a rectangle's surface and perimeter.
@@ -171,9 +202,9 @@ for the two input parameters and two returned values.
       * @return s The calculated surface.
       * @return p The calculated perimeter.
       */
-     function rectangle(uint w, uint h) returns (uint s, uint p){
-         s = w*h;
-         p = 2*(w+h);
+     function rectangle(uint w, uint h) returns (uint s, uint p) {
+         s = w * h;
+         p = 2 * (w + h);
      }
  }
 
