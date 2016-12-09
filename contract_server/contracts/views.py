@@ -36,7 +36,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-
 # Create your views here.
 
 def wallet_address_to_evm(address):
@@ -45,6 +44,7 @@ def wallet_address_to_evm(address):
     address = hash160(address)
 
     return address
+
 
 def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
     end_point = '/base/v1/transaction/prepare'
@@ -56,16 +56,18 @@ def prepare_multisig_payment_tx(from_address, to_address, amount, color_id):
         'color_id': color_id
     }
 
-    r = requests.get(url=settings.OSS_API_URL+end_point, params=params)
+    r = requests.get(url=settings.OSS_API_URL + end_point, params=params)
     return r.json()
+
 
 def send_multisig_payment_tx(raw_tx):
     # prepare before you send
     end_point = '/base/v1/transaction/send'
 
     data = {'raw_tx': raw_tx}
-    r = requests.post(url=settings.OSS_API_URL+end_point, data=data)
+    r = requests.post(url=settings.OSS_API_URL + end_point, data=data)
     return r.json()
+
 
 def create_multisig_payment(from_address, to_address, color_id, amount):
 
@@ -94,7 +96,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
             'amount': amount,
             'script': contract.multisig_script
         }
-        r = requests.post(oracle.url+'/sign/', data=data)
+        r = requests.post(oracle.url + '/sign/', data=data)
 
         signature = r.json().get('signature')
         if signature is not None:
@@ -108,6 +110,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         return {'error': 'sign multisig payment failed'}
     return {'tx_id': tx_id}
 
+
 @csrf_exempt
 def withdraw_from_contract(request):
     json_data = json.loads(request.body.decode('utf8'))
@@ -118,7 +121,6 @@ def withdraw_from_contract(request):
         colors = json_data['colors']
         amounts = json_data['amounts']
 
-
         user_evm_address = wallet_address_to_evm(user_address)
 
         # create payment for each color and store the results
@@ -128,7 +130,7 @@ def withdraw_from_contract(request):
         for color_id, amount in zip(colors, amounts):
             color_id = int(color_id)
             amount = int(amount)
-            if amount == 0: # it will always show color = 0 at evm
+            if amount == 0:  # it will always show color = 0 at evm
                 continue
 
             r = create_multisig_payment(multisig_address, user_address, color_id, amount)
@@ -146,11 +148,12 @@ def withdraw_from_contract(request):
     response = {'error': form.errors}
     return JsonResponse(response, status=httplib.BAD_REQUEST)
 
+
 class Contracts(APIView):
 
-    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
-    CONTRACT_FEE = 1 # 1 bitcoin
-    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    BITCOIN = 100000000  # 1 bitcoin == 100000000 satoshis
+    CONTRACT_FEE = 1  # 1 bitcoin
+    TX_FEE = 1  # 1 bitcoin, either 0 or 1 is okay.
     FEE_COLOR = 1
     CONTRACT_TX_TYPE = 5
     SOLIDITY_PATH = "../solidity/solc/solc"
@@ -165,13 +168,13 @@ class Contracts(APIView):
             serializer = ContractSerializer(contract)
             addrs = serializer.data['multisig_address']
             source_code = serializer.data['source_code']
-            response = {'multisig_address':addrs,'source_code':source_code, 'intereface':[]}
+            response = {'multisig_address': addrs, 'source_code': source_code, 'intereface': []}
             return JsonResponse(response)
         except:
             response = {'status': 'contract not found.'}
             return JsonResponse(
-                    json_data['multisig_address'],
-                    status=status.HTTP_404_NOT_FOUND
+                json_data['multisig_address'],
+                status=status.HTTP_404_NOT_FOUND
             )
 
     def _select_utxo(self, address):
@@ -181,8 +184,8 @@ class Contracts(APIView):
             if (i['color'] == self.FEE_COLOR and
                     i['value'] > self.CONTRACT_FEE + self.TX_FEE):
                 return (i['txid'], i['vout'], i['scriptPubKey'], i['value'],
-                       i['color']
-                )
+                        i['color']
+                        )
         raise Insufficient_utxo_error(
             'Insufficient funds in address %s to create a contract.' % address
         )
@@ -207,7 +210,7 @@ class Contracts(APIView):
         """
             get public keys and create multisig_address
         """
-        
+
         if len(oracle_list) < m:
             raise Multisig_error("The m in 'm of n' is bigger than n.")
         url_map_pubkeys = []
@@ -216,7 +219,7 @@ class Contracts(APIView):
         for oracle in oracle_list:
             t = Thread(target=self._get_pubkey_from_oracle,
                        args=(oracle['url'], source_code, url_map_pubkeys)
-                   )
+                       )
             t.start()
             threads.append(t)
         for t in threads:
@@ -246,7 +249,7 @@ class Contracts(APIView):
                 )
         return oracle_list
 
-    def _compile_code_and_interface(self, source_code):        
+    def _compile_code_and_interface(self, source_code):
         command = [self.SOLIDITY_PATH, "--abi", "--bin"]
         try:
             p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -256,12 +259,12 @@ class Contracts(APIView):
         r = r.strip()
         if p.returncode != 0:
             raise Compiled_error(str(r))
-        
+
         str1 = r.split('Binary:')
         str2 = str1[1].split('\n')
         compiled_code_in_hex = str2[1]
         abi = str2[3]
-        abi =json.loads(abi)
+        abi = json.loads(abi)
         interface = []
         ids = 1
         for func in abi:
@@ -275,7 +278,7 @@ class Contracts(APIView):
         return compiled_code_in_hex, interface
 
     def _make_contract_tx(self, txid, vout, script, address, value, color,
-            multisig_addr, code):
+                          multisig_addr, code):
         # 1. We must ensure that value is int type,
         #    otherwise errors will occur in make_raw_tx().
         # 2. In raw transaction, we use satoshis as the standard unit.
@@ -284,7 +287,7 @@ class Contracts(APIView):
         if value <= (self.TX_FEE + self.CONTRACT_FEE) * self.BITCOIN:
             raise ValueError("Insufficient funds.")
 
-        inputs = [{ # txid, vout, script, multisig_addr, bytecode
+        inputs = [{  # txid, vout, script, multisig_addr, bytecode
             'tx_id': txid,
             'index': vout,
             'script': script
@@ -312,12 +315,12 @@ class Contracts(APIView):
 
     def _save_multisig_addr(self, multisig_addr, url_map_pubkeys):
         for url_map_pubkey in url_map_pubkeys:
-            url =  url_map_pubkey["url"]
+            url = url_map_pubkey["url"]
             data = {
                 "pubkey": url_map_pubkey["pubkey"],
                 "multisig_addr": multisig_addr
             }
-            r = requests.post(url+"/multisigaddress/", data=json.dumps(data))
+            r = requests.post(url + "/multisigaddress/", data=json.dumps(data))
 
     @handle_uncaught_exception
     def post(self, request):
@@ -327,11 +330,11 @@ class Contracts(APIView):
             json_data = json.loads(body_unicode)
             source_code = str(json_data['source_code'])
         except:
-            response = { 
+            response = {
                 'status': 'Wrong inputs.',
                 'message': 'no source code or in wrong data type'}
             return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
-        try:    
+        try:
             address = json_data['address']
             m = json_data['m']
         except:
@@ -348,29 +351,31 @@ class Contracts(APIView):
 
         try:
             oracle_list = self._get_oracle_list(oracle_list)
-            multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(oracle_list, source_code, m)
+            multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
+                oracle_list, source_code, m)
             compiled_code, interface = self._compile_code_and_interface(source_code)
             txid, vout, script, value, color = self._select_utxo(address)
-            code = json.dumps({'source_code': compiled_code, 'multisig_addr' : multisig_addr})
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_addr})
             tx_hex = self._make_contract_tx(
-                    txid, vout, script, address, value, color,
-                    multisig_addr, code
+                txid, vout, script, address, value, color,
+                multisig_addr, code
             )
             self._save_multisig_addr(multisig_addr, url_map_pubkeys)
             contract = Contract(
-                    source_code = source_code,
-                    multisig_address = multisig_addr,
-                    multisig_script = multisig_script,
-                    interface = interface,
-                    color_id = 1,
-                    amount = 0
+                source_code=source_code,
+                multisig_address=multisig_addr,
+                multisig_script=multisig_script,
+                interface=interface,
+                color_id=1,
+                amount=0
             )
+
             contract.save()
             for i in oracle_list:
                 contract.oracles.add(Oracle.objects.get(url=i["url"]))
             data = {
-                "multisig_addr" : multisig_addr,
-                "compiled_code" : compiled_code
+                "multisig_addr": multisig_addr,
+                "compiled_code": compiled_code
             }
         except Compiled_error as e:
             response = {
@@ -407,7 +412,7 @@ class ContractFunc(APIView):
         if not interface:
             return []
 
-        #The outermost quote must be ', otherwise json.loads will fail
+        # The outermost quote must be ', otherwise json.loads will fail
         interface = json.loads(interface.replace("'", '"'))
         function_list = []
         for i in interface:
@@ -437,7 +442,7 @@ class ContractFunc(APIView):
     def _evm_input_code(self, function, function_values):
         function_name = function['name'] + '('
         for i in function['inputs']:
-             function_name += i['type'] + ','
+            function_name += i['type'] + ','
         if(len(function['inputs']) != 0):
             function_name = function_name[:-1] + ')'
         else:
@@ -450,7 +455,7 @@ class ContractFunc(APIView):
         input_code = k.hexdigest()[:8]
         for i in function_values:
             i = hex(int(i))[2:]
-            input_code += '0'*(64-len(i)) + i
+            input_code += '0' * (64 - len(i)) + i
         return input_code
 
     def get(self, request, multisig_address):
@@ -477,15 +482,13 @@ class ContractFunc(APIView):
         response = {'functions': function_list}
         return JsonResponse(response, status=httplib.OK)
 
-
-
     def post(self, request, multisig_address):
         '''   
         This function will make a tx (user transfer money to multisig address)
         of contract type and op_return=function_inputs and function_id
         The oracle monitor will notice the created tx
         and then tunrs it to evn state
-        
+
         inputs: from_address, to_address, amount, color, function_inputs, function_id
         `function_inputs` is a list
         '''
@@ -515,8 +518,8 @@ class ContractFunc(APIView):
                 input_value.append(i['value'])
             evm_input_code = self._evm_input_code(function, input_value)
             code = json.dumps({
-                "function_inputs_hash" : evm_input_code,
-                "multisig_addr" : multisig_address
+                "function_inputs_hash": evm_input_code,
+                "multisig_addr": multisig_address
             })
 
             try:
@@ -538,7 +541,8 @@ class ContractFunc(APIView):
                         utxo['txid'], utxo['vout'], utxo['scriptPubKey'],
                         from_address, utxo['value'], utxo['color'],
                         to_address, code, amount,
-                        diqi_utxo['txid'], diqi_utxo['vout'], diqi_utxo['scriptPubKey'], diqi_utxo['value']
+                        diqi_utxo['txid'], diqi_utxo['vout'], diqi_utxo[
+                            'scriptPubKey'], diqi_utxo['value']
                     )
             except ValueError:
                 response = {'error': 'Insufficient funds'}
@@ -551,10 +555,11 @@ class ContractFunc(APIView):
 
 
 class ContractList(APIView):
+
     def get(self, request, format=None):
         contracts = Contract.objects.all()
         serializer = ContractSerializer(contracts, many=True)
-        response = {'contracts':serializer.data}
+        response = {'contracts': serializer.data}
         return JsonResponse(response)
 
 
@@ -562,11 +567,12 @@ def _nofee_select_utxo(address, amount, color):
     conn = gcoinrpc.connect_to_local()
     utxos = conn.gettxoutaddress(address)
     for utxo in utxos:
-        if utxo['color'] == color and utxo['value'] >=  amount:
+        if utxo['color'] == color and utxo['value'] >= amount:
             return utxo
     raise ValueError(
         'Insufficient funds in address %s to get utxo' % address
     )
+
 
 def _general_select_utxo(address, amount, color):
     # select a uxto with color=`color`
@@ -582,6 +588,7 @@ def _general_select_utxo(address, amount, color):
         'Insufficient funds in address %s to get utxo' % address,
     )
 
+
 def _general_make_contract_tx(txid, vout, script, address, value, color,
                               multisig_address, code, amount,
                               diqi_txid=None, diqi_vout=None, diqi_script=None, diqi_value=None):
@@ -591,7 +598,7 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
         raise Insufficient_utxo_error(
             'Insufficient funds in address %s to create contract' % address
         )
-    
+
     inputs = [
         {
             'tx_id': txid,
@@ -604,7 +611,7 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
             'script': diqi_script
         }
     ]
- 
+
     op_return_script = mk_op_return_script(code)
     outputs = [
         {
@@ -614,7 +621,7 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
         },
         {
             'address': address,
-            'value': int((value  - amount) * BTC2SATOSHI),
+            'value': int((value - amount) * BTC2SATOSHI),
             'color': color
         },
         {
@@ -639,8 +646,9 @@ def _general_make_contract_tx(txid, vout, script, address, value, color,
     tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
     return tx_hex
 
+
 def _general_make_contract_tx_with_diqi(txid, vout, script, address, value, color,
-                                         multisig_address, code, amount):
+                                        multisig_address, code, amount):
     # `value` should at least greater than TX_FEE + CONTRACT_FEE
     # `code` is a string
     if value < amount + TX_FEE + CONTRACT_FEE:
@@ -679,6 +687,7 @@ def _general_make_contract_tx_with_diqi(txid, vout, script, address, value, colo
     ]
     tx_hex = make_raw_tx(inputs, outputs, CONTRACT_TX_TYPE)
     return tx_hex
+
 
 def _handle_payment_parameter_error(form):
     # the payment should at least takes the following inputs
