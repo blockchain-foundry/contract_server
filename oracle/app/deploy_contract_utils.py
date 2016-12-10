@@ -12,23 +12,20 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 from gcoinbackend import core as gcoincore
 
-import gcoinrpc
 from gcoin import *
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 
 
 def get_tx_info(tx_hash):
-    c = gcoinrpc.connect_to_local()
-    result = c.getrawtransaction(tx_hash, 1) # verbose
-    return result
-    
+    tx = gcoincore.get_tx(tx_hash)
+    return tx
+
 
 def get_sender_addr(txid, vout):
     try:
-        c = gcoinrpc.connect_to_local()
-        tx = c.getrawtransaction(txid)
-        return  tx.vout[vout]['scriptPubKey']['addresses'][0]
+        tx = gcoincore.get_tx(txid)
+        return tx['vout'][vout]['scriptPubKey']['addresses'][0]
     except:
         print("[ERROR] getting sender address")
 
@@ -42,11 +39,11 @@ def get_contracts_info(tx):
     sender_addr = None
     multisig_addr = None
     bytecode = None
-    sender_addr = get_sender_addr(tx.vin[0]['txid'], tx.vin[0]['vout'])
+    sender_addr = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
     value = {}
     is_deploy = True
 
-    for vout in tx.vout:
+    for vout in tx['vout']:
         if vout['scriptPubKey']['type'] == 'nulldata':
             # 'OP_RETURN 3636......'
             bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
@@ -62,7 +59,7 @@ def get_contracts_info(tx):
 
     # In order to collect all value send to the multisig, I have to iterate it twice.
     try:
-        for vout in tx.vout:
+        for vout in tx['vout']:
             if (vout['scriptPubKey']['type'] == 'scripthash' and
                     vout['scriptPubKey']['addresses'][0] == multisig_addr):
                 if value.get(vout['color']) == None:
@@ -76,7 +73,7 @@ def get_contracts_info(tx):
     value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
     if multisig_addr is None or bytecode is None or sender_addr is None:
         raise ValueError(
-            "Contract tx %s not valid." % tx.txid
+            "Contract tx %s not valid." % tx['txid']
         )
     for v in value:
         value[v] = str(value[v])
@@ -119,9 +116,9 @@ def deploy_contracts(tx_hash):
     """
 
     tx = get_tx_info(tx_hash)
-    #_time = tx.time
-    _time = 0;
-    if tx.type == 'CONTRACT':
+    _time = tx['blocktime']
+    # _time = 0;
+    if tx['type'] == 'CONTRACT':
         try:
             sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
         except:

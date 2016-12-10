@@ -122,9 +122,9 @@ class GcoinAPIClient(object):
         return block
 
     def get_tx(self, tx_hash):
-        end_point = '/explorer/v1/transactions/{tx_hash}'.format(tx_hash=tx_hash)
+        end_point = '/base/v1/transaction/{tx_hash}'.format(tx_hash=tx_hash)
         response = self.request(end_point, 'GET')
-        tx = response.json()['tx']
+        tx = response.json()
         return tx
 
     def get_txs_by_address(self, address, starting_after, tx_type):
