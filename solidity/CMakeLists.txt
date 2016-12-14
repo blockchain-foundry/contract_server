@@ -1,6 +1,4 @@
 cmake_minimum_required(VERSION 3.0.0)
-set(Boost_INCLUDE_DIR "/usr/local/boost_1_54_0/include")
-set(BOOST_LIBRARYDIR "/usr/local/boost_1_54_0/lib")
 set(ETH_CMAKE_DIR   "${CMAKE_CURRENT_LIST_DIR}/cmake"   CACHE PATH "The the path to the cmake directory")
 list(APPEND CMAKE_MODULE_PATH ${ETH_CMAKE_DIR})
 
@@ -9,7 +7,7 @@ include(EthPolicy)
 eth_policy()
 
 # project name and version should be set after cmake_policy CMP0048
-set(PROJECT_VERSION "0.3.6")
+set(PROJECT_VERSION "0.4.2")
 project(solidity VERSION ${PROJECT_VERSION})
 
 # Let's find our dependencies
