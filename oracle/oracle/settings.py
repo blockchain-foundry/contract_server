@@ -27,6 +27,12 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
+GCOIN_BACKEND_SETTINGS = {
+    'BASE_URL': 'http://oss2.diqi.us:8888',
+    'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
+}
+
 
 # Application definition
 

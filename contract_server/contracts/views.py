@@ -388,7 +388,6 @@ class ContractFunc(APIView):
             ]'
           }, ...
         ]
-
         '''
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
