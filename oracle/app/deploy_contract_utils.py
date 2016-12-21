@@ -76,7 +76,7 @@ def get_contracts_info(tx):
             "Contract tx %s not valid." % tx['txid']
         )
     for v in value:
-        value[v] = str(value[v])
+        value[v] = str(value[v]/100000000)
     return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
 
 
