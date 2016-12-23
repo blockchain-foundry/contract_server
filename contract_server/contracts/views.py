@@ -185,11 +185,7 @@ class Contracts(APIView):
         if len(pubkeys) != len(oracle_list):
             raise Multisig_error('there are some oracles that did not response')
         multisig_script = mk_multisig_script(pubkeys, m)
-        # must do in python2
-        cmd = 'python2 scriptaddr.py ' + multisig_script
-        p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
-        stdout, stderr = p.communicate()
-        multisig_addr = stdout.decode("utf-8").strip()
+        multisig_addr = scriptaddr(multisig_script)
         return multisig_addr, multisig_script, url_map_pubkeys
 
     def _get_oracle_list(self, oracle_list):
