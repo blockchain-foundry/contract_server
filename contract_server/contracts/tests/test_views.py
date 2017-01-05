@@ -22,8 +22,8 @@ class ContractFuncTest(TestCase):
             amount=0)
 
     def test_get_abi_list(self):
-        contractFunc = ContractFunc()
-        function_list, event_list = contractFunc._get_abi_list(self.contract.interface)
+        contract_func = ContractFunc()
+        function_list, event_list = contract_func._get_abi_list(self.contract.interface)
 
         self.assertEqual(function_list[0]['name'], 'getAttributes')
         self.assertEqual(event_list[0]['name'], 'AttributesSet')
