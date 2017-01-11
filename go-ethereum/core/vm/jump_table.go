@@ -62,9 +62,11 @@ func newJumpTable() vmJumpTable {
 	jumpTable[SHA3] = jumpPtr{opSha3, true}
 	jumpTable[ADDRESS] = jumpPtr{opAddress, true}
 	jumpTable[BALANCE] = jumpPtr{opBalance, true}
+	jumpTable[COLORBALANCE] = jumpPtr{opColorBalance, true}
 	jumpTable[ORIGIN] = jumpPtr{opOrigin, true}
 	jumpTable[CALLER] = jumpPtr{opCaller, true}
 	jumpTable[CALLVALUE] = jumpPtr{opCallValue, true}
+	jumpTable[CALLCVALUE] = jumpPtr{opCallColorValue, true}
 	jumpTable[CALLDATALOAD] = jumpPtr{opCalldataLoad, true}
 	jumpTable[CALLDATASIZE] = jumpPtr{opCalldataSize, true}
 	jumpTable[CALLDATACOPY] = jumpPtr{opCalldataCopy, true}
@@ -91,8 +93,11 @@ func newJumpTable() vmJumpTable {
 	jumpTable[MSIZE] = jumpPtr{opMsize, true}
 	jumpTable[GAS] = jumpPtr{opGas, true}
 	jumpTable[CREATE] = jumpPtr{opCreate, true}
+	jumpTable[CREATECOLOR] = jumpPtr{opCreateColor, true}
 	jumpTable[CALL] = jumpPtr{opCall, true}
+	jumpTable[CALLCOLOR] = jumpPtr{opCallColor, true}
 	jumpTable[CALLCODE] = jumpPtr{opCallCode, true}
+	jumpTable[CALLCCODE] = jumpPtr{opCallColorCode, true}
 	jumpTable[LOG0] = jumpPtr{makeLog(0), true}
 	jumpTable[LOG1] = jumpPtr{makeLog(1), true}
 	jumpTable[LOG2] = jumpPtr{makeLog(2), true}

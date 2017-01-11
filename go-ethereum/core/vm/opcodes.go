@@ -82,6 +82,9 @@ const (
 	GASPRICE
 	EXTCODESIZE
 	EXTCODECOPY
+
+	COLORBALANCE
+	CALLCVALUE
 )
 
 const (
@@ -202,6 +205,10 @@ const (
 	RETURN
 	DELEGATECALL
 
+	CREATECOLOR
+	CALLCOLOR
+	CALLCCODE
+
 	SUICIDE = 0xff
 )
 
@@ -249,6 +256,11 @@ var opCodeToString = map[OpCode]string{
 	CODESIZE:     "CODESIZE",
 	CODECOPY:     "CODECOPY",
 	GASPRICE:     "TXGASPRICE",
+	EXTCODESIZE: "EXTCODESIZE",
+	EXTCODECOPY: "EXTCODECOPY",
+
+	COLORBALANCE: "COLORBALANCE",
+	CALLCVALUE:   "CALLCVALUE",
 
 	// 0x40 range - block operations
 	BLOCKHASH:   "BLOCKHASH",
@@ -257,8 +269,6 @@ var opCodeToString = map[OpCode]string{
 	NUMBER:      "NUMBER",
 	DIFFICULTY:  "DIFFICULTY",
 	GASLIMIT:    "GASLIMIT",
-	EXTCODESIZE: "EXTCODESIZE",
-	EXTCODECOPY: "EXTCODECOPY",
 
 	// 0x50 range - 'storage' and execution
 	POP: "POP",
@@ -351,9 +361,12 @@ var opCodeToString = map[OpCode]string{
 
 	// 0xf0 range
 	CREATE:       "CREATE",
+	CREATECOLOR:  "CREATECOLOR",
 	CALL:         "CALL",
+	CALLCOLOR:    "CALLCOLOR",
 	RETURN:       "RETURN",
 	CALLCODE:     "CALLCODE",
+	CALLCCODE:    "CALLCCODE",
 	DELEGATECALL: "DELEGATECALL",
 	SUICIDE:      "SUICIDE",
 
@@ -398,9 +411,11 @@ var stringToOp = map[string]OpCode{
 	"SHA3":         SHA3,
 	"ADDRESS":      ADDRESS,
 	"BALANCE":      BALANCE,
+	"COLORBALANCE": COLORBALANCE,
 	"ORIGIN":       ORIGIN,
 	"CALLER":       CALLER,
 	"CALLVALUE":    CALLVALUE,
+	"CALLCVALUE":   CALLCVALUE,
 	"CALLDATALOAD": CALLDATALOAD,
 	"CALLDATASIZE": CALLDATASIZE,
 	"CALLDATACOPY": CALLDATACOPY,
@@ -498,9 +513,12 @@ var stringToOp = map[string]OpCode{
 	"LOG3":         LOG3,
 	"LOG4":         LOG4,
 	"CREATE":       CREATE,
+	"CREATECOLOR":  CREATECOLOR,
 	"CALL":         CALL,
+	"CALLCOLOR":    CALLCOLOR,
 	"RETURN":       RETURN,
 	"CALLCODE":     CALLCODE,
+	"CALLCCODE":    CALLCCODE,
 	"SUICIDE":      SUICIDE,
 }
 
