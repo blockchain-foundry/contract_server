@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView, status
 
 from gcoinapi.client import GcoinAPIClient
+from eth_abi.abi import *
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import *
 from gcoin import *
@@ -352,24 +353,29 @@ class ContractFunc(APIView):
                 return i
         return {}
 
-    def _evm_input_code(self, function, function_values):
-        function_name = function['name'] + '('
-        for i in function['inputs']:
-             function_name += i['type'] + ','
-        if(len(function['inputs']) != 0):
-            function_name = function_name[:-1] + ')'
-        else:
-            function_name = function_name + ')'
-        # Not sure why encode
-        function_name = function_name.encode()
+    def _evm_input_code(self, function, args):
+        types = [self._process_type(i['type']) for i in function['inputs']]
+        func = function['name'] + '(' + ','.join(types) + ')'
+        func = func.encode()
         k = sha3.keccak_256()
-        k.update(function_name)
+        k.update(func)
+        evm_func = k.hexdigest()[:8]
 
-        input_code = k.hexdigest()[:8]
-        for i in function_values:
-            i = hex(int(i))[2:]
-            input_code += '0'*(64-len(i)) + i
-        return input_code
+        # evm_args = bytes_evm_args.hex() in python 3.5
+        bytes_evm_args = encode_abi(types, args)
+        evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
+        return evm_func + evm_args
+
+    def _process_type(self, typ):
+        if(len(typ) == 3 and typ[:3] == "int"):
+            return "int256"
+        if(len(typ) == 4 and typ[:4] == "uint"):
+            return "uint256"
+        if(len(typ) >  4 and typ[:4] == "int["):
+            return "int256[" + typ[4:]
+        if(len(typ) >  5 and typ[:5] == "uint["):
+            return "uint256[" + typ[5:]
+        return typ
 
     def get(self, request, multisig_address):
         '''
