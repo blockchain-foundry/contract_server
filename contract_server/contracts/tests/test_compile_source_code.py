@@ -2,7 +2,7 @@ import json
 
 from django.test import TestCase
 
-from .views import Contracts
+from contracts.views import Contracts
 
 
 class ComplieSourceCodeTest(TestCase):
@@ -33,3 +33,4 @@ class ComplieSourceCodeTest(TestCase):
 
         self.assertEqual(test_interface, interface)
         self.assertEqual(compiled_code, test_binary_code)
+

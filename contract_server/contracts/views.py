@@ -75,7 +75,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
     # send
     try:
         return {'tx_id' :OSSclient.send_tx(raw_tx)}
-    except: 
+    except:
         return {'error': 'sign multisig payment failed'}
 
 @csrf_exempt
@@ -166,7 +166,7 @@ class Contracts(APIView):
         """
             get public keys and create multisig_address
         """
-        
+
         if len(oracle_list) < m:
             raise Multisig_error("The m in 'm of n' is bigger than n.")
         url_map_pubkeys = []
@@ -201,7 +201,7 @@ class Contracts(APIView):
                 )
         return oracle_list
 
-    def _compile_code_and_interface(self, source_code):        
+    def _compile_code_and_interface(self, source_code):
         command = [self.SOLIDITY_PATH, "--abi", "--bin"]
         try:
             p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
@@ -211,7 +211,7 @@ class Contracts(APIView):
         r = r.strip()
         if p.returncode != 0:
             raise Compiled_error(str(r))
-        
+
         str1 = r.split('Binary:')
         str2 = str1[1].split('\n')
         compiled_code_in_hex = str2[1]
@@ -246,11 +246,11 @@ class Contracts(APIView):
             json_data = json.loads(body_unicode)
             source_code = str(json_data['source_code'])
         except:
-            response = { 
+            response = {
                 'status': 'Wrong inputs.',
                 'message': 'no source code or in wrong data type'}
             return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
-        try:    
+        try:
             address = json_data['address']
             m = json_data['m']
         except:
@@ -320,14 +320,14 @@ class ContractFunc(APIView):
     HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
-    def _get_function_list(self, interface):
-
+    def _get_abi_list(self, interface):
         if not interface:
-            return []
+            return [], []
 
         #The outermost quote must be ', otherwise json.loads will fail
         interface = json.loads(interface.replace("'", '"'))
         function_list = []
+        event_list = []
         for i in interface:
             if i['type'] == 'function':
                 function_list.append({
@@ -335,8 +335,14 @@ class ContractFunc(APIView):
                     'name': i['name'],
                     'inputs': i['inputs']
                 })
+            elif i['type'] == 'event':
+                event_list.append({
+                    'id': i['id'],
+                    'name': i['name'],
+                    'inputs': i['inputs']
+                })
+        return function_list, event_list
 
-        return function_list
 
     def _get_function_by_name(self, interface, function_name):
         '''
@@ -390,19 +396,19 @@ class ContractFunc(APIView):
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
-        function_list = self._get_function_list(contract.interface)
-        response = {'functions': function_list}
+        function_list, event_list = self._get_abi_list(contract.interface)
+        response = {'functions': function_list, 'events': event_list}
         return JsonResponse(response, status=httplib.OK)
 
 
 
     def post(self, request, multisig_address):
-        '''   
+        '''
         This function will make a tx (user transfer money to multisig address)
         of contract type and op_return=function_inputs and function_id
         The oracle monitor will notice the created tx
         and then tunrs it to evn state
-        
+
         inputs: from_address, to_address, amount, color, function_inputs, function_id
         `function_inputs` is a list
         '''
@@ -437,7 +443,7 @@ class ContractFunc(APIView):
             })
             tx_hex = OSSclient.operate_contract_raw_tx(from_address, to_address, amount, color, code, CONTRACT_FEE)
             response = {'raw_tx': tx_hex}
-            
+
             return JsonResponse(response)
 
         response = {'error': form.errors}
