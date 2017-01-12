@@ -35,9 +35,6 @@
 using namespace std;
 using namespace dev;
 using namespace dev::eth;
-namespace qi = boost::spirit::qi;
-namespace px = boost::phoenix;
-namespace sp = boost::spirit;
 
 void CodeFragment::finalise(CompilerState const& _cs)
 {
@@ -52,17 +49,18 @@ void CodeFragment::finalise(CompilerState const& _cs)
 
 CodeFragment::CodeFragment(sp::utree const& _t, CompilerState& _s, bool _allowASM)
 {
-/*	cdebug << "CodeFragment. Locals:";
+/*
+	std::cout << "CodeFragment. Locals:";
 	for (auto const& i: _s.defs)
-		cdebug << i.first << ":" << toHex(i.second.m_code);
-	cdebug << "Args:";
+		std::cout << i.first << ":" << i.second.m_asm.out();
+	std::cout << "Args:";
 	for (auto const& i: _s.args)
-		cdebug << i.first << ":" << toHex(i.second.m_code);
-	cdebug << "Outers:";
+		std::cout << i.first << ":" << i.second.m_asm.out();
+	std::cout << "Outers:";
 	for (auto const& i: _s.outers)
-		cdebug << i.first << ":" << toHex(i.second.m_code);
-	debugOutAST(cout, _t);
-	cout << endl << flush;
+		std::cout << i.first << ":" << i.second.m_asm.out();
+	debugOutAST(std::cout, _t);
+	std::cout << endl << flush;
 */
 	switch (_t.which())
 	{
@@ -89,19 +87,15 @@ CodeFragment::CodeFragment(sp::utree const& _t, CompilerState& _s, bool _allowAS
 			m_asm.append(_s.args.at(s).m_asm);
 		else if (_s.outers.count(s))
 			m_asm.append(_s.outers.at(s).m_asm);
-		else if (us.find_first_of("1234567890") != 0 && us.find_first_not_of("QWERTYUIOPASDFGHJKLZXCVBNM1234567890_") == string::npos)
+		else if (us.find_first_of("1234567890") != 0 && us.find_first_not_of("QWERTYUIOPASDFGHJKLZXCVBNM1234567890_-") == string::npos)
 		{
 			auto it = _s.vars.find(s);
 			if (it == _s.vars.end())
-			{
-				bool ok;
-				tie(it, ok) = _s.vars.insert(make_pair(s, make_pair(_s.stackSize, 32)));
-				_s.stackSize += 32;
-			}
+				error<InvalidName>(std::string("Symbol not found: ") + s);
 			m_asm.append((u256)it->second.first);
 		}
 		else
-			error<BareSymbol>();
+			error<BareSymbol>(s);
 
 		break;
 	}
@@ -113,7 +107,9 @@ CodeFragment::CodeFragment(sp::utree const& _t, CompilerState& _s, bool _allowAS
 		m_asm.append((u256)i);
 		break;
 	}
-	default: break;
+	default:
+		error<CompilerException>("Unexpected fragment type");
+		break;
 	}
 }
 
@@ -179,11 +175,7 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 		{
 			auto it = _s.vars.find(n);
 			if (it == _s.vars.end())
-			{
-				bool ok;
-				tie(it, ok) = _s.vars.insert(make_pair(n, make_pair(_s.stackSize, 32)));
-				_s.stackSize += 32;
-			}
+				error<InvalidName>(std::string("Symbol not found: ") + s);
 			return it->second.first;
 		};
 
@@ -280,42 +272,43 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 			bytes data;
 			for (auto const& i: _t)
 			{
-				if (ii == 1)
+				if (ii == 0)
+				{
+					ii++;
+					continue;
+				}
+				else if (ii == 1)
 				{
 					pos = CodeFragment(i, _s);
 					if (pos.m_asm.deposit() != 1)
 						error<InvalidDeposit>();
 				}
-				else if (ii == 2 && !i.tag() && i.which() == sp::utree_type::string_type)
+				else if (i.tag() != 0)
+				{
+					error<InvalidLiteral>();
+				}
+				else if (i.which() == sp::utree_type::string_type)
 				{
 					auto sr = i.get<sp::basic_string<boost::iterator_range<char const*>, sp::utree_type::string_type>>();
-					data = bytes((byte const*)sr.begin(), (byte const*)sr.end());
+					data.insert(data.end(), (byte const *)sr.begin(), (byte const*)sr.end());
 				}
-				else if (ii >= 2 && !i.tag() && i.which() == sp::utree_type::any_type)
+				else if (i.which() == sp::utree_type::any_type)
 				{
 					bigint bi = *i.get<bigint*>();
 					if (bi < 0)
 						error<IntegerOutOfRange>();
-					else if (bi > bigint(u256(0) - 1))
-					{
-						if (ii == 2 && _t.size() == 3)
-						{
-							// One big int - allow it as hex.
-							data.resize(bytesRequired(bi));
-							toBigEndian(bi, data);
-						}
-						else
-							error<IntegerOutOfRange>();
-					}
 					else
 					{
-						data.resize(data.size() + 32);
-						*(h256*)(&data.back() - 31) = (u256)bi;
+						bytes tmp = toCompactBigEndian(bi);
+						data.insert(data.end(), tmp.begin(), tmp.end());
 					}
 				}
-				else if (ii)
+				else
+				{
 					error<InvalidLiteral>();
-				++ii;
+				}
+
+				ii++;
 			}
 			m_asm.append((u256)data.size());
 			m_asm.append(Instruction::DUP1);
@@ -329,9 +322,32 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 		if (nonStandard)
 			return;
 
-		std::map<std::string, Instruction> const c_arith = { { "+", Instruction::ADD }, { "-", Instruction::SUB }, { "*", Instruction::MUL }, { "/", Instruction::DIV }, { "%", Instruction::MOD }, { "&", Instruction::AND }, { "|", Instruction::OR }, { "^", Instruction::XOR } };
-		std::map<std::string, pair<Instruction, bool>> const c_binary = { { "<", { Instruction::LT, false } }, { "<=", { Instruction::GT, true } }, { ">", { Instruction::GT, false } }, { ">=", { Instruction::LT, true } }, { "S<", { Instruction::SLT, false } }, { "S<=", { Instruction::SGT, true } }, { "S>", { Instruction::SGT, false } }, { "S>=", { Instruction::SLT, true } }, { "=", { Instruction::EQ, false } }, { "!=", { Instruction::EQ, true } } };
-		std::map<std::string, Instruction> const c_unary = { { "!", Instruction::ISZERO } };
+		std::map<std::string, Instruction> const c_arith = {
+			{ "+", Instruction::ADD },
+			{ "-", Instruction::SUB },
+			{ "*", Instruction::MUL },
+			{ "/", Instruction::DIV },
+			{ "%", Instruction::MOD },
+			{ "&", Instruction::AND },
+			{ "|", Instruction::OR },
+			{ "^", Instruction::XOR }
+		};
+		std::map<std::string, pair<Instruction, bool>> const c_binary = {
+			{ "<", { Instruction::LT, false } },
+			{ "<=", { Instruction::GT, true } },
+			{ ">", { Instruction::GT, false } },
+			{ ">=", { Instruction::LT, true } },
+			{ "S<", { Instruction::SLT, false } },
+			{ "S<=", { Instruction::SGT, true } },
+			{ "S>", { Instruction::SGT, false } },
+			{ "S>=", { Instruction::SLT, true } },
+			{ "=", { Instruction::EQ, false } },
+			{ "!=", { Instruction::EQ, true } }
+		};
+		std::map<std::string, Instruction> const c_unary = {
+			{ "!", Instruction::ISZERO },
+			{ "~", Instruction::NOT }
+		};
 
 		vector<CodeFragment> code;
 		CompilerState ns = _s;
@@ -448,14 +464,15 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 			m_asm << end.tag();
 			m_asm.donePaths();
 		}
-		else if (us == "WHILE")
+		else if (us == "WHILE" || us == "UNTIL")
 		{
 			requireSize(2);
 			requireDeposit(0, 1);
 
-			auto begin = m_asm.append();
+			auto begin = m_asm.append(m_asm.newTag());
 			m_asm.append(code[0].m_asm);
-			m_asm.append(Instruction::ISZERO);
+			if (us == "WHILE")
+				m_asm.append(Instruction::ISZERO);
 			auto end = m_asm.appendJumpI();
 			m_asm.append(code[1].m_asm, 0);
 			m_asm.appendJump(begin);
@@ -467,7 +484,7 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 			requireDeposit(1, 1);
 
 			m_asm.append(code[0].m_asm, 0);
-			auto begin = m_asm.append();
+			auto begin = m_asm.append(m_asm.newTag());
 			m_asm.append(code[1].m_asm);
 			m_asm.append(Instruction::ISZERO);
 			auto end = m_asm.appendJumpI();
@@ -498,7 +515,8 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 			requireMaxSize(3);
 			requireDeposit(1, 1);
 
-			auto subPush = m_asm.appendSubSize(code[0].assembly(ns));
+			auto subPush = m_asm.newSub(make_shared<Assembly>(code[0].assembly(ns)));
+			m_asm.append(m_asm.newPushSubSize(subPush.data()));
 			m_asm.append(Instruction::DUP1);
 			if (code.size() == 3)
 			{
@@ -540,17 +558,6 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 			// At end now.
 			m_asm.append(end);
 		}
-		else if (us == "~")
-		{
-			requireSize(1);
-			requireDeposit(0, 1);
-
-			m_asm.append(code[0].m_asm, 1);
-			m_asm.append((u256)1);
-			m_asm.append((u256)0);
-			m_asm.append(Instruction::SUB);
-			m_asm.append(Instruction::SUB);
-		}
 		else if (us == "SEQ")
 		{
 			unsigned ii = 0;
@@ -566,10 +573,18 @@ void CodeFragment::constructOperation(sp::utree const& _t, CompilerState& _s)
 				m_asm.append(i.m_asm);
 			m_asm.popTo(1);
 		}
-		else if (us.find_first_of("1234567890") != 0 && us.find_first_not_of("QWERTYUIOPASDFGHJKLZXCVBNM1234567890_") == string::npos)
+		else if (us == "PANIC")
+		{
+			m_asm.appendJump(m_asm.errorTag());
+		}
+		else if (us == "BYTECODESIZE")
+		{
+			m_asm.appendProgramSize();
+		}
+		else if (us.find_first_of("1234567890") != 0 && us.find_first_not_of("QWERTYUIOPASDFGHJKLZXCVBNM1234567890_-") == string::npos)
 			m_asm.append((u256)varAddress(s));
 		else
-			error<InvalidOperation>();
+			error<InvalidOperation>("Unsupported keyword: '" + us + "'");
 	}
 }
 

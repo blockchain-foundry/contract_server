@@ -1,42 +1,44 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file Assembly.h
- * @author Gav Wood <i@gavwood.com>
- * @date 2014
- */
 
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <libdevcore/Common.h>
-#include <libdevcore/Assertions.h>
-#include <libdevcore/SHA3.h>
 #include <libevmasm/Instruction.h>
 #include <libevmasm/SourceLocation.h>
 #include <libevmasm/AssemblyItem.h>
 #include <libevmasm/LinkerObject.h>
-#include "Exceptions.h"
+#include <libevmasm/Exceptions.h>
+
+#include <libdevcore/Common.h>
+#include <libdevcore/Assertions.h>
+#include <libdevcore/SHA3.h>
+
 #include <json/json.h>
+
+#include <iostream>
+#include <sstream>
+#include <memory>
 
 namespace dev
 {
 namespace eth
 {
+
+using AssemblyPointer = std::shared_ptr<Assembly>;
 
 class Assembly
 {
@@ -46,20 +48,18 @@ public:
 	AssemblyItem newTag() { return AssemblyItem(Tag, m_usedTags++); }
 	AssemblyItem newPushTag() { return AssemblyItem(PushTag, m_usedTags++); }
 	AssemblyItem newData(bytes const& _data) { h256 h(dev::keccak256(asString(_data))); m_data[h] = _data; return AssemblyItem(PushData, h); }
-	AssemblyItem newSub(Assembly const& _sub) { m_subs.push_back(_sub); return AssemblyItem(PushSub, m_subs.size() - 1); }
-	Assembly const& sub(size_t _sub) const { return m_subs.at(_sub); }
-	Assembly& sub(size_t _sub) { return m_subs.at(_sub); }
+	AssemblyItem newSub(AssemblyPointer const& _sub) { m_subs.push_back(_sub); return AssemblyItem(PushSub, m_subs.size() - 1); }
+	Assembly const& sub(size_t _sub) const { return *m_subs.at(_sub); }
+	Assembly& sub(size_t _sub) { return *m_subs.at(_sub); }
 	AssemblyItem newPushString(std::string const& _data) { h256 h(dev::keccak256(_data)); m_strings[h] = _data; return AssemblyItem(PushString, h); }
 	AssemblyItem newPushSubSize(u256 const& _subId) { return AssemblyItem(PushSubSize, _subId); }
 	AssemblyItem newPushLibraryAddress(std::string const& _identifier);
 
-	AssemblyItem append() { return append(newTag()); }
 	void append(Assembly const& _a);
 	void append(Assembly const& _a, int _deposit);
 	AssemblyItem const& append(AssemblyItem const& _i);
 	AssemblyItem const& append(std::string const& _data) { return append(newPushString(_data)); }
 	AssemblyItem const& append(bytes const& _data) { return append(newData(_data)); }
-	AssemblyItem appendSubSize(Assembly const& _a) { auto ret = newSub(_a); append(newPushSubSize(ret.data())); return ret; }
 	/// Pushes the final size of the current assembly itself. Use this when the code is modified
 	/// after compilation and CODESIZE is not an option.
 	void appendProgramSize() { append(AssemblyItem(PushProgramSize)); }
@@ -70,6 +70,9 @@ public:
 	AssemblyItem appendJump(AssemblyItem const& _tag) { auto ret = append(_tag.pushTag()); append(solidity::Instruction::JUMP); return ret; }
 	AssemblyItem appendJumpI(AssemblyItem const& _tag) { auto ret = append(_tag.pushTag()); append(solidity::Instruction::JUMPI); return ret; }
 	AssemblyItem errorTag() { return AssemblyItem(PushTag, 0); }
+
+	/// Appends @a _data literally to the very end of the bytecode.
+	void appendAuxiliaryDataToEnd(bytes const& _data) { m_auxiliaryData += _data; }
 
 	template <class T> Assembly& operator<<(T const& _d) { append(_d); return *this; }
 	AssemblyItems const& items() const { return m_items; }
@@ -101,6 +104,7 @@ public:
 	/// execution gas usage is optimised. @a _isCreation should be true for the top-level assembly.
 	/// @a _runs specifes an estimate on how often each opcode in this assembly will be executed,
 	/// i.e. use a small value to optimise for size and a large value to optimise for runtime.
+	/// If @a _enable is not set, will perform some simple peephole optimizations.
 	Assembly& optimise(bool _enable, bool _isCreation = true, size_t _runs = 200);
 	Json::Value stream(
 		std::ostream& _out,
@@ -110,9 +114,13 @@ public:
 	) const;
 
 protected:
+	/// Does the same operations as @a optimise, but should only be applied to a sub and
+	/// returns the replaced tags.
+	std::map<u256, u256> optimiseInternal(bool _enable, bool _isCreation, size_t _runs);
+
 	std::string locationFromSources(StringMap const& _sourceCodes, SourceLocation const& _location) const;
 	void donePath() { if (m_totalDeposit != INT_MAX && m_totalDeposit != m_deposit) BOOST_THROW_EXCEPTION(InvalidDeposit()); }
-	unsigned bytesRequired() const;
+	unsigned bytesRequired(unsigned subTagSize) const;
 
 private:
 	Json::Value streamAsmJson(std::ostream& _out, StringMap const& _sourceCodes) const;
@@ -120,15 +128,18 @@ private:
 	Json::Value createJsonValue(std::string _name, int _begin, int _end, std::string _value = std::string(), std::string _jumpType = std::string()) const;
 
 protected:
-	// 0 is reserved for exception
+	/// 0 is reserved for exception
 	unsigned m_usedTags = 1;
 	AssemblyItems m_items;
 	std::map<h256, bytes> m_data;
-	std::vector<Assembly> m_subs;
+	/// Data that is appended to the very end of the contract.
+	bytes m_auxiliaryData;
+	std::vector<std::shared_ptr<Assembly>> m_subs;
 	std::map<h256, std::string> m_strings;
 	std::map<h256, std::string> m_libraries; ///< Identifiers of libraries to be linked.
 
 	mutable LinkerObject m_assembledObject;
+	mutable std::vector<size_t> m_tagPositionsInBytecode;
 
 	int m_deposit = 0;
 	int m_baseDeposit = 0;

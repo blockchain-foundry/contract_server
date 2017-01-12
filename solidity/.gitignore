@@ -1,7 +1,6 @@
 .commit_hash.txt
 .prerelease.txt
 
-**/CMakeFiles/**
 # Compiled Object files
 *.slo
 *.lo

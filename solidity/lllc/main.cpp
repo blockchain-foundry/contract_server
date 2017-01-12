@@ -27,10 +27,17 @@
 #include <libdevcore/CommonIO.h>
 #include <libdevcore/CommonData.h>
 #include <libevmasm/Instruction.h>
+#include <solidity/BuildInfo.h>
+
 using namespace std;
 using namespace dev;
 using namespace dev::solidity;
 using namespace dev::eth;
+
+static string const VersionString =
+        string(ETH_PROJECT_VERSION) +
+        (string(SOL_VERSION_PRERELEASE).empty() ? "" : "-" + string(SOL_VERSION_PRERELEASE)) +
+        (string(SOL_VERSION_BUILDINFO).empty() ? "" : "+" + string(SOL_VERSION_BUILDINFO));
 
 void help()
 {
@@ -41,6 +48,7 @@ void help()
 		<< "    -x,--hex  Parse, compile and assemble; output byte code in hex." << endl
 		<< "    -a,--assembly  Only parse and compile; show assembly." << endl
 		<< "    -t,--parse-tree  Only parse; show parse tree." << endl
+		<< "    -o,--optimise  Turn on/off the optimiser; off by default." << endl
 		<< "    -h,--help  Show this help message and exit." << endl
 		<< "    -V,--version  Show the version and exit." << endl;
         exit(0);
@@ -49,7 +57,7 @@ void help()
 void version()
 {
 	cout << "LLLC, the Lovely Little Language Compiler " << endl;
-	cout << "  By Gav Wood, (c) 2014." << endl;
+	cout << "Version: " << VersionString << endl;
 	exit(0);
 }
 
@@ -81,7 +89,7 @@ enum Mode { Binary, Hex, Assembly, ParseTree, Disassemble };
 int main(int argc, char** argv)
 {
 	setDefaultOrCLocale();
-	unsigned optimise = 1;
+	unsigned optimise = 0;
 	string infile;
 	Mode mode = Hex;
 
@@ -98,8 +106,8 @@ int main(int argc, char** argv)
 			mode = Assembly;
 		else if (arg == "-t" || arg == "--parse-tree")
 			mode = ParseTree;
-		else if ((arg == "-o" || arg == "--optimise") && argc > i + 1)
-			optimise = atoi(argv[++i]);
+		else if (arg == "-o" || arg == "--optimise")
+			optimise = 1;
 		else if (arg == "-d" || arg == "--disassemble")
 			mode = Disassemble;
 		else if (arg == "-V" || arg == "--version")

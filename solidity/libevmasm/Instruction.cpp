@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file Instruction.cpp
  * @author Gav Wood <i@gavwood.com>
@@ -159,8 +159,7 @@ const std::map<std::string, Instruction> dev::solidity::c_instructions =
 	{ "CALLCODE", Instruction::CALLCODE },
 	{ "RETURN", Instruction::RETURN },
 	{ "DELEGATECALL", Instruction::DELEGATECALL },
-	{ "SUICIDE", Instruction::SUICIDE },
-	{ "CHECKTX", Instruction::CHECKTX}
+	{ "SUICIDE", Instruction::SUICIDE }
 };
 
 static const std::map<Instruction, InstructionInfo> c_instructionInfo =
@@ -190,10 +189,10 @@ static const std::map<Instruction, InstructionInfo> c_instructionInfo =
 	{ Instruction::SIGNEXTEND,	{ "SIGNEXTEND",		0, 2, 1, false, LowTier } },
 	{ Instruction::SHA3,		{ "SHA3",			0, 2, 1, false, SpecialTier } },
 	{ Instruction::ADDRESS,		{ "ADDRESS",		0, 0, 1, false, BaseTier } },
-	{ Instruction::BALANCE,		{ "BALANCE",		0, 2, 1, false, ExtTier } },
+	{ Instruction::BALANCE,		{ "BALANCE",		0, 1, 1, false, ExtTier } },
 	{ Instruction::ORIGIN,		{ "ORIGIN",			0, 0, 1, false, BaseTier } },
 	{ Instruction::CALLER,		{ "CALLER",			0, 0, 1, false, BaseTier } },
-	{ Instruction::CALLVALUE,	{ "CALLVALUE",		0, 1, 1, false, BaseTier } },
+	{ Instruction::CALLVALUE,	{ "CALLVALUE",		0, 0, 1, false, BaseTier } },
 	{ Instruction::CALLDATALOAD,{ "CALLDATALOAD",	0, 1, 1, false, VeryLowTier } },
 	{ Instruction::CALLDATASIZE,{ "CALLDATASIZE",	0, 0, 1, false, BaseTier } },
 	{ Instruction::CALLDATACOPY,{ "CALLDATACOPY",	0, 3, 0, true, VeryLowTier } },
@@ -289,13 +288,12 @@ static const std::map<Instruction, InstructionInfo> c_instructionInfo =
 	{ Instruction::LOG2,		{ "LOG2",			0, 4, 0, true, SpecialTier } },
 	{ Instruction::LOG3,		{ "LOG3",			0, 5, 0, true, SpecialTier } },
 	{ Instruction::LOG4,		{ "LOG4",			0, 6, 0, true, SpecialTier } },
-	{ Instruction::CREATE,		{ "CREATE",			0, 4, 1, true, SpecialTier } },
-	{ Instruction::CALL,		{ "CALL",			0, 8, 1, true, SpecialTier } },
+	{ Instruction::CREATE,		{ "CREATE",			0, 3, 1, true, SpecialTier } },
+	{ Instruction::CALL,		{ "CALL",			0, 7, 1, true, SpecialTier } },
 	{ Instruction::CALLCODE,	{ "CALLCODE",		0, 7, 1, true, SpecialTier } },
 	{ Instruction::RETURN,		{ "RETURN",			0, 2, 0, true, ZeroTier } },
 	{ Instruction::DELEGATECALL,{ "DELEGATECALL",	0, 6, 1, true, SpecialTier } },
-	{ Instruction::SUICIDE,		{ "SUICIDE",		0, 1, 0, true, ZeroTier } },
-	{ Instruction::CHECKTX,		{ "CHECKTX",		0, 1, 1, false, SpecialTier}}
+	{ Instruction::SUICIDE,		{ "SUICIDE",		0, 1, 0, true, ZeroTier } }
 };
 
 void dev::solidity::eachInstruction(

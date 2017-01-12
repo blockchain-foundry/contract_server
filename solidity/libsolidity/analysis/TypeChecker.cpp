@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -574,6 +574,14 @@ bool TypeChecker::visit(EventDefinition const& _eventDef)
 	return false;
 }
 
+void TypeChecker::endVisit(FunctionTypeName const& _funType)
+{
+	FunctionType const& fun = dynamic_cast<FunctionType const&>(*_funType.annotation().type);
+	if (fun.location() == FunctionType::Location::External)
+		if (!fun.canBeUsedExternally(false))
+			typeError(_funType.location(), "External function type uses internal types.");
+}
+
 bool TypeChecker::visit(InlineAssembly const& _inlineAssembly)
 {
 	// Inline assembly does not have its own type-checking phase, so we just run the
@@ -609,6 +617,8 @@ bool TypeChecker::visit(InlineAssembly const& _inlineAssembly)
 					return false;
 				pushes = 1;
 			}
+			else
+				return false;
 			for (unsigned i = 0; i < pushes; ++i)
 				_assembly.append(u256(0)); // just to verify the stack height
 		}
@@ -716,11 +726,10 @@ bool TypeChecker::visit(VariableDeclarationStatement const& _statement)
 		{
 			if (ref->dataStoredIn(DataLocation::Storage))
 			{
-				auto err = make_shared<Error>(Error::Type::Warning);
-				*err <<
-					errinfo_sourceLocation(varDecl.location()) <<
-					errinfo_comment("Uninitialized storage pointer. Did you mean '<type> memory " + varDecl.name() + "'?");
-				m_errors.push_back(err);
+				warning(
+					varDecl.location(),
+					"Uninitialized storage pointer. Did you mean '<type> memory " + varDecl.name() + "'?"
+				);
 			}
 		}
 		varDecl.accept(*this);
@@ -879,6 +888,10 @@ bool TypeChecker::visit(Conditional const& _conditional)
 
 	TypePointer trueType = type(_conditional.trueExpression())->mobileType();
 	TypePointer falseType = type(_conditional.falseExpression())->mobileType();
+	if (!trueType)
+		fatalTypeError(_conditional.trueExpression().location(), "Invalid mobile type.");
+	if (!falseType)
+		fatalTypeError(_conditional.falseExpression().location(), "Invalid mobile type.");
 
 	TypePointer commonType = Type::commonType(trueType, falseType);
 	if (!commonType)
@@ -985,10 +998,16 @@ bool TypeChecker::visit(TupleExpression const& _tuple)
 				types.push_back(type(*components[i]));
 				if (_tuple.isInlineArray())
 					solAssert(!!types[i], "Inline array cannot have empty components");
-				if (i == 0 && _tuple.isInlineArray())
-					inlineArrayType = types[i]->mobileType();
-				else if (_tuple.isInlineArray() && inlineArrayType)
-					inlineArrayType = Type::commonType(inlineArrayType, types[i]->mobileType());
+				if (_tuple.isInlineArray())
+				{
+					if ((i == 0 || inlineArrayType) && !types[i]->mobileType())
+						fatalTypeError(components[i]->location(), "Invalid mobile type.");
+
+					if (i == 0)
+						inlineArrayType = types[i];
+					else if (inlineArrayType)
+						inlineArrayType = Type::commonType(inlineArrayType, types[i]);
+				}
 			}
 			else
 				types.push_back(TypePointer());
@@ -1375,6 +1394,11 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 	}
 	else if (exprType->category() == Type::Category::FixedBytes)
 		annotation.isLValue = false;
+	else if (TypeType const* typeType = dynamic_cast<decltype(typeType)>(exprType.get()))
+	{
+		if (ContractType const* contractType = dynamic_cast<decltype(contractType)>(typeType->actualType().get()))
+			annotation.isLValue = annotation.referencedDeclaration->isLValue();
+	}
 
 	return false;
 }
@@ -1505,6 +1529,8 @@ bool TypeChecker::visit(Identifier const& _identifier)
 		!!annotation.referencedDeclaration,
 		"Referenced declaration is null after overload resolution."
 	);
+	auto variableDeclaration = dynamic_cast<VariableDeclaration const*>(annotation.referencedDeclaration);
+	annotation.isConstant = variableDeclaration != nullptr && variableDeclaration->isConstant();
 	annotation.isLValue = annotation.referencedDeclaration->isLValue();
 	annotation.type = annotation.referencedDeclaration->type();
 	if (!annotation.type)
@@ -1588,7 +1614,10 @@ void TypeChecker::requireLValue(Expression const& _expression)
 {
 	_expression.annotation().lValueRequested = true;
 	_expression.accept(*this);
-	if (!_expression.annotation().isLValue)
+
+	if (_expression.annotation().isConstant)
+		typeError(_expression.location(), "Cannot assign to a constant variable.");
+	else if (!_expression.annotation().isLValue)
 		typeError(_expression.location(), "Expression has to be an lvalue.");
 }
 

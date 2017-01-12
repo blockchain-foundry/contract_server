@@ -1,15 +1,74 @@
-### 0.4.3 (unreleased)
+### 0.4.7 (2016-12-15)
+
+Features:
+ * Bitshift operators.
+ * Type checker: Warn when ``msg.value`` is used in non-payable function.
+ * Code generator: Inject the Swarm hash of a metadata file into the bytecode.
+ * Code generator: Replace expensive memcpy precompile by simple assembly loop.
+ * Optimizer: Some dead code elimination.
+
+Bugfixes:
+ * Code generator: throw if calling the identity precompile failed during memory (array) copying.
+ * Type checker: string literals that are not valid UTF-8 cannot be converted to string type
+ * Code generator: any non-zero value given as a boolean argument is now converted into 1.
+ * AST Json Converter: replace ``VariableDefinitionStatement`` nodes with ``VariableDeclarationStatement``
+ * AST Json Converter: fix the camel case in ``ElementaryTypeNameExpression``
+ * AST Json Converter: replace ``public`` field with ``visibility`` in the function definition nodes
+
+### 0.4.6 (2016-11-22)
+
+Bugfixes:
+ * Optimizer: Knowledge about state was not correctly cleared for JUMPDESTs (introduced in 0.4.5)
+
+### 0.4.5 (2016-11-21)
+
+Features:
+ * Function types
+ * Do-while loops: support for a ``do <block> while (<expr>);`` control structure
+ * Inline assembly: support ``invalidJumpLabel`` as a jump label.
+ * Type checker: now more eagerly searches for a common type of an inline array with mixed types
+ * Code generator: generates a runtime error when an out-of-range value is converted into an enum type.
+
+Bugfixes:
+
+ * Inline assembly: calculate stack height warning correctly even when local variables are used.
+ * Code generator: check for value transfer in non-payable constructors.
+ * Parser: disallow empty enum definitions.
+ * Type checker: disallow conversion between different enum types.
+ * Interface JSON: do not include trailing new line.
+
+### 0.4.4 (2016-10-31)
+
+Bugfixes:
+ * Type checker: forbid signed exponential that led to an incorrect use of EXP opcode.
+ * Code generator: properly clean higher order bytes before storing in storage.
+
+### 0.4.3 (2016-10-25)
 
 Features:
 
- * Inline assembly: support both `sucide` and `selfdestruct` opcodes
-   (note: `suicide` is deprecated)
- * Include `keccak256()` as an alias to `sha3()`
+ * Inline assembly: support both ``suicide`` and ``selfdestruct`` opcodes
+   (note: ``suicide`` is deprecated).
+ * Inline assembly: issue warning if stack is not balanced after block.
+ * Include ``keccak256()`` as an alias to ``sha3()``.
+ * Support shifting constant numbers.
 
 Bugfixes:
- * Disallow unknown options in `solc`
- * Inline assembly: support the `address` opcode
+ * Commandline interface: Disallow unknown options in ``solc``.
+ * Name resolver: Allow inheritance of ``enum`` definitions.
+ * Type checker: Proper type checking for bound functions.
+ * Type checker: fixed crash related to invalid fixed point constants
+ * Type checker: fixed crash related to invalid literal numbers.
+ * Type checker: ``super.x`` does not look up ``x`` in the current contract.
+ * Code generator: expect zero stack increase after ``super`` as an expression.
+ * Code generator: fix an internal compiler error for ``L.Foo`` for ``enum Foo`` defined in library ``L``.
+ * Code generator: allow inheritance of ``enum`` definitions.
+ * Inline assembly: support the ``address`` opcode.
  * Inline assembly: fix parsing of assignment after a label.
+ * Inline assembly: external variables of unsupported type (such as ``this``, ``super``, etc.)
+   are properly detected as unusable.
+ * Inline assembly: support variables within modifiers.
+ * Optimizer: fix related to stale knowledge about SHA3 operations
 
 ### 0.4.2 (2016-09-17)
 

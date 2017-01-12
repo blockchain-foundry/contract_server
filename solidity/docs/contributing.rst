@@ -15,7 +15,9 @@ In particular, we need help in the following areas:
   <http://ethereum.stackexchange.com/>`_ and the `Solidity Gitter
   <https://gitter.im/ethereum/solidity>`_
 * Fixing and responding to `Solidity's GitHub issues
-  <https://github.com/ethereum/solidity/issues>`_
+  <https://github.com/ethereum/solidity/issues>`_, especially those tagged as
+  `up-for-grabs <https://github.com/ethereum/solidity/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs>`_ which are
+  meant as introductory issues for external contributors.
 
 How to Report Issues
 ====================
@@ -57,3 +59,18 @@ for this project. Also, even though we do CI testing, please test your code and
 ensure that it builds locally before submitting a pull request.
 
 Thank you for your help!
+
+Running the compiler tests
+==========================
+
+Solidity includes different types of tests. They are included in the application
+called ``soltest``. Some of them require the ``cpp-ethereum`` client in testing mode.
+
+To run ``cpp-ethereum`` in testing mode: ``eth --test -d /tmp/testeth``.
+
+To run the tests: ``soltest -- --ipcpath /tmp/testeth/geth.ipc``.
+
+To run a subset of tests, filters can be used:
+``soltest -t TestSuite/TestName -- --ipcpath /tmp/testeth/geth.ipc``, where ``TestName`` can be a wildcard ``*``.
+
+Alternatively, there is a testing script at ``scripts/test.sh`` which executes all tests.

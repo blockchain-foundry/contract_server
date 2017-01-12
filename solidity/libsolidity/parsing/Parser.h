@@ -1,18 +1,18 @@
 /*
-    This file is part of cpp-ethereum.
+    This file is part of solidity.
 
-    cpp-ethereum is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-ethereum is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -53,6 +53,18 @@ private:
 		bool allowLocationSpecifier = false;
 	};
 
+	/// This struct is shared for parsing a function header and a function type.
+	struct FunctionHeaderParserResult
+	{
+		ASTPointer<ASTString> name;
+		ASTPointer<ParameterList> parameters;
+		ASTPointer<ParameterList> returnParameters;
+		Declaration::Visibility visibility = Declaration::Visibility::Default;
+		bool isDeclaredConst = false;
+		bool isPayable = false;
+		std::vector<ASTPointer<ModifierInvocation>> modifiers;
+	};
+
 	///@{
 	///@name Parsing functions for the AST nodes
 	ASTPointer<PragmaDirective> parsePragmaDirective();
@@ -60,6 +72,8 @@ private:
 	ASTPointer<ContractDefinition> parseContractDefinition(bool _isLibrary);
 	ASTPointer<InheritanceSpecifier> parseInheritanceSpecifier();
 	Declaration::Visibility parseVisibilitySpecifier(Token::Value _token);
+	FunctionHeaderParserResult parseFunctionHeader(bool _forceEmptyName, bool _allowModifiers);
+	ASTPointer<ASTNode> parseFunctionDefinitionOrFunctionTypeStateVariable(ASTString const* _contractName);
 	ASTPointer<FunctionDefinition> parseFunctionDefinition(ASTString const* _contractName);
 	ASTPointer<StructDefinition> parseStructDefinition();
 	ASTPointer<EnumDefinition> parseEnumDefinition();
@@ -74,7 +88,9 @@ private:
 	ASTPointer<ModifierInvocation> parseModifierInvocation();
 	ASTPointer<Identifier> parseIdentifier();
 	ASTPointer<UserDefinedTypeName> parseUserDefinedTypeName();
+	ASTPointer<TypeName> parseTypeNameSuffix(ASTPointer<TypeName> type, ASTNodeFactory& nodeFactory);
 	ASTPointer<TypeName> parseTypeName(bool _allowVar);
+	ASTPointer<FunctionTypeName> parseFunctionType();
 	ASTPointer<Mapping> parseMapping();
 	ASTPointer<ParameterList> parseParameterList(
 		VarDeclParserOptions const& _options,
@@ -85,6 +101,7 @@ private:
 	ASTPointer<InlineAssembly> parseInlineAssembly(ASTPointer<ASTString> const& _docString = {});
 	ASTPointer<IfStatement> parseIfStatement(ASTPointer<ASTString> const& _docString);
 	ASTPointer<WhileStatement> parseWhileStatement(ASTPointer<ASTString> const& _docString);
+	ASTPointer<WhileStatement> parseDoWhileStatement(ASTPointer<ASTString> const& _docString);
 	ASTPointer<ForStatement> parseForStatement(ASTPointer<ASTString> const& _docString);
 	/// A "simple statement" can be a variable declaration statement or an expression statement.
 	ASTPointer<Statement> parseSimpleStatement(ASTPointer<ASTString> const& _docString);

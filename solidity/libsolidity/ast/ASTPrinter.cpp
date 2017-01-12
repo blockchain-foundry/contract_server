@@ -1,18 +1,18 @@
 /*
-    This file is part of cpp-ethereum.
+    This file is part of solidity.
 
-    cpp-ethereum is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-ethereum is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -164,6 +164,13 @@ bool ASTPrinter::visit(UserDefinedTypeName const& _node)
 	return goDeeper();
 }
 
+bool ASTPrinter::visit(FunctionTypeName const& _node)
+{
+	writeLine("FunctionTypeName");
+	printSourcePart(_node);
+	return goDeeper();
+}
+
 bool ASTPrinter::visit(Mapping const& _node)
 {
 	writeLine("Mapping");
@@ -208,7 +215,7 @@ bool ASTPrinter::visit(IfStatement const& _node)
 
 bool ASTPrinter::visit(WhileStatement const& _node)
 {
-	writeLine("WhileStatement");
+	writeLine(_node.isDoWhile() ? "DoWhileStatement" : "WhileStatement");
 	printSourcePart(_node);
 	return goDeeper();
 }
@@ -438,6 +445,11 @@ void ASTPrinter::endVisit(ElementaryTypeName const&)
 }
 
 void ASTPrinter::endVisit(UserDefinedTypeName const&)
+{
+	m_indentation--;
+}
+
+void ASTPrinter::endVisit(FunctionTypeName const&)
 {
 	m_indentation--;
 }

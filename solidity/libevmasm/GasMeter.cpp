@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /** @file GasMeter.cpp
  * @author Christian <c@ethdev.com>
@@ -39,7 +39,7 @@ GasMeter::GasConsumption& GasMeter::GasConsumption::operator+=(GasConsumption co
 	return *this;
 }
 
-GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item)
+GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _includeExternalCosts)
 {
 	GasConsumption gas;
 	switch (_item.type())
@@ -128,23 +128,35 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item)
 		case Instruction::CALLCODE:
 		case Instruction::DELEGATECALL:
 		{
-			gas = GasCosts::callGas;
-			if (u256 const* value = classes.knownConstant(m_state->relativeStackElement(0)))
-				gas += (*value);
-			else
+			if (_includeExternalCosts)
+				// We assume that we do not know the target contract and thus, the consumption is infinite.
 				gas = GasConsumption::infinite();
-			if (_item.instruction() == Instruction::CALL)
-				gas += GasCosts::callNewAccountGas; // We very rarely know whether the address exists.
-			int valueSize = _item.instruction() == Instruction::DELEGATECALL ? 0 : 1;
-			if (!classes.knownZero(m_state->relativeStackElement(-1 - valueSize)))
-				gas += GasCosts::callValueTransferGas;
-			gas += memoryGas(-2 - valueSize, -3 - valueSize);
-			gas += memoryGas(-4 - valueSize, -5 - valueSize);
+			else
+			{
+				gas = GasCosts::callGas;
+				if (u256 const* value = classes.knownConstant(m_state->relativeStackElement(0)))
+					gas += (*value);
+				else
+					gas = GasConsumption::infinite();
+				if (_item.instruction() == Instruction::CALL)
+					gas += GasCosts::callNewAccountGas; // We very rarely know whether the address exists.
+				int valueSize = _item.instruction() == Instruction::DELEGATECALL ? 0 : 1;
+				if (!classes.knownZero(m_state->relativeStackElement(-1 - valueSize)))
+					gas += GasCosts::callValueTransferGas;
+				gas += memoryGas(-2 - valueSize, -3 - valueSize);
+				gas += memoryGas(-4 - valueSize, -5 - valueSize);
+			}
 			break;
 		}
 		case Instruction::CREATE:
-			gas = GasCosts::createGas;
-			gas += memoryGas(-1, -2);
+			if (_includeExternalCosts)
+				// We assume that we do not know the target contract and thus, the consumption is infinite.
+				gas = GasConsumption::infinite();
+			else
+			{
+				gas = GasCosts::createGas;
+				gas += memoryGas(-1, -2);
+			}
 			break;
 		case Instruction::EXP:
 			gas = GasCosts::expGas;

@@ -25,7 +25,7 @@ Storage
             storedData = x;
         }
 
-        function get() constant returns (uint retVal) {
+        function get() constant returns (uint) {
             return storedData;
         }
     }
@@ -136,7 +136,7 @@ like this one. The accessor function created by the ``public`` keyword
 is a bit more complex in this case. It roughly looks like the
 following::
 
-    function balances(address _account) returns (uint balance) {
+    function balances(address _account) returns (uint) {
         return balances[_account];
     }
 
@@ -348,10 +348,12 @@ storage. A contract can neither read nor write to any storage apart
 from its own.
 
 The second memory area is called **memory**, of which a contract obtains
-a freshly cleared instance for each message call. Memory can be
-addressed at byte level, but read and written to in 32 byte (256-bit)
-chunks. Memory is more costly the larger it grows (it scales
-quadratically).
+a freshly cleared instance for each message call. Memory is linear and can be
+addressed at byte level, but reads are limited to a width of 256 bits, while writes
+can be either 8 bits or 256 bits wide. Memory is expanded by a word (256-bit), when
+accessing (either reading or writing) a previously untouched memory word (ie. any offset
+within a word). At the time of expansion, the cost in gas must be paid. Memory is more
+costly the larger it grows (it scales quadratically).
 
 The EVM is not a register machine but a stack machine, so all
 computations are performed on an area called the **stack**. It has a maximum size of
@@ -431,7 +433,7 @@ Logs
 ====
 
 It is possible to store data in a specially indexed data structure
-that maps all they way up to the block level. This feature called **logs**
+that maps all the way up to the block level. This feature called **logs**
 is used by Solidity in order to implement **events**.
 Contracts cannot access log data after it has been created, but they
 can be efficiently accessed from outside the blockchain.
@@ -453,13 +455,19 @@ receives the address of the new contract on the stack.
 
 .. index:: selfdestruct
 
-``selfdestruct``
-================
+Self-destruct
+=============
 
 The only possibility that code is removed from the blockchain is
 when a contract at that address performs the ``selfdestruct`` operation.
 The remaining Ether stored at that address is sent to a designated
-target and then the storage and code is removed.
+target and then the storage and code is removed from the state.
 
-Note that even if a contract's code does not contain a call to ``selfdestruct``,
-it can still perform that operation using ``delegatecall`` or ``callcode``.
+.. warning:: Even if a contract's code does not contain a call to ``selfdestruct``,
+  it can still perform that operation using ``delegatecall`` or ``callcode``.
+
+.. note:: The pruning of old contracts may or may not be implemented by Ethereum
+  clients. Additionally, archive nodes could choose to keep the contract storage
+  and code indefinitely.
+
+.. note:: Currently **external accounts** cannot be removed from the state.

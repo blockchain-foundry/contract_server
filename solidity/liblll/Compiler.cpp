@@ -34,8 +34,7 @@ bytes dev::eth::compileLLL(string const& _src, bool _opt, vector<string>* _error
 	{
 		CompilerState cs;
 		cs.populateStandard();
-		auto f = CodeFragment::compile(_src, cs);
-		bytes ret = f.assembly(cs).optimise(_opt).assemble().bytecode;
+		bytes ret = CodeFragment::compile(_src, cs).assembly(cs).optimise(_opt).assemble().bytecode;
 		for (auto i: cs.treesToKill)
 			killBigints(i);
 		return ret;
@@ -45,13 +44,21 @@ bytes dev::eth::compileLLL(string const& _src, bool _opt, vector<string>* _error
 		if (_errors)
 		{
 			_errors->push_back("Parse error.");
-			_errors->push_back(diagnostic_information(_e));
+			_errors->push_back(boost::diagnostic_information(_e));
 		}
 	}
-	catch (std::exception)
+	catch (std::exception const& _e)
 	{
 		if (_errors)
-			_errors->push_back("Parse error.");
+		{
+			_errors->push_back("Parse exception.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
+	}
+	catch (...)
+	{
+		if (_errors)
+			_errors->push_back("Internal compiler exception.");
 	}
 	return bytes();
 }
@@ -70,12 +77,22 @@ std::string dev::eth::compileLLLToAsm(std::string const& _src, bool _opt, std::v
 	catch (Exception const& _e)
 	{
 		if (_errors)
-			_errors->push_back(diagnostic_information(_e));
+		{
+			_errors->push_back("Parse error.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
 	}
-	catch (std::exception)
+	catch (std::exception const& _e)
+	{
+		if (_errors) {
+			_errors->push_back("Parse exception.");
+			_errors->push_back(boost::diagnostic_information(_e));
+		}
+	}
+	catch (...)
 	{
 		if (_errors)
-			_errors->push_back("Parse error.");
+			_errors->push_back("Internal compiler exception.");
 	}
 	return string();
 }
@@ -83,11 +100,17 @@ std::string dev::eth::compileLLLToAsm(std::string const& _src, bool _opt, std::v
 string dev::eth::parseLLL(string const& _src)
 {
 	sp::utree o;
+
 	try
 	{
 		parseTreeLLL(_src, o);
 	}
-	catch (...) {}
+	catch (...)
+	{
+		killBigints(o);
+		return string();
+	}
+
 	ostringstream ret;
 	debugOutAST(ret, o);
 	killBigints(o);

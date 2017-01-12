@@ -83,12 +83,6 @@ case $(uname -s) in
                 ;;
             10.12)
                 echo "Installing solidity dependencies on macOS 10.12 Sierra."
-                echo ""
-                echo "NOTE - You are in unknown territory with this preview OS."
-                echo "Even Homebrew doesn't have official support yet, and there are"
-                echo "known issues (see https://github.com/ethereum/webthree-umbrella/issues/614)."
-                echo "If you would like to partner with us to work through these issues, that"
-                echo "would be fantastic.  Please just comment on that issue.  Thanks!"
                 ;;
             *)
                 echo "Unsupported macOS version."
@@ -105,7 +99,6 @@ case $(uname -s) in
 
         brew install boost
         brew install cmake
-        brew install jsoncpp
 
         # We should really 'brew install' our eth client here, but at the time of writing
         # the bottle is known broken, so we will just cheat and use a hardcoded ZIP for
@@ -164,7 +157,7 @@ case $(uname -s) in
                 # See https://pkgs.alpinelinux.org/
 
                 apk update
-                apk add boost-dev build-base cmake jsoncpp-dev
+                apk add boost-dev build-base cmake
 
                 ;;
 
@@ -219,7 +212,6 @@ case $(uname -s) in
                     gcc \
                     git \
                     libboost-all-dev \
-                    libjsoncpp-dev \
                     unzip
 
                 ;;
@@ -321,8 +313,7 @@ case $(uname -s) in
                     build-essential \
                     cmake \
                     git \
-                    libboost-all-dev \
-                    libjsoncpp-dev
+                    libboost-all-dev
 
                 # Install 'eth', for use in the Solidity Tests-over-IPC.
                 sudo add-apt-repository -y ppa:ethereum/ethereum
@@ -363,9 +354,6 @@ case $(uname -s) in
                     sudo yum -y remove boost-devel
                     sudo wget http://repo.enetres.net/enetres.repo -O /etc/yum.repos.d/enetres.repo
                     sudo yum install boost-devel
-
-                    # And finally jsoncpp
-                    sudo yum -y install jsoncpp-devel
                 else
                     echo "Aborted CentOS Solidity Dependency Installation";
                     exit 1
