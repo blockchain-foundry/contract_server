@@ -7,11 +7,11 @@ import base58
 from rest_framework import status
 from rest_framework.views import APIView
 import gcoinrpc
-from app.models import Proposal, Registration
+from app.models import Proposal, Registration, Keystore
 from app.serializers import ProposalSerializer, RegistrationSerializer
 from gcoin import *
 from .deploy_contract_utils import *
-
+from django.utils.crypto import get_random_string
 
 try:
     import http.client as httplib
@@ -44,12 +44,13 @@ class Proposes(APIView):
             response = {'status': 'worng argument'}
             return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
 
-        connection = gcoinrpc.connect_to_local()  
-        connection.keypoolrefill(1)
-        address = connection.getnewaddress()
-        public_key = connection.validateaddress(address).pubkey
+        private_key = sha256(get_random_string(64,'0123456789abcdef'))
+        public_key = privtopub(private_key)
+        address = pubtoaddr(public_key)
         p = Proposal(source_code=source_code, public_key=public_key, address=address)
+        k = Keystore(public_key=public_key, private_key=private_key)
         p.save()
+        k.save()
 
         response = {'public_key': public_key}
         return JsonResponse(response, status=httplib.OK)
@@ -155,11 +156,12 @@ class Sign(APIView):
         if int(amount) < int(data['amount']):
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
-        connection = gcoinrpc.connect_to_local()
+
         #signature = connection.signrawtransaction(tx)
         p = Proposal.objects.get(multisig_addr=data['multisig_address'])
-        privkeys = [connection.dumpprivkey(p.address)]
-        signature = signall_multisig(tx, script, privkeys)
+        private_key = Keystore.objects.get(public_key=p.public_key).private_key
+        signature = signall_multisig(tx, script, [private_key])
+
         # return only signature hex
         response = {'signature': signature}
         return JsonResponse(response, status=httplib.OK)

@@ -11,6 +11,10 @@ from django.db import models
 #   class Meta:
 #       ordering = ('created',)
 
+class Keystore(models.Model):
+    public_key    = models.CharField(max_length=100)
+    private_key   = models.CharField(max_length=100)
+
 class Proposal(models.Model):
     source_code   = models.TextField()
     public_key    = models.CharField(max_length=100)
