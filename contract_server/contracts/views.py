@@ -69,22 +69,23 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         }
         r = requests.post(oracle.url + '/sign/', data=data)
 
+
         signature = r.json().get('signature')
         if signature is not None:
             # sign success, update raw_tx
             raw_tx = signature
-
     # send
     try:
-        return {'tx_id': OSSclient.send_tx(raw_tx)}
-    except:
-        return {'error': 'sign multisig payment failed'}
+        tx_id = OSSclient.send_tx(raw_tx)
+        return {'tx_id': tx_id}
+    except Exception as e:
+        raise e
 
 
 @csrf_exempt
 def withdraw_from_contract(request):
     json_data = json.loads(request.body.decode('utf8'))
-
+    response = {}
     if json_data is not None:
         multisig_address = json_data['multisig_address']
         user_address = json_data['user_address']
@@ -103,16 +104,22 @@ def withdraw_from_contract(request):
             if amount == 0:  # it will always show color = 0 at evm
                 continue
 
-            r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            try:
+                r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            except Exception as e:
+                response['error'] = str(e)
+                return JsonResponse(response, status=httplib.BAD_REQUEST)
             tx_id = r.get('tx_id')
-            if tx_id is None:
+
+            if tx_id == None:
                 errors.append({color_id: r})
                 continue
             txs.append(tx_id)
 
-        response = {'txs': txs, 'errors': errors}
+        response['txs'] = txs
+        response['error'] = errors
         if txs:
-            return JsonResponse(response)
+            return JsonResponse(response, status=httplib.OK)
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
     response = {'error': form.errors}

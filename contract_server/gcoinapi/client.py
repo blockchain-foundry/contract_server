@@ -14,14 +14,14 @@ class GcoinAPIClient(object):
         url = self.base_url + end_point
         try:
             response = requests.request(
-                           method=method,
-                           url=url,
-                           params=params,
-                           data=data,
-                           headers=headers,
-                           verify=self.verify,
-                           timeout=self.timeout,
-                       )
+                method=method,
+                url=url,
+                params=params,
+                data=data,
+                headers=headers,
+                verify=self.verify,
+                timeout=self.timeout,
+            )
         except requests.exceptions.Timeout as e:
             raise error.TimeoutError
         except requests.exceptions.ConnectionError as e:
@@ -57,7 +57,11 @@ class GcoinAPIClient(object):
     def send_tx(self, raw_tx):
         end_point = '/base/v1/transaction/send'
         data = {'raw_tx': raw_tx}
-        response = self.request(end_point, 'POST', data=data)
+        try:
+            response = self.request(end_point, 'POST', data=data)
+        except Exception as e:
+            raise e
+
         tx_hash = response.json()['tx_id']
         return tx_hash
 
@@ -68,8 +72,8 @@ class GcoinAPIClient(object):
             'to_address': to_address,
             'amount': non_diqi_amount,
             'color_id': color_id,
-            'code':op_return,
-            'contract_fee':diqi_amount,
+            'code': op_return,
+            'contract_fee': diqi_amount,
         }
         response = self.request(end_point, 'POST', data=data)
         raw_tx = response.json()['raw_tx']
@@ -77,14 +81,13 @@ class GcoinAPIClient(object):
 
     def deploy_contract_raw_tx(self, from_address, to_address, compiled_code, contract_fee):
         return self.prepare_smartcontract_raw_tx(from_address, to_address, 0, 0, compiled_code, contract_fee)
-   
+
     def operate_contract_raw_tx(self, from_address, to_address, amount, color_id, compiled_code, contract_fee):
         if color_id == 1:
-           diqi_amount = amount + contract_fee
-           non_diqi_amount = 0
-           color_id = 0
+            diqi_amount = amount + contract_fee
+            non_diqi_amount = 0
+            color_id = 0
         else:
-           diqi_amount = contract_fee
-           non_diqi_amount = amount
+            diqi_amount = contract_fee
+            non_diqi_amount = amount
         return self.prepare_smartcontract_raw_tx(from_address, to_address, non_diqi_amount, color_id, compiled_code, diqi_amount)
-
