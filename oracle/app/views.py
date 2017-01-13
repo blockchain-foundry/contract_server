@@ -18,6 +18,7 @@ try:
 except ImportError:
     import httplib
 
+EVM_PATH = '../oracle/states/{multisig_address}'
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
@@ -29,8 +30,6 @@ def wallet_address_to_evm(address):
 class Proposes(APIView):
     """
     Give the publicKey when invoked.
-
-
     """
 
     def post(self, request):
@@ -99,41 +98,7 @@ class Registrate(APIView):
         return HttpResponse(json.dumps(response), content_type="aplication/json")
 
 
-#  TODO: to be removed
-class Deploy(APIView):
-
-    def post(self, request):
-        EVM_PATH = "../go-ethereum/build/bin/evm"
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        compiled_code = str(json_data["compiled_code"])
-        multisig = str(json_data["multisig_addr"])
-        multisig_hex = base58.b58decode(multisig)
-        multisig_hex = hexlify(multisig_hex)
-        multisig_hex = "0x" + hash160(multisig_hex)
-        # TODO:  Oracle should be careful writing the state file, cause it'll
-        # change the state of the contract, which matters when the user want their
-        # money back.
-        command = [EVM_PATH, "--deploy", "--write", multisig,
-                   "--code", compiled_code, "--receiver", multisig_hex]
-        response = {}
-        try:
-            check_call(command)
-            response = {
-                "status": "success"
-            }
-            return JsonResponse(response)
-        except Exception as e:
-            print(e)
-            response = {
-                "status": "fail"
-            }
-        return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
-
-
 class Sign(APIView):
-
-    EVM_PATH = '../oracle/{multisig_address}'
 
     def post(self, request):
         data = request.POST
@@ -142,7 +107,7 @@ class Sign(APIView):
         user_evm_address = wallet_address_to_evm(data['user_address'])
         # need to check contract result before sign Tx
         try:
-            with open(self.EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
+            with open(EVM_PATH.format(multisig_address=data['multisig_address']), 'r') as f:
                 content = json.load(f)
                 account = content['accounts'][user_evm_address]
                 if not account:
@@ -188,7 +153,6 @@ class RegistrationList(APIView):
 class GetBalance(APIView):
 
     def get(self, request, multisig_address, address):
-        EVM_PATH = '../oracle/' + multisig_address
         user_evm_address = wallet_address_to_evm(address)
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
@@ -205,7 +169,6 @@ class GetBalance(APIView):
 class GetStorage(APIView):
 
     def get(self, request, multisig_address):
-        EVM_PATH = '../oracle/' + multisig_address
         contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
@@ -222,7 +185,6 @@ class GetStorage(APIView):
 class CheckContractCode(APIView):
 
     def get(self, request, multisig_address):
-        EVM_PATH = '../oracle/' + multisig_address
         contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
