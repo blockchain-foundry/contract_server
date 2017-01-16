@@ -62,7 +62,7 @@ public:
 
 	void setStackOffset(int _offset) { m_asm->setDeposit(_offset); }
 	void adjustStackOffset(int _adjustment) { m_asm->adjustDeposit(_adjustment); }
-	unsigned stackHeight() const { solAssert(m_asm->deposit() >= 0, ""); return unsigned(m_asm->deposit()); }
+	unsigned stackHeight() const { solAssert(m_asm->deposit() >= 0, "deposit must greater or equal to 0"); return unsigned(m_asm->deposit()); }
 
 	bool isMagicGlobal(Declaration const* _declaration) const { return m_magicGlobals.count(_declaration) != 0; }
 	bool isLocalVariable(Declaration const* _declaration) const;

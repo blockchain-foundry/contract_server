@@ -816,7 +816,9 @@ public:
 		MulMod, ///< MULMOD
 		ArrayPush, ///< .push() to a dynamically sized array in storage
 		ByteArrayPush, ///< .push() to a dynamically sized byte array in storage
-		ObjectCreation ///< array creation using new
+		ObjectCreation, ///< array creation using new
+		GetBalance,
+		GetValue
 	};
 
 	virtual Category category() const override { return Category::Function; }

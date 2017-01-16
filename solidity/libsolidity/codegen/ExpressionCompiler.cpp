@@ -570,15 +570,21 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			// need: size, offset, endowment
 			utils().toSizeAfterFreeMemoryPointer();
 			if (function.valueSet())
-				m_context << dupInstruction(3);
+				{
+					m_context << dupInstruction(3);
+					m_context << dupInstruction(4);
+				}
 			else
-				m_context << u256(0);
+				{
+					m_context << u256(0);
+					m_context << u256(1);
+				}
 			m_context << Instruction::CREATE;
 			// Check if zero (out of stack or not enough balance).
 			m_context << Instruction::DUP1 << Instruction::ISZERO;
 			m_context.appendConditionalJumpTo(m_context.errorTag());
 			if (function.valueSet())
-				m_context << swapInstruction(1) << Instruction::POP;
+				m_context << swapInstruction(2) << Instruction::POP << Instruction::POP;
 			break;
 		}
 		case Location::SetGas:
@@ -616,9 +622,14 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				*arguments.front()->annotation().type,
 				*function.parameterTypes().front(), true
 			);
+			arguments[1]->accept(*this);
+			utils().convertType(
+				*arguments[1]->annotation().type,
+				*function.parameterTypes()[1], true
+			);
 			// gas <- gas * !value
-			m_context << Instruction::SWAP1 << Instruction::DUP2;
-			m_context << Instruction::ISZERO << Instruction::MUL << Instruction::SWAP1;
+			m_context << Instruction::SWAP2 << Instruction::DUP2;
+			m_context << Instruction::ISZERO << Instruction::MUL << Instruction::SWAP2;
 			appendExternalFunctionCall(
 				FunctionType(
 					TypePointers{},
@@ -804,6 +815,22 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				StorageByteArrayElement(m_context).storeValue(*type, _functionCall.location(), true);
 			break;
 		}
+		case Location::GetValue:
+		{
+			_functionCall.expression().accept(*this);
+			arguments[0]->accept(*this);
+			utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
+			m_context << Instruction::CALLVALUE;
+			break;
+		}
+        case Location::GetBalance:
+        {
+            _functionCall.expression().accept(*this);
+            arguments[0]->accept(*this);
+            utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
+            m_context << Instruction::BALANCE;
+            break;
+        }
 		case Location::ObjectCreation:
 		{
 			// Will allocate at the end of memory (MSIZE) and not write at all unless the base
@@ -982,12 +1009,12 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 	case Type::Category::Integer:
 		if (member == "balance")
 		{
-			utils().convertType(
-				*_memberAccess.expression().annotation().type,
-				IntegerType(0, IntegerType::Modifier::Address),
-				true
-			);
-			m_context << Instruction::BALANCE;
+		//	utils().convertType(
+		//		    *_memberAccess.expression().annotation().type,
+		//		IntegerType(0, IntegerType::Modifier::Address),
+		//		true
+		//	);
+		//	m_context << Instruction::BALANCE;
 		}
 		else if ((set<string>{"send", "call", "callcode", "delegatecall"}).count(member))
 			utils().convertType(
@@ -1017,7 +1044,7 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 		else if (member == "sender")
 			m_context << Instruction::CALLER;
 		else if (member == "value")
-			m_context << Instruction::CALLVALUE;
+			;//m_context << Instruction::CALLVALUE;
 		else if (member == "origin")
 			m_context << Instruction::ORIGIN;
 		else if (member == "gas")
@@ -1472,6 +1499,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 
 	// Assumed stack content here:
 	// <stack top>
+	// color [if _functionType.valueSet()]
 	// value [if _functionType.valueSet()]
 	// gas [if _functionType.gasSet()]
 	// self object [if bound - moved to top right away]
@@ -1479,7 +1507,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	// contract address
 
 	unsigned selfSize = _functionType.bound() ? _functionType.selfType()->sizeOnStack() : 0;
-	unsigned gasValueSize = (_functionType.gasSet() ? 1 : 0) + (_functionType.valueSet() ? 1 : 0);
+	unsigned gasValueSize = (_functionType.gasSet() ? 1 : 0) + (_functionType.valueSet() ? 2 : 0);
 	unsigned contractStackPos = m_context.currentToBaseStackOffset(1 + gasValueSize + selfSize + (_functionType.isBareCall() ? 0 : 1));
 	unsigned gasStackPos = m_context.currentToBaseStackOffset(gasValueSize);
 	unsigned valueStackPos = m_context.currentToBaseStackOffset(1);
@@ -1590,6 +1618,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	// Stack now:
 	// <stack top>
 	// input_memory_end
+	// color [if _functionType.valueSet()]
 	// value [if _functionType.valueSet()]
 	// gas [if _functionType.gasSet()]
 	// function identifier [unless bare]
@@ -1619,9 +1648,15 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	if (isDelegateCall)
 		solAssert(!_functionType.valueSet(), "Value set for delegatecall");
 	else if (_functionType.valueSet())
+	{
+		m_context << dupInstruction(m_context.baseToCurrentStackOffset(valueStackPos-1));
 		m_context << dupInstruction(m_context.baseToCurrentStackOffset(valueStackPos));
+	}
 	else
-		m_context << u256(0);
+		{
+			m_context << u256(1);
+			m_context << u256(0);
+		}
 	m_context << dupInstruction(m_context.baseToCurrentStackOffset(contractStackPos));
 
 	bool existenceChecked = false;
@@ -1655,7 +1690,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 
 	unsigned remainsSize =
 		2 + // contract address, input_memory_end
-		_functionType.valueSet() +
+		_functionType.valueSet() * 2  +
 		_functionType.gasSet() +
 		(!_functionType.isBareCall() || manualFunctionId);
 
