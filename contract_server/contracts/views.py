@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 from binascii import hexlify
@@ -47,6 +48,7 @@ def wallet_address_to_evm(address):
 
     return address
 
+
 def create_multisig_payment(from_address, to_address, color_id, amount):
 
     contract = Contract.objects.get(multisig_address=from_address)
@@ -66,29 +68,30 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
             'amount': amount,
             'script': contract.multisig_script
         }
-        r = requests.post(oracle.url+'/sign/', data=data)
+        r = requests.post(oracle.url + '/sign/', data=data)
+
 
         signature = r.json().get('signature')
         if signature is not None:
             # sign success, update raw_tx
             raw_tx = signature
-
     # send
     try:
-        return {'tx_id' :OSSclient.send_tx(raw_tx)}
-    except:
-        return {'error': 'sign multisig payment failed'}
+        tx_id = OSSclient.send_tx(raw_tx)
+        return {'tx_id': tx_id}
+    except Exception as e:
+        raise e
+
 
 @csrf_exempt
 def withdraw_from_contract(request):
     json_data = json.loads(request.body.decode('utf8'))
-
+    response = {}
     if json_data is not None:
         multisig_address = json_data['multisig_address']
         user_address = json_data['user_address']
         colors = json_data['colors']
         amounts = json_data['amounts']
-
 
         user_evm_address = wallet_address_to_evm(user_address)
 
@@ -99,23 +102,30 @@ def withdraw_from_contract(request):
         for color_id, amount in zip(colors, amounts):
             color_id = int(color_id)
             amount = int(amount)
-            if amount == 0: # it will always show color = 0 at evm
+            if amount == 0:  # it will always show color = 0 at evm
                 continue
 
-            r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            try:
+                r = create_multisig_payment(multisig_address, user_address, color_id, amount)
+            except Exception as e:
+                response['error'] = str(e)
+                return JsonResponse(response, status=httplib.BAD_REQUEST)
             tx_id = r.get('tx_id')
-            if tx_id is None:
+
+            if tx_id == None:
                 errors.append({color_id: r})
                 continue
             txs.append(tx_id)
 
-        response = {'txs': txs, 'errors': errors}
+        response['txs'] = txs
+        response['error'] = errors
         if txs:
-            return JsonResponse(response)
+            return JsonResponse(response, status=httplib.OK)
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
     response = {'error': form.errors}
     return JsonResponse(response, status=httplib.BAD_REQUEST)
+
 
 class Contracts(APIView):
     '''
@@ -137,15 +147,14 @@ class Contracts(APIView):
             serializer = ContractSerializer(contract)
             addrs = serializer.data['multisig_address']
             source_code = serializer.data['source_code']
-            response = {'multisig_address':addrs,'source_code':source_code, 'intereface':[]}
+            response = {'multisig_address': addrs, 'source_code': source_code, 'intereface': []}
             return JsonResponse(response)
         except:
             response = {'status': 'contract not found.'}
             return JsonResponse(
-                    json_data['multisig_address'],
-                    status=status.HTTP_404_NOT_FOUND
+                json_data['multisig_address'],
+                status=status.HTTP_404_NOT_FOUND
             )
-
 
     def _get_pubkey_from_oracle(self, url, source_code, url_map_pubkeys):
         '''
@@ -176,7 +185,7 @@ class Contracts(APIView):
         for oracle in oracle_list:
             t = Thread(target=self._get_pubkey_from_oracle,
                        args=(oracle['url'], source_code, url_map_pubkeys)
-                   )
+                       )
             t.start()
             threads.append(t)
         for t in threads:
@@ -190,7 +199,6 @@ class Contracts(APIView):
         return multisig_addr, multisig_script, url_map_pubkeys
 
     def _get_oracle_list(self, oracle_list):
-
         if len(oracle_list) == 0:
             oracle_list = []
             for i in Oracle.objects.all():
@@ -217,7 +225,7 @@ class Contracts(APIView):
         str2 = str1[1].split('\n')
         compiled_code_in_hex = str2[1]
         abi = str2[3]
-        abi =json.loads(abi)
+        abi = json.loads(abi)
         interface = []
         ids = 1
         for func in abi:
@@ -232,12 +240,12 @@ class Contracts(APIView):
 
     def _save_multisig_addr(self, multisig_addr, url_map_pubkeys):
         for url_map_pubkey in url_map_pubkeys:
-            url =  url_map_pubkey["url"]
+            url = url_map_pubkey["url"]
             data = {
                 "pubkey": url_map_pubkey["pubkey"],
                 "multisig_addr": multisig_addr
             }
-            r = requests.post(url+"/multisigaddress/", data=json.dumps(data))
+            r = requests.post(url + "/multisigaddress/", data=json.dumps(data))
 
     @handle_uncaught_exception
     def post(self, request):
@@ -251,6 +259,7 @@ class Contracts(APIView):
                 'status': 'Wrong inputs.',
                 'message': 'no source code or in wrong data type'}
             return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
+
         try:
             address = json_data['address']
             m = json_data['m']
@@ -262,15 +271,22 @@ class Contracts(APIView):
             return JsonResponse(response, status=status.HTTP_406_NOT_ACCEPTABLE)
         # optional parameters
         try:
-            oracle_list = json_data['oracles']
+            oracles = json_data['oracles']
         except:
             oracle_list = []
 
         try:
+            if isinstance(oracles, str):
+                oracle_list = ast.literal_eval(oracles)
+            else:
+                oracle_list = oracles
+
             oracle_list = self._get_oracle_list(oracle_list)
-            multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(oracle_list, source_code, m)
+
+            multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
+                oracle_list, source_code, m)
             compiled_code, interface = self._compile_code_and_interface(source_code)
-            code = json.dumps({'source_code': compiled_code, 'multisig_addr' : multisig_addr})
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_addr})
         except Compiled_error as e:
             response = {
                 'code:': ERROR_CODE['compiled_error'],
@@ -289,19 +305,19 @@ class Contracts(APIView):
 
             self._save_multisig_addr(multisig_addr, url_map_pubkeys)
             contract = Contract(
-                    source_code = source_code,
-                    multisig_address = multisig_addr,
-                    multisig_script = multisig_script,
-                    interface = interface,
-                    color_id = 1,
-                    amount = 0
+                source_code=source_code,
+                multisig_address=multisig_addr,
+                multisig_script=multisig_script,
+                interface=interface,
+                color_id=1,
+                amount=0
             )
             contract.save()
             for i in oracle_list:
                 contract.oracles.add(Oracle.objects.get(url=i["url"]))
             data = {
-                "multisig_addr" : multisig_addr,
-                "compiled_code" : compiled_code
+                "multisig_addr": multisig_addr,
+                "compiled_code": compiled_code
             }
         except:
             response = {'status': 'Bad request.'}
@@ -325,7 +341,7 @@ class ContractFunc(APIView):
         if not interface:
             return [], []
 
-        #The outermost quote must be ', otherwise json.loads will fail
+        # The outermost quote must be ', otherwise json.loads will fail
         interface = json.loads(interface.replace("'", '"'))
         function_list = []
         event_list = []
@@ -406,8 +422,6 @@ class ContractFunc(APIView):
         response = {'functions': function_list, 'events': event_list}
         return JsonResponse(response, status=httplib.OK)
 
-
-
     def post(self, request, multisig_address):
         '''
         This function will make a tx (user transfer money to multisig address)
@@ -444,10 +458,11 @@ class ContractFunc(APIView):
                 input_value.append(i['value'])
             evm_input_code = self._evm_input_code(function, input_value)
             code = json.dumps({
-                "function_inputs_hash" : evm_input_code,
-                "multisig_addr" : multisig_address
+                "function_inputs_hash": evm_input_code,
+                "multisig_addr": multisig_address
             })
-            tx_hex = OSSclient.operate_contract_raw_tx(from_address, to_address, amount, color, code, CONTRACT_FEE)
+            tx_hex = OSSclient.operate_contract_raw_tx(
+                from_address, to_address, amount, color, code, CONTRACT_FEE)
             response = {'raw_tx': tx_hex}
 
             return JsonResponse(response)
@@ -457,11 +472,13 @@ class ContractFunc(APIView):
 
 
 class ContractList(APIView):
+
     def get(self, request, format=None):
         contracts = Contract.objects.all()
         serializer = ContractSerializer(contracts, many=True)
-        response = {'contracts':serializer.data}
+        response = {'contracts': serializer.data}
         return JsonResponse(response)
+
 
 def _handle_payment_parameter_error(form):
     # the payment should at least takes the following inputs
