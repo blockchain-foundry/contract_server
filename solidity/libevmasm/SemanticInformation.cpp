@@ -133,13 +133,17 @@ bool SemanticInformation::isDeterministic(AssemblyItem const& _item)
 	switch (_item.instruction())
 	{
 	case Instruction::CALL:
+	case Instruction::CALLCOLOR:
 	case Instruction::CALLCODE:
+	case Instruction::CALLCCODE:
 	case Instruction::DELEGATECALL:
 	case Instruction::CREATE:
+	case Instruction::CREATECOLOR:
 	case Instruction::GAS:
 	case Instruction::PC:
 	case Instruction::MSIZE: // depends on previous writes and reads, not only on content
 	case Instruction::BALANCE: // depends on previous calls
+	case Instruction::COLORBALANCE: // depends on previous calls
 	case Instruction::EXTCODESIZE:
 		return false;
 	default:
@@ -157,7 +161,9 @@ bool SemanticInformation::invalidatesMemory(Instruction _instruction)
 	case Instruction::MSTORE:
 	case Instruction::MSTORE8:
 	case Instruction::CALL:
+	case Instruction::CALLCOLOR:
 	case Instruction::CALLCODE:
+	case Instruction::CALLCCODE:
 	case Instruction::DELEGATECALL:
 		return true;
 	default:
@@ -170,9 +176,12 @@ bool SemanticInformation::invalidatesStorage(Instruction _instruction)
 	switch (_instruction)
 	{
 	case Instruction::CALL:
+	case Instruction::CALLCOLOR:
 	case Instruction::CALLCODE:
+	case Instruction::CALLCCODE:
 	case Instruction::DELEGATECALL:
 	case Instruction::CREATE:
+	case Instruction::CREATECOLOR:
 	case Instruction::SSTORE:
 		return true;
 	default:
