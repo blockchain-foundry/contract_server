@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @file BlockDeduplicator.cpp
@@ -77,7 +77,6 @@ bool BlockDeduplicator::deduplicate()
 	{
 		//@todo this should probably be optimized.
 		set<size_t, function<bool(size_t, size_t)>> blocksSeen(comparator);
-		map<u256, u256> tagReplacement;
 		for (size_t i = 0; i < m_items.size(); ++i)
 		{
 			if (m_items.at(i).type() != Tag)
@@ -86,20 +85,38 @@ bool BlockDeduplicator::deduplicate()
 			if (it == blocksSeen.end())
 				blocksSeen.insert(i);
 			else
-				tagReplacement[m_items.at(i).data()] = m_items.at(*it).data();
+				m_replacedTags[m_items.at(i).data()] = m_items.at(*it).data();
 		}
 
-		bool changed = false;
-		for (AssemblyItem& item: m_items)
-			if (item.type() == PushTag && tagReplacement.count(item.data()))
-			{
-				changed = true;
-				item.setData(tagReplacement.at(item.data()));
-			}
-		if (!changed)
+		if (!applyTagReplacement(m_items, m_replacedTags))
 			break;
 	}
 	return iterations > 0;
+}
+
+bool BlockDeduplicator::applyTagReplacement(
+	AssemblyItems& _items,
+	map<u256, u256> const& _replacements,
+	size_t _subId
+)
+{
+	bool changed = false;
+	for (AssemblyItem& item: _items)
+		if (item.type() == PushTag)
+		{
+			size_t subId;
+			size_t tagId;
+			tie(subId, tagId) = item.splitForeignPushTag();
+			if (subId != _subId)
+				continue;
+			auto it = _replacements.find(tagId);
+			if (it != _replacements.end())
+			{
+				changed = true;
+				item.setPushTagSubIdAndTag(subId, size_t(it->second));
+			}
+		}
+	return changed;
 }
 
 BlockDeduplicator::BlockIterator& BlockDeduplicator::BlockIterator::operator++()

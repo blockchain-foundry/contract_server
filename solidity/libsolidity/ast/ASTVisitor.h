@@ -1,18 +1,18 @@
 /*
-    This file is part of cpp-ethereum.
+    This file is part of solidity.
 
-    cpp-ethereum is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-ethereum is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -61,6 +61,7 @@ public:
 	virtual bool visit(TypeName& _node) { return visitNode(_node); }
 	virtual bool visit(ElementaryTypeName& _node) { return visitNode(_node); }
 	virtual bool visit(UserDefinedTypeName& _node) { return visitNode(_node); }
+	virtual bool visit(FunctionTypeName& _node) { return visitNode(_node); }
 	virtual bool visit(Mapping& _node) { return visitNode(_node); }
 	virtual bool visit(ArrayTypeName& _node) { return visitNode(_node); }
 	virtual bool visit(InlineAssembly& _node) { return visitNode(_node); }
@@ -106,6 +107,7 @@ public:
 	virtual void endVisit(TypeName& _node) { endVisitNode(_node); }
 	virtual void endVisit(ElementaryTypeName& _node) { endVisitNode(_node); }
 	virtual void endVisit(UserDefinedTypeName& _node) { endVisitNode(_node); }
+	virtual void endVisit(FunctionTypeName& _node) { endVisitNode(_node); }
 	virtual void endVisit(Mapping& _node) { endVisitNode(_node); }
 	virtual void endVisit(ArrayTypeName& _node) { endVisitNode(_node); }
 	virtual void endVisit(InlineAssembly& _node) { endVisitNode(_node); }
@@ -163,6 +165,7 @@ public:
 	virtual bool visit(TypeName const& _node) { return visitNode(_node); }
 	virtual bool visit(ElementaryTypeName const& _node) { return visitNode(_node); }
 	virtual bool visit(UserDefinedTypeName const& _node) { return visitNode(_node); }
+	virtual bool visit(FunctionTypeName const& _node) { return visitNode(_node); }
 	virtual bool visit(Mapping const& _node) { return visitNode(_node); }
 	virtual bool visit(ArrayTypeName const& _node) { return visitNode(_node); }
 	virtual bool visit(Block const& _node) { return visitNode(_node); }
@@ -208,6 +211,7 @@ public:
 	virtual void endVisit(TypeName const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ElementaryTypeName const& _node) { endVisitNode(_node); }
 	virtual void endVisit(UserDefinedTypeName const& _node) { endVisitNode(_node); }
+	virtual void endVisit(FunctionTypeName const& _node) { endVisitNode(_node); }
 	virtual void endVisit(Mapping const& _node) { endVisitNode(_node); }
 	virtual void endVisit(ArrayTypeName const& _node) { endVisitNode(_node); }
 	virtual void endVisit(Block const& _node) { endVisitNode(_node); }

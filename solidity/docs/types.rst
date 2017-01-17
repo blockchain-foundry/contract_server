@@ -52,12 +52,17 @@ Operators:
 
 * Comparisons: ``<=``, ``<``, ``==``, ``!=``, ``>=``, ``>`` (evaluate to ``bool``)
 * Bit operators: ``&``, ``|``, ``^`` (bitwise exclusive or), ``~`` (bitwise negation)
-* Arithmetic operators: ``+``, ``-``, unary ``-``, unary ``+``, ``*``, ``/``, ``%`` (remainder), ``**`` (exponentiation)
+* Arithmetic operators: ``+``, ``-``, unary ``-``, unary ``+``, ``*``, ``/``, ``%`` (remainder), ``**`` (exponentiation), ``<<`` (left shift), ``>>`` (right shift)
 
 Division always truncates (it just maps to the DIV opcode of the EVM), but it does not truncate if both
 operators are :ref:`literals<rational_literals>` (or literal expressions).
 
-Division by zero and modulus with zero throws an exception.
+Division by zero and modulus with zero throws a runtime exception.
+
+The result of a shift operation is the type of the left operand. The
+expression ``x << y`` is equivalent to ``x * 2**y`` and ``x >> y`` is
+equivalent to ``x / 2**y``. This means that shifting negative numbers
+sign extends. Shifting by a negative amount throws a runtime exception.
 
 .. index:: address, balance, send, call, callcode, delegatecall
 
@@ -136,8 +141,12 @@ Fixed-size byte arrays
 Operators:
 
 * Comparisons: ``<=``, ``<``, ``==``, ``!=``, ``>=``, ``>`` (evaluate to ``bool``)
-* Bit operators: ``&``, ``|``, ``^`` (bitwise exclusive or), ``~`` (bitwise negation)
+* Bit operators: ``&``, ``|``, ``^`` (bitwise exclusive or), ``~`` (bitwise negation), ``<<`` (left shift), ``>>`` (right shift)
 * Index access: If ``x`` is of type ``bytesI``, then ``x[k]`` for ``0 <= k < I`` returns the ``k`` th byte (read-only).
+
+The shifting operator works with any integer type as right operand (but will
+return the type of the left operand), which denotes the number of bits to shift by.
+Shifting by a negative amount will cause a runtime exception.
 
 Members:
 
@@ -169,9 +178,18 @@ Fixed Point Numbers
 Rational and Integer Literals
 -----------------------------
 
-All number literals retain arbitrary precision until they are converted to a non-literal type (i.e. by
-using them together with a non-literal type). This means that computations do not overflow but also
-divisions do not truncate.
+Integer literals are formed from a sequence of numbers in the range 0-9.
+They are interpreted as decimals. For example, ``69`` means sixty nine.
+Octal literals do not exist in Solidity and leading zeros are ignored.
+For example, ``0100`` means one hundred.
+
+Decimal literals are formed by a ``.`` with at least one number on
+one side.  Examples include ``1.``, ``.1`` and ``1.3``.
+
+Number literal expressions retain arbitrary precision until they are converted to a non-literal type (i.e. by
+using them together with a non-literal expression).
+This means that computations do not overflow and divisions do not truncate
+in number literal expressions.
 
 For example, ``(2**800 + 1) - 2**800`` results in the constant ``1`` (of type ``uint8``)
 although intermediate results would not even fit the machine word size. Furthermore, ``.5 * 8`` results
@@ -185,10 +203,18 @@ In ``var x = 1/4;``, ``x`` will receive the type ``ufixed0x8`` while in ``var x 
 the type ``ufixed0x256`` because ``1/3`` is not finitely representable in binary and will thus be
 approximated.
 
-Any operator that can be applied to integers can also be applied to literal expressions as
+Any operator that can be applied to integers can also be applied to number literal expressions as
 long as the operands are integers. If any of the two is fractional, bit operations are disallowed
 and exponentiation is disallowed if the exponent is fractional (because that might result in
 a non-rational number).
+
+.. note::
+    Solidity has a number literal type for each rational number.
+    Integer literals and rational number literals belong to number literal types.
+    Moreover, all number literal expressions (i.e. the expressions that
+    contain only number literals and operators) belong to number literal
+    types.  So the number literal expressions `1 + 2` and `2 + 1` both
+    belong to the same number literal type for the rational number three.
 
 .. note::
     Most finite decimal fractions like ``5.3743`` are not finitely representable in binary. The correct type
@@ -200,7 +226,7 @@ a non-rational number).
     Division on integer literals used to truncate in earlier versions, but it will now convert into a rational number, i.e. ``5 / 2`` is not equal to ``2``, but to ``2.5``.
 
 .. note::
-    Literal expressions are converted to a permanent type as soon as they are used with other
+    Number literal expressions are converted into a non-literal type as soon as they are used with non-literal
     expressions. Even though we know that the value of the
     expression assigned to ``b`` in the following example evaluates to an integer, it still
     uses fixed point types (and not rational number literals) in between and so the code
@@ -216,7 +242,7 @@ a non-rational number).
 String Literals
 ---------------
 
-String literals are written with either double or single-quotes (``"foo"`` or ``'bar'``). As with integer literals, their type can vary, but they are implicitly convertible to ``bytes1``, ..., ``bytes32``, if they fit, to ``bytes`` and to ``string``.
+String literals are written with either double or single-quotes (``"foo"`` or ``'bar'``).  They do not imply trailing zeroes as in C; `"foo"`` represents three bytes not four.  As with integer literals, their type can vary, but they are implicitly convertible to ``bytes1``, ..., ``bytes32``, if they fit, to ``bytes`` and to ``string``.
 
 String literals support escape characters, such as ``\n``, ``\xNN`` and ``\uNNNN``. ``\xNN`` takes a hex value and inserts the appropriate byte, while ``\uNNNN`` takes a Unicode codepoint and inserts an UTF-8 sequence.
 
@@ -234,10 +260,11 @@ Hexademical Literals behave like String Literals and have the same convertibilit
 .. _enums:
 
 Enums
-=====
+-----
 
 Enums are one way to create a user-defined type in Solidity. They are explicitly convertible
-to and from all integer types but implicit conversion is not allowed.
+to and from all integer types but implicit conversion is not allowed.  The explicit conversions
+check the value ranges at runtime and a failure causes an exception.  Enums needs at least one member.
 
 ::
 
@@ -265,6 +292,138 @@ to and from all integer types but implicit conversion is not allowed.
             return uint(defaultChoice);
         }
     }
+
+.. index:: ! function type, ! type; function
+
+.. _function_types:
+
+Function Types
+--------------
+
+Function types are the types of functions. Variables of function type
+can be assigned from functions and function parameters of function type
+can be used to pass functions to and return functions from function calls.
+Function types come in two flavours - *internal* and *external* functions:
+
+Internal functions can only be used inside the current contract (more specifically,
+inside the current code unit, which also includes internal library functions
+and inherited functions) because they cannot be executed outside of the
+context of the current contract. Calling an internal function is realized
+by jumping to its entry label, just like when calling a function of the current
+contract internally.
+
+External functions consist of an address and a function signature and they can
+be passed via and returned from external function calls.
+
+Function types are notated as follows::
+
+    function (<parameter types>) {internal|external} [constant] [payable] [returns (<return types>)]
+
+In contrast to the parameter types, the return types cannot be empty - if the
+function type should not return anything, the whole ``returns (<return types>)``
+part has to be omitted.
+
+By default, function types are internal, so the ``internal`` keyword can be
+omitted.
+
+There are two ways to access a function in the current contract: Either directly
+by its name, ``f``, or using ``this.f``. The former will result in an internal
+function, the latter in an external function.
+
+If a function type variable is not initialized, calling it will result
+in an exception. The same happens if you call a function after using ``delete``
+on it.
+
+If external function types are used outside of the context of Solidity,
+they are treated as the ``function`` type, which encodes the address
+followed by the function identifier together in a single ``bytes24`` type.
+
+Note that public functions of the current contract can be used both as an
+internal and as an external function. To use ``f`` as an internal function,
+just use ``f``, if you want to use its external form, use ``this.f``.
+
+Example that shows how to use internal function types::
+
+    pragma solidity ^0.4.5;
+
+    library ArrayUtils {
+      // internal functions can be used in internal library functions because
+      // they will be part of the same code context
+      function map(uint[] memory self, function (uint) returns (uint) f)
+        internal
+        returns (uint[] memory r)
+      {
+        r = new uint[](self.length);
+        for (uint i = 0; i < self.length; i++) {
+          r[i] = f(self[i]);
+        }
+      }
+      function reduce(
+        uint[] memory self,
+        function (uint x, uint y) returns (uint) f
+      )
+        internal
+        returns (uint r)
+      {
+        r = self[0];
+        for (uint i = 1; i < self.length; i++) {
+          r = f(r, self[i]);
+        }
+      }
+      function range(uint length) internal returns (uint[] memory r) {
+        r = new uint[](length);
+        for (uint i = 0; i < r.length; i++) {
+          r[i] = i;
+        }
+      }
+    }
+    
+    contract Pyramid {
+      using ArrayUtils for *;
+      function pyramid(uint l) returns (uint) {
+        return ArrayUtils.range(l).map(square).reduce(sum);
+      }
+      function square(uint x) internal returns (uint) {
+        return x * x;
+      }
+      function sum(uint x, uint y) internal returns (uint) {
+        return x + y;
+      }
+    }
+
+Another example that uses external function types::
+
+    pragma solidity ^0.4.5;
+
+    contract Oracle {
+      struct Request {
+        bytes data;
+        function(bytes memory) external callback;
+      }
+      Request[] requests;
+      event NewRequest(uint);
+      function query(bytes data, function(bytes memory) external callback) {
+        requests.push(Request(data, callback));
+        NewRequest(requests.length - 1);
+      }
+      function reply(uint requestID, bytes response) {
+        // Here goes the check that the reply comes from a trusted source
+        requests[requestID].callback(response);
+      }
+    }
+
+    contract OracleUser {
+      Oracle constant oracle = Oracle(0x1234567); // known contract
+      function buySomething() {
+        oracle.query("USD", this.oracleResponse);
+      }
+      function oracleResponse(bytes response) {
+        if (msg.sender != address(oracle)) throw;
+        // Use the data
+      }
+    }
+
+Note that lambda or inline functions are planned but not yet supported.
 
 .. index:: ! type;reference, ! reference type, storage, memory, location, array, struct
 
@@ -370,6 +529,9 @@ So ``bytes`` should always be preferred over ``byte[]`` because it is cheaper.
     ``bytes(s).length`` / ``bytes(s)[7] = 'x';``. Keep in mind
     that you are accessing the low-level bytes of the UTF-8 representation,
     and not the individual characters!
+
+It is possible to mark arrays ``public`` and have Solidity create an accessor.
+The numeric index will become a required parameter for the accessor.
 
 .. index:: ! array;allocating, new
 
@@ -603,9 +765,9 @@ assigning it to a local variable, as in
 Mappings
 ========
 
-Mapping types are declared as ``mapping _KeyType => _ValueType``, where
-``_KeyType`` can be almost any type except for a mapping and ``_ValueType``
-can actually be any type, including mappings.
+Mapping types are declared as ``mapping _KeyType => _ValueType``.
+Here ``_KeyType`` can be almost any type except for a mapping, a dynamically sized array, a contract, an enum and a struct.
+``_ValueType`` can actually be any type, including mappings.
 
 Mappings can be seen as hashtables which are virtually initialized such that
 every possible key exists and is mapped to a value whose byte-representation is
@@ -616,6 +778,36 @@ Because of this, mappings do not have a length or a concept of a key or value be
 
 Mappings are only allowed for state variables (or as storage reference types
 in internal functions).
+
+It is possible to mark mappings ``public`` and have Solidity create an accessor.
+The ``_KeyType`` will become a required parameter for the accessor and it will
+return ``_ValueType``.
+
+The ``_ValueType`` can be a mapping too. The accessor will have one parameter
+for each ``_KeyType``, recursively.
+
+::
+
+    pragma solidity ^0.4.0;
+
+    contract MappingExample {
+        mapping(address => uint) public balances;
+
+        function update(uint newBalance) {
+            balances[msg.sender] = newBalance;
+        }
+    }
+
+    contract MappingUser {
+        function f() returns (uint) {
+            return MappingExample(<address>).balances(this);
+        }
+    }
+
+
+.. note::
+  Mappings are not iterable, but it is possible to implement a data structure on top of them.
+  For an example, see `iterable mapping <https://github.com/ethereum/dapp-bin/blob/master/library/iterable_mapping.sol>`_.
 
 .. index:: assignment, ! delete, lvalue
 

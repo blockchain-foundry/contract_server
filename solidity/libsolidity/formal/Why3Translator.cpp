@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -410,6 +410,16 @@ bool Why3Translator::visit(WhileStatement const& _node)
 {
 	addSourceFromDocStrings(_node.annotation());
 
+	// Why3 does not appear to support do-while loops,
+	// so we will simulate them by performing a while
+	// loop with the body prepended once.
+
+	if (_node.isDoWhile())
+	{
+		visitIndentedUnlessBlock(_node.body());
+		newLine();
+	}
+
 	add("while ");
 	_node.condition().accept(*this);
 	newLine();
@@ -647,7 +657,7 @@ bool Why3Translator::visit(FunctionCall const& _node)
 	case FunctionType::Location::SetValue:
 	{
 		add("let amount = ");
-		solAssert(_node.arguments().size() == 2, "");
+		solAssert(_node.arguments().size() == 1, "");
 		_node.arguments()[0]->accept(*this);
 		add(" in ");
 		return false;

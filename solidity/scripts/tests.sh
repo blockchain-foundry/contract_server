@@ -28,8 +28,22 @@
 
 set -e
 
-# There is an implicit assumption here that we HAVE to run from root directory.
-REPO_ROOT=$(pwd)
+REPO_ROOT="$(dirname "$0")"/..
+
+ # Compile all files in std and examples.
+
+for f in "$REPO_ROOT"/std/*.sol
+do
+    echo "Compiling $f..."
+    set +e
+    output=$("$REPO_ROOT"/build/solc/solc "$f" 2>&1)
+    failed=$?
+    # Remove the pre-release warning from the compiler output
+    output=$(echo "$output" | grep -v 'pre-release')
+    echo "$output"
+    set -e
+    test -z "$output" -a "$failed" -eq 0
+done
 
 # This conditional is only needed because we don't have a working Homebrew
 # install for `eth` at the time of writing, so we unzip the ZIP file locally
@@ -51,9 +65,14 @@ $ETH_PATH --test -d /tmp/test &
 # The node needs to get a little way into its startup sequence before the IPC
 # is available and is ready for the unit-tests to start talking to it.
 while [ ! -S /tmp/test/geth.ipc ]; do sleep 2; done
+echo "--> IPC available."
 
-# And then run the Solidity unit-tests, pointing to that IPC endpoint.
-"$REPO_ROOT"/build/test/soltest -- --ipcpath /tmp/test/geth.ipc
+# And then run the Solidity unit-tests (once without optimization, once with),
+# pointing to that IPC endpoint.
+echo "--> Running tests without optimizer..."
+  "$REPO_ROOT"/build/test/soltest -- --ipcpath /tmp/test/geth.ipc && \
+  echo "--> Running tests WITH optimizer..." && \
+  "$REPO_ROOT"/build/test/soltest -- --optimize --ipcpath /tmp/test/geth.ipc
 ERROR_CODE=$?
 pkill eth || true
 sleep 4

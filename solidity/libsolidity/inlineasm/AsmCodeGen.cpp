@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -23,6 +23,7 @@
 #include <libsolidity/inlineasm/AsmCodeGen.h>
 #include <memory>
 #include <functional>
+#include <libdevcore/CommonIO.h>
 #include <libevmasm/Assembly.h>
 #include <libevmasm/SourceLocation.h>
 #include <libevmasm/Instruction.h>
@@ -80,7 +81,11 @@ struct GeneratorState
 class LabelOrganizer: public boost::static_visitor<>
 {
 public:
-	LabelOrganizer(GeneratorState& _state): m_state(_state) {}
+	LabelOrganizer(GeneratorState& _state): m_state(_state)
+	{
+		// Make the Solidity ErrorTag available to inline assembly
+		m_state.labels.insert(make_pair("invalidJumpLabel", m_state.assembly.errorTag()));
+	}
 
 	template <class T>
 	void operator()(T const& /*_item*/) { }
@@ -213,15 +218,38 @@ public:
 	void operator()(assembly::Block const& _block)
 	{
 		size_t numVariables = m_state.variables.size();
+		int deposit = m_state.assembly.deposit();
 		std::for_each(_block.statements.begin(), _block.statements.end(), boost::apply_visitor(*this));
+
 		// pop variables
-		// we deliberately do not check stack height
-		m_state.assembly.setSourceLocation(_block.location);
 		while (m_state.variables.size() > numVariables)
 		{
 			m_state.assembly.append(solidity::Instruction::POP);
 			m_state.variables.pop_back();
 		}
+
+		m_state.assembly.setSourceLocation(_block.location);
+
+		deposit = m_state.assembly.deposit() - deposit;
+
+		// issue warnings for stack height discrepancies
+		if (deposit < 0)
+		{
+			m_state.addError(
+				Error::Type::Warning,
+				"Inline assembly block is not balanced. It takes " + toString(-deposit) + " item(s) from the stack.",
+				_block.location
+			);
+		}
+		else if (deposit > 0)
+		{
+			m_state.addError(
+				Error::Type::Warning,
+				"Inline assembly block is not balanced. It leaves " + toString(deposit) + " item(s) on the stack.",
+				_block.location
+			);
+		}
+
 	}
 
 private:

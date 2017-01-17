@@ -9,10 +9,10 @@ Installing Solidity
 Versioning
 ==========
 
-Solidity versions follow `semantic versioning <https://semver.org>` and in addition to
+Solidity versions follow `semantic versioning <https://semver.org>`_ and in addition to
 releases, **nightly development builds** are also made available.  The nightly builds
 are not guaranteed to be working and despite best efforts they might contain undocumented
-and/or broken changes. We recommend to use the latest release. Package installers below
+and/or broken changes. We recommend using the latest release. Package installers below
 will use the latest release.
 
 Browser-Solidity
@@ -43,6 +43,21 @@ To install it, simply use
 
 Details about the usage of the Node.js package can be found in the
 `solc-js repository <https://github.com/ethereum/solc-js>`_.
+
+Docker
+======
+
+We provide up to date docker builds for the compiler. The ``stable``
+repository contains released versions while the ``nightly``
+repository contains potentially unstable changes in the develop branch.
+
+.. code:: bash
+
+    docker run ethereum/solc:stable solc --version
+
+Currenty, the docker image only contains the compiler executable,
+so you have to do some additional work to link in the source and
+output directories.
 
 Binary Packages
 ===============

@@ -1,18 +1,18 @@
 /*
-    This file is part of cpp-ethereum.
+    This file is part of solidity.
 
-    cpp-ethereum is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-ethereum is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -254,6 +254,9 @@ public:
 	/// @param _inLibrary if set, returns types as used in a library, e.g. struct and contract types
 	/// are returned without modification.
 	virtual TypePointer interfaceType(bool /*_inLibrary*/) const { return TypePointer(); }
+	/// @returns true iff this type can be passed on via calls (to libraries if _inLibrary is true),
+	/// should be have identical to !!interfaceType(_inLibrary) but might do optimizations.
+	virtual bool canBeUsedExternally(bool _inLibrary) const { return !!interfaceType(_inLibrary); }
 
 private:
 	/// @returns a member list containing all members added to this type by `using for` directives.
@@ -354,7 +357,7 @@ private:
 };
 
 /**
- * Integer and fixed point constants either literals or computed.
+ * Integer and fixed point constants either literals or computed. 
  * Example expressions: 2, 3.14, 2+10.2, ~10.
  * There is one distinct type per value.
  */
@@ -366,7 +369,7 @@ public:
 
 	/// @returns true if the literal is a valid integer.
 	static std::tuple<bool, rational> isValidLiteral(Literal const& _literal);
-
+	
 	explicit RationalNumberType(rational const& _value):
 		m_value(_value)
 	{}
@@ -386,7 +389,7 @@ public:
 
 	/// @returns the smallest integer type that can hold the value or an empty pointer if not possible.
 	std::shared_ptr<IntegerType const> integerType() const;
-	/// @returns the smallest fixed type that can  hold the value or incurs the least precision loss.
+	/// @returns the smallest fixed type that can  hold the value or incurs the least precision loss. 
 	/// If the integer part does not fit, returns an empty pointer.
 	std::shared_ptr<FixedPointType const> fixedPointType() const;
 
@@ -421,6 +424,8 @@ public:
 
 	virtual std::string toString(bool) const override;
 	virtual TypePointer mobileType() const override;
+
+	bool isValidUTF8() const;
 
 	std::string const& value() const { return m_value; }
 
@@ -580,6 +585,7 @@ public:
 	virtual TypePointer encodingType() const override;
 	virtual TypePointer decodingType() const override;
 	virtual TypePointer interfaceType(bool _inLibrary) const override;
+	virtual bool canBeUsedExternally(bool _inLibrary) const override;
 
 	/// @returns true if this is a byte array or a string
 	bool isByteArray() const { return m_arrayKind != ArrayKind::Ordinary; }
@@ -623,6 +629,7 @@ public:
 	}
 	virtual unsigned storageBytes() const override { return 20; }
 	virtual bool canLiveOutsideStorage() const override { return true; }
+	virtual unsigned sizeOnStack() const override { return m_super ? 0 : 1; }
 	virtual bool isValueType() const override { return true; }
 	virtual std::string toString(bool _short) const override;
 	virtual std::string canonicalName(bool _addDataLocation) const override;
@@ -737,6 +744,7 @@ public:
 	EnumDefinition const& enumDefinition() const { return m_enum; }
 	/// @returns the value that the string has in the Enum
 	unsigned int memberValue(ASTString const& _member) const;
+	size_t numberOfMembers() const;
 
 private:
 	EnumDefinition const& m_enum;
@@ -810,8 +818,7 @@ public:
 		ByteArrayPush, ///< .push() to a dynamically sized byte array in storage
 		ObjectCreation, ///< array creation using new
 		GetBalance,
-		GetValue,
-		CheckTx,
+		GetValue
 	};
 
 	virtual Category category() const override { return Category::Function; }
@@ -822,6 +829,8 @@ public:
 	explicit FunctionType(VariableDeclaration const& _varDecl);
 	/// Creates the function type of an event.
 	explicit FunctionType(EventDefinition const& _event);
+	/// Creates the type of a function type name.
+	explicit FunctionType(FunctionTypeName const& _typeName);
 	/// Function type constructor to be used for a plain type (not derived from a declaration).
 	FunctionType(
 		strings const& _parameterTypes,
@@ -874,7 +883,12 @@ public:
 		m_isConstant(_isConstant),
 		m_isPayable(_isPayable),
 		m_declaration(_declaration)
-	{}
+	{
+		solAssert(
+			!m_bound || !m_parameterTypes.empty(),
+			"Attempted construction of bound function without self type"
+		);
+	}
 
 	TypePointers parameterTypes() const;
 	std::vector<std::string> parameterNames() const;
@@ -886,12 +900,19 @@ public:
 	TypePointer selfType() const;
 
 	virtual bool operator==(Type const& _other) const override;
+	virtual TypePointer unaryOperatorResult(Token::Value _operator) const override;
+	virtual std::string canonicalName(bool /*_addDataLocation*/) const override;
 	virtual std::string toString(bool _short) const override;
-	virtual bool canBeStored() const override { return false; }
+	virtual unsigned calldataEncodedSize(bool _padded) const override;
+	virtual bool canBeStored() const override { return m_location == Location::Internal || m_location == Location::External; }
 	virtual u256 storageSize() const override;
-	virtual bool canLiveOutsideStorage() const override { return false; }
+	virtual unsigned storageBytes() const override;
+	virtual bool isValueType() const override { return true; }
+	virtual bool canLiveOutsideStorage() const override { return m_location == Location::Internal || m_location == Location::External; }
 	virtual unsigned sizeOnStack() const override;
 	virtual MemberList::MemberMap nativeMembers(ContractDefinition const* _currentScope) const override;
+	virtual TypePointer encodingType() const override;
+	virtual TypePointer interfaceType(bool _inLibrary) const override;
 
 	/// @returns TypePointer of a new FunctionType object. All input/return parameters are an
 	/// appropriate external types (i.e. the interfaceType()s) of input/return parameters of
@@ -942,8 +963,9 @@ public:
 	/// removed and the location of reference types is changed from CallData to Memory.
 	/// This is needed if external functions are called on other contracts, as they cannot return
 	/// dynamic values.
+	/// Returns empty shared pointer on a failure. Namely, if a bound function has no parameters.
 	/// @param _inLibrary if true, uses DelegateCall as location.
-	/// @param _bound if true, the argumenst are placed as `arg1.functionName(arg2, ..., argn)`.
+	/// @param _bound if true, the arguments are placed as `arg1.functionName(arg2, ..., argn)`.
 	FunctionTypePointer asMemberFunction(bool _inLibrary, bool _bound = false) const;
 
 private:
@@ -1096,6 +1118,8 @@ public:
 	virtual MemberList::MemberMap nativeMembers(ContractDefinition const*) const override;
 
 	virtual std::string toString(bool _short) const override;
+
+	Kind kind() const { return m_kind; }
 
 private:
 	Kind m_kind;

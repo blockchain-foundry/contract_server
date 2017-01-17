@@ -1,18 +1,18 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -120,7 +120,7 @@ void MemoryItem::storeValue(Type const& _sourceType, SourceLocation const&, bool
 	}
 	else
 	{
-		solAssert(_sourceType == *m_dataType, "Conversion not implemented for assignment to memory.");
+		solUnimplementedAssert(_sourceType == *m_dataType, "Conversion not implemented for assignment to memory.");
 
 		solAssert(m_dataType->sizeOnStack() == 1, "");
 		if (!_move)
@@ -153,7 +153,8 @@ StorageItem::StorageItem(CompilerContext& _compilerContext, Type const& _type):
 {
 	if (m_dataType->isValueType())
 	{
-		solAssert(m_dataType->storageSize() == m_dataType->sizeOnStack(), "");
+		if (m_dataType->category() != Type::Category::Function)
+			solAssert(m_dataType->storageSize() == m_dataType->sizeOnStack(), "");
 		solAssert(m_dataType->storageSize() == 1, "Invalid storage size.");
 	}
 }
@@ -176,27 +177,47 @@ void StorageItem::retrieveValue(SourceLocation const&, bool _remove) const
 		m_context << Instruction::POP << Instruction::SLOAD;
 	else
 	{
+		bool cleaned = false;
 		m_context
 			<< Instruction::SWAP1 << Instruction::SLOAD << Instruction::SWAP1
 			<< u256(0x100) << Instruction::EXP << Instruction::SWAP1 << Instruction::DIV;
 		if (m_dataType->category() == Type::Category::FixedPoint)
 			// implementation should be very similar to the integer case.
-			solAssert(false, "Not yet implemented - FixedPointType.");
+			solUnimplemented("Not yet implemented - FixedPointType.");
 		if (m_dataType->category() == Type::Category::FixedBytes)
+		{
 			m_context << (u256(0x1) << (256 - 8 * m_dataType->storageBytes())) << Instruction::MUL;
+			cleaned = true;
+		}
 		else if (
 			m_dataType->category() == Type::Category::Integer &&
 			dynamic_cast<IntegerType const&>(*m_dataType).isSigned()
 		)
+		{
 			m_context << u256(m_dataType->storageBytes() - 1) << Instruction::SIGNEXTEND;
-		else
+			cleaned = true;
+		}
+		else if (FunctionType const* fun = dynamic_cast<decltype(fun)>(m_dataType))
+		{
+			if (fun->location() == FunctionType::Location::External)
+			{
+				CompilerUtils(m_context).splitExternalFunctionType(false);
+				cleaned = true;
+			}
+		}
+		if (!cleaned)
+		{
+			solAssert(m_dataType->sizeOnStack() == 1, "");
 			m_context << ((u256(0x1) << (8 * m_dataType->storageBytes())) - 1) << Instruction::AND;
+		}
 	}
 }
 
 void StorageItem::storeValue(Type const& _sourceType, SourceLocation const& _location, bool _move) const
 {
 	CompilerUtils utils(m_context);
+	solAssert(m_dataType, "");
+
 	// stack: value storage_key storage_offset
 	if (m_dataType->isValueType())
 	{
@@ -204,10 +225,16 @@ void StorageItem::storeValue(Type const& _sourceType, SourceLocation const& _loc
 		solAssert(m_dataType->storageBytes() > 0, "Invalid storage bytes size.");
 		if (m_dataType->storageBytes() == 32)
 		{
+			solAssert(m_dataType->sizeOnStack() == 1, "Invalid stack size.");
 			// offset should be zero
 			m_context << Instruction::POP;
 			if (!_move)
 				m_context << Instruction::DUP2 << Instruction::SWAP1;
+
+			m_context << Instruction::SWAP1;
+			utils.convertType(_sourceType, *m_dataType, true);
+			m_context << Instruction::SWAP1;
+
 			m_context << Instruction::SSTORE;
 		}
 		else
@@ -222,34 +249,39 @@ void StorageItem::storeValue(Type const& _sourceType, SourceLocation const& _loc
 			m_context
 				<< Instruction::DUP2 << ((u256(1) << (8 * m_dataType->storageBytes())) - 1)
 				<< Instruction::MUL;
-			m_context << Instruction::NOT << Instruction::AND;
-			// stack: value storage_ref multiplier cleared_value
-			m_context
-				<< Instruction::SWAP1 << Instruction::DUP4;
+			m_context << Instruction::NOT << Instruction::AND << Instruction::SWAP1;
+			// stack: value storage_ref cleared_value multiplier
+			utils.copyToStackTop(3 + m_dataType->sizeOnStack(), m_dataType->sizeOnStack());
 			// stack: value storage_ref cleared_value multiplier value
-			if (m_dataType->category() == Type::Category::FixedBytes)
+			if (FunctionType const* fun = dynamic_cast<decltype(fun)>(m_dataType))
+			{
+				solAssert(_sourceType == *m_dataType, "function item stored but target is not equal to source");
+				if (fun->location() == FunctionType::Location::External)
+					// Combine the two-item function type into a single stack slot.
+					utils.combineExternalFunctionType(false);
+				else
+					m_context <<
+						((u256(1) << (8 * m_dataType->storageBytes())) - 1) <<
+						Instruction::AND;
+			}
+			else if (m_dataType->category() == Type::Category::FixedBytes)
+			{
+				solAssert(_sourceType.category() == Type::Category::FixedBytes, "source not fixed bytes");
 				m_context
 					<< (u256(0x1) << (256 - 8 * dynamic_cast<FixedBytesType const&>(*m_dataType).numBytes()))
 					<< Instruction::SWAP1 << Instruction::DIV;
-			else if (
-				m_dataType->category() == Type::Category::Integer &&
-				dynamic_cast<IntegerType const&>(*m_dataType).isSigned()
-			)
+			}
+			else
+			{
+				solAssert(m_dataType->sizeOnStack() == 1, "Invalid stack size for opaque type.");
 				// remove the higher order bits
-				m_context
-					<< (u256(1) << (8 * (32 - m_dataType->storageBytes())))
-					<< Instruction::SWAP1
-					<< Instruction::DUP2
-					<< Instruction::MUL
-					<< Instruction::DIV;
-			else if (m_dataType->category() == Type::Category::FixedPoint)
-				// implementation should be very similar to the integer case.
-				solAssert(false, "Not yet implemented - FixedPointType.");
+				utils.convertType(_sourceType, *m_dataType, true, true);
+			}
 			m_context  << Instruction::MUL << Instruction::OR;
 			// stack: value storage_ref updated_value
 			m_context << Instruction::SWAP1 << Instruction::SSTORE;
 			if (_move)
-				m_context << Instruction::POP;
+				utils.popStackElement(*m_dataType);
 		}
 	}
 	else

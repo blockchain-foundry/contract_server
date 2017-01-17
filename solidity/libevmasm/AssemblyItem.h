@@ -1,20 +1,20 @@
 /*
-	This file is part of cpp-ethereum.
+	This file is part of solidity.
 
-	cpp-ethereum is free software: you can redistribute it and/or modify
+	solidity is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
 
-	cpp-ethereum is distributed in the hope that it will be useful,
+	solidity is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
 	You should have received a copy of the GNU General Public License
-	along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+	along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
-/** @file Assembly.h
+/** @file AssemblyItem.h
  * @author Gav Wood <i@gavwood.com>
  * @date 2014
  */
@@ -69,6 +69,14 @@ public:
 
 	AssemblyItem tag() const { assertThrow(m_type == PushTag || m_type == Tag, Exception, ""); return AssemblyItem(Tag, m_data); }
 	AssemblyItem pushTag() const { assertThrow(m_type == PushTag || m_type == Tag, Exception, ""); return AssemblyItem(PushTag, m_data); }
+	/// Converts the tag to a subassembly tag. This has to be called in order to move a tag across assemblies.
+	/// @param _subId the identifier of the subassembly the tag is taken from.
+	AssemblyItem toSubAssemblyTag(size_t _subId) const;
+	/// @returns splits the data of the push tag into sub assembly id and actual tag id.
+	/// The sub assembly id of non-foreign push tags is -1.
+	std::pair<size_t, size_t> splitForeignPushTag() const;
+	/// Sets sub-assembly part and tag for a push tag.
+	void setPushTagSubIdAndTag(size_t _subId, size_t _tag);
 
 	AssemblyItemType type() const { return m_type; }
 	u256 const& data() const { return m_data; }

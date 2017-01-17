@@ -2,21 +2,81 @@
 Expressions and Control Structures
 ##################################
 
-.. index:: if, else, while, for, break, continue, return, switch, goto
+.. index:: ! parameter, parameter;input, parameter;output
+
+Input Parameters and Output Parameters
+======================================
+
+As in Javascript, functions may take parameters as input;
+unlike in Javascript and C, they may also return arbitrary number of
+parameters as output.
+
+Input Parameters
+----------------
+
+The input parameters are declared the same way as variables are. As an
+exception, unused parameters can omit the variable name.
+For example, suppose we want our contract to
+accept one kind of external calls with two integers, we would write
+something like::
+
+    contract Simple {
+        function taker(uint _a, uint _b) {
+            // do something with _a and _b.
+        }
+    }
+
+Output Parameters
+-----------------
+
+The output parameters can be declared with the same syntax after the
+``returns`` keyword. For example, suppose we wished to return two results:
+the sum and the product of the two given integers, then we would
+write::
+
+    contract Simple {
+        function arithmetics(uint _a, uint _b) returns (uint o_sum, uint o_product) {
+            o_sum = _a + _b;
+            o_product = _a * _b;
+        }
+    }
+
+The names of output parameters can be omitted.
+The output values can also be specified using ``return`` statements.
+The ``return`` statements are also capable of returning multiple
+values, see :ref:`multi-return`.
+Return parameters are initialized to zero; if they are not explicitly
+set, they stay to be zero.
+
+Input parameters and output parameters can be used as expressions in
+the function body.  There, they are also usable in the left-hand side
+of assignment.
+
+.. index:: if, else, while, do/while, for, break, continue, return, switch, goto
 
 Control Structures
 ===================
 
-Most of the control structures from C/JavaScript are available in Solidity
+Most of the control structures from JavaScript are available in Solidity
 except for ``switch`` and ``goto``. So
-there is: ``if``, ``else``, ``while``, ``for``, ``break``, ``continue``, ``return``, ``? :``, with
+there is: ``if``, ``else``, ``while``, ``do``, ``for``, ``break``, ``continue``, ``return``, ``? :``, with
 the usual semantics known from C or JavaScript.
 
 Parentheses can *not* be omitted for conditionals, but curly brances can be omitted
 around single-statement bodies.
 
 Note that there is no type conversion from non-boolean to boolean types as
-there is in C and JavaScript, so ``if (1) { ... }`` is *not* valid Solidity.
+there is in C and JavaScript, so ``if (1) { ... }`` is *not* valid
+Solidity.
+
+.. _multi-return:
+
+Returning Multiple Values
+-------------------------
+
+When a function has multiple output parameters, ``return (v0, v1, ...,
+vn)`` can return multiple values.  The number of components must be
+the same as the number of output parameters.
 
 .. index:: ! function;call, function;internal, function;external
 
@@ -322,14 +382,18 @@ In the following example, we show how ``throw`` can be used to easily revert an 
         }
     }
 
-Currently, there are six situations, where exceptions happen automatically in Solidity:
+Currently, Solidity automatically generates a runtime exception in the following situations:
 
-1. If you access an array beyond its length (i.e. ``x[i]`` where ``i >= x.length``).
-2. If a function called via a message call does not finish properly (i.e. it runs out of gas or throws an exception itself).
-3. If a non-existent function on a library is called or Ether is sent to a library.
-4. If you divide or modulo by zero (e.g. ``5 / 0`` or ``23 % 0``).
-5. If you perform an external function call targeting a contract that contains no code.
-6. If a contract-creation call using the ``new`` keyword fails.
+1. If you access an array at a too large or negative index (i.e. ``x[i]`` where ``i >= x.length`` or ``i < 0``).
+1. If you access a fixed-length ``bytesN`` at a too large or negative index.
+1. If you call a function via a message call but it does not finish properly (i.e. it runs out of gas, has no matching function, or throws an exception itself), except when a low level operation ``call``, ``send``, ``delegatecall`` or ``callcode`` is used.  The low level operations never throw exceptions but indicate failures by returning ``false``.
+1. If you create a contract using the ``new`` keyword but the contract creation does not finish properly (see above for the definition of "not finish properly").
+1. If you divide or modulo by zero (e.g. ``5 / 0`` or ``23 % 0``).
+1. If you shift by a negative amount.
+1. If you convert a value too big or negative into an enum type.
+1. If you perform an external function call targeting a contract that contains no code.
+1. If your contract receives Ether via a public function without ``payable`` modifier (including the constructor and the fallback function).
+1. If your contract receives Ether via a public accessor function.
 
 Internally, Solidity performs an "invalid jump" when an exception is thrown and thus causes the EVM to revert all changes made to the state. The reason for this is that there is no safe way to continue execution, because an expected effect did not occur. Because we want to retain the atomicity of transactions, the safest thing to do is to revert all changes and make the whole transaction (or at least call) without effect.
 
@@ -424,7 +488,7 @@ these curly braces, the following can be used (see the later sections for more d
 
  - literals, e.g. ``0x123``, ``42`` or ``"abc"`` (strings up to 32 characters)
  - opcodes (in "instruction style"), e.g. ``mload sload dup1 sstore``, for a list see below
- - opcodes in functional style, e.g. ``add(1, mlod(0))``
+ - opcodes in functional style, e.g. ``add(1, mload(0))``
  - labels, e.g. ``name:``
  - variable declarations, e.g. ``let x := 7`` or ``let x := add(y, 3)``
  - identifiers (externals, labels or assembly-local variables), e.g. ``jump(name)``, ``3 x add``
@@ -503,7 +567,7 @@ The opcodes ``pushi`` and ``jumpdest`` cannot be used directly.
 +-------------------------+------+-----------------------------------------------------------------+
 | pc                      |      | current position in code                                        |
 +-------------------------+------+-----------------------------------------------------------------+
-| pop                     | `*`  | remove topmost stack slot                                       |
+| pop(x)                  | `-`  | remove the element pushed by x                                  |
 +-------------------------+------+-----------------------------------------------------------------+
 | dup1 ... dup16          |      | copy ith stack slot to the top (counting from top)              |
 +-------------------------+------+-----------------------------------------------------------------+
@@ -559,9 +623,9 @@ The opcodes ``pushi`` and ``jumpdest`` cannot be used directly.
 | delegatecall(g, a, in,  |      | identical to `callcode` but also keep ``caller``                |
 | insize, out, outsize)   |      | and ``callvalue``                                               |
 +-------------------------+------+-----------------------------------------------------------------+
-| return(p, s)            | `*`  | end execution, return data mem[p..(p+s))                        |
+| return(p, s)            | `-`  | end execution, return data mem[p..(p+s))                        |
 +-------------------------+------+-----------------------------------------------------------------+
-| selfdestruct(a)         | `*`  | end execution, destroy current contract and send funds to a     |
+| selfdestruct(a)         | `-`  | end execution, destroy current contract and send funds to a     |
 +-------------------------+------+-----------------------------------------------------------------+
 | log0(p, s)              | `-`  | log without topics and data mem[p..(p+s))                       |
 +-------------------------+------+-----------------------------------------------------------------+
@@ -713,6 +777,10 @@ will have a wrong impression about the stack height at label ``two``:
         three:
     }
 
+.. note::
+
+    ``invalidJumpLabel`` is a pre-defined label. Jumping to this location will always
+    result in an invalid jump, effectively aborting execution of the code.
 
 Declaring Assembly-Local Variables
 ----------------------------------
@@ -783,7 +851,7 @@ Conventions in Solidity
 
 In contrast to EVM assembly, Solidity knows types which are narrower than 256 bits,
 e.g. ``uint24``. In order to make them more efficient, most arithmetic operations just
-treat them as 256 bit numbers and the higher-order bits are only cleaned at the
+treat them as 256-bit numbers and the higher-order bits are only cleaned at the
 point where it is necessary, i.e. just shortly before they are written to memory
 or before comparisons are performed. This means that if you access such a variable
 from within inline assembly, you might have to manually clean the higher order bits

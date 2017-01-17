@@ -1,18 +1,18 @@
 /*
-    This file is part of cpp-ethereum.
+    This file is part of solidity.
 
-    cpp-ethereum is free software: you can redistribute it and/or modify
+    solidity is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    cpp-ethereum is distributed in the hope that it will be useful,
+    solidity is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with cpp-ethereum.  If not, see <http://www.gnu.org/licenses/>.
+    along with solidity.  If not, see <http://www.gnu.org/licenses/>.
 */
 /**
  * @author Christian <c@ethdev.com>
@@ -61,6 +61,15 @@ SourceUnitAnnotation& SourceUnit::annotation() const
 	if (!m_annotation)
 		m_annotation = new SourceUnitAnnotation();
 	return static_cast<SourceUnitAnnotation&>(*m_annotation);
+}
+
+string Declaration::sourceUnitName() const
+{
+	solAssert(!!m_scope, "");
+	ASTNode const* scope = m_scope;
+	while (dynamic_cast<Declaration const*>(scope) && dynamic_cast<Declaration const*>(scope)->m_scope)
+		scope = dynamic_cast<Declaration const*>(scope)->m_scope;
+	return dynamic_cast<SourceUnit const&>(*scope).annotation().path;
 }
 
 ImportAnnotation& ImportDirective::annotation() const
@@ -160,22 +169,22 @@ vector<pair<FixedHash<4>, FunctionTypePointer>> const& ContractDefinition::inter
 	return *m_interfaceFunctionList;
 }
 
-string const& ContractDefinition::devDocumentation() const
+Json::Value const& ContractDefinition::devDocumentation() const
 {
 	return m_devDocumentation;
 }
 
-string const& ContractDefinition::userDocumentation() const
+Json::Value const& ContractDefinition::userDocumentation() const
 {
 	return m_userDocumentation;
 }
 
-void ContractDefinition::setDevDocumentation(string const& _devDocumentation)
+void ContractDefinition::setDevDocumentation(Json::Value const& _devDocumentation)
 {
 	m_devDocumentation = _devDocumentation;
 }
 
-void ContractDefinition::setUserDocumentation(string const& _userDocumentation)
+void ContractDefinition::setUserDocumentation(Json::Value const& _userDocumentation)
 {
 	m_userDocumentation = _userDocumentation;
 }
@@ -189,6 +198,7 @@ vector<Declaration const*> const& ContractDefinition::inheritableMembers() const
 		m_inheritableMembers.reset(new vector<Declaration const*>());
 		auto addInheritableMember = [&](Declaration const* _decl)
 		{
+			solAssert(_decl, "addInheritableMember got a nullpointer.");
 			if (memberSeen.count(_decl->name()) == 0 && _decl->isVisibleInDerivedContracts())
 			{
 				memberSeen.insert(_decl->name());
@@ -204,6 +214,9 @@ vector<Declaration const*> const& ContractDefinition::inheritableMembers() const
 
 		for (StructDefinition const* s: definedStructs())
 			addInheritableMember(s);
+
+		for (EnumDefinition const* e: definedEnums())
+			addInheritableMember(e);
 	}
 	return *m_inheritableMembers;
 }
