@@ -94,7 +94,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     sender_hex = base58.b58decode(sender_addr)
     sender_hex = hexlify(sender_hex)
     sender_hex = "0x" + hash160(sender_hex)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../' + multisig_addr
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
 
     if is_deploy:
