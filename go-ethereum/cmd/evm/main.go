@@ -305,7 +305,7 @@ func run(ctx *cli.Context) error {
 	//tot alloc:  %d
 	}
 
-	//fmt.Printf("OUT: 0x%x", ret)
+	fmt.Printf("OUT: 0x%x", ret)
 
 	if err != nil {
 		fmt.Printf(" error: %v", err)
