@@ -25,7 +25,7 @@ from oracles.models import Oracle, Contract
 from oracles.serializers import *
 
 from .config import *
-from .forms import GenContractRawTxForm, SendMoneyToAccountFrom, WithdrawFromContractForm
+from .forms import GenContractRawTxForm, ContractFunctionCallFrom, WithdrawFromContractForm
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -53,7 +53,11 @@ def wallet_address_to_evm(address):
 
 def create_multisig_payment(from_address, to_address, color_id, amount):
 
-    contract = Contract.objects.get(multisig_address=from_address)
+    try:
+        contract = Contract.objects.get(multisig_address=from_address)
+    except Contract.DoesNotExist as e:
+        raise e
+
     oracles = contract.oracles.all()
     try:
         raw_tx = OSSclient.prepare_raw_tx(from_address, to_address, amount, color_id)
@@ -127,7 +131,6 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
     def form_invalid(self, form):
-        print(form.errors)
         response = {'error': form.errors}
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
@@ -241,14 +244,8 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         address = form.cleaned_data['address']
         m = form.cleaned_data['m']
         oracles = form.cleaned_data['oracles']
-
         try:
-            if isinstance(oracles, str):
-                oracle_list = ast.literal_eval(oracles)
-            else:
-                oracle_list = oracles
-
-            oracle_list = self._get_oracle_list(oracle_list)
+            oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
 
             multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
                 oracle_list, source_code, m)
@@ -261,13 +258,13 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 'code:': ERROR_CODE['compiled_error'],
                 'message': str(e)
             }
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
         except Multisig_error as e:
             response = {
                 'code': ERROR_CODE['multisig_error'],
                 'message': str(e)
             }
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         try:
             tx_hex = OSSclient.deploy_contract_raw_tx(address, multisig_addr, code, CONTRACT_FEE)
@@ -290,9 +287,9 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 "multisig_addr": multisig_addr,
                 "compiled_code": compiled_code
             }
-        except:
-            response = {'status': 'Bad request.'}
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            response = {'status': 'Bad request.' + str(e)}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         response = {
             'multisig_address': multisig_addr,
@@ -309,14 +306,14 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
-class ContractUsage(BaseFormView, CsrfExemptMixin):
+class ContractFunc(BaseFormView, CsrfExemptMixin):
 
     CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
     HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
     EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
     http_method_names = ['get', 'post']
-    form_class = SendMoneyToAccountFrom
+    form_class = ContractFunctionCallFrom
 
     def _get_abi_list(self, interface):
         if not interface:
@@ -389,12 +386,12 @@ class ContractUsage(BaseFormView, CsrfExemptMixin):
             response['error'] = 'contract not found'
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        interfaces, event_list = self._get_abi_list(contract.interface)
+        function_list, event_list = self._get_abi_list(contract.interface)
         serializer = ContractSerializer(contract)
         addrs = serializer.data['multisig_address']
         source_code = serializer.data['source_code']
 
-        response['interfaces'] = interfaces
+        response['function_list'] = function_list
         response['events'] = event_list
         response['multisig_address'] = addrs
         response['source_code'] = source_code

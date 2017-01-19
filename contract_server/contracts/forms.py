@@ -4,23 +4,6 @@ import json
 from django import forms
 
 
-def type_check(data_type, value):
-    if data_type == 'string':
-        return str(value)
-    elif data_type == 'int':
-        return int(value)
-
-
-class MultisigPaymentForm(forms.Form):
-
-    user_address = forms.CharField()
-
-
-class WithdrawForm(forms.Form):
-    user_address = forms.CharField(max_length=100)
-    multisig_address = forms.CharField(max_length=100)
-
-
 class GenContractRawTxForm(forms.Form):
     source_code = forms.CharField(required=True)
     address = forms.CharField(required=True)
@@ -29,7 +12,7 @@ class GenContractRawTxForm(forms.Form):
     oracles = forms.CharField(required=True)
 
 
-class SendMoneyToAccountFrom(forms.Form):
+class ContractFunctionCallFrom(forms.Form):
     from_address = forms.CharField(required=True)
     amount = forms.IntegerField(required=True)
     color = forms.IntegerField(required=True)
