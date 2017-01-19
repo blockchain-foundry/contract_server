@@ -78,6 +78,9 @@ enum class Instruction: uint8_t
 	EXTCODESIZE,		///< get external code size (from another contract)
 	EXTCODECOPY,		///< copy external code (from another contract)
 
+	COLORBALANCE,       ///< get balance of the given account
+	CALLCVALUE,         ///< get deposited value by the instruction/transaction responsible for this execution
+
 	BLOCKHASH = 0x40,	///< get hash of most recent complete block
 	COINBASE,			///< get the block's coinbase address
 	TIMESTAMP,			///< get the block's timestamp
@@ -176,6 +179,11 @@ enum class Instruction: uint8_t
 	CALLCODE,			///< message-call with another account's code only
 	RETURN,				///< halt execution returning output data
 	DELEGATECALL,		///< like CALLCODE but keeps caller's value and sender
+
+	CREATECOLOR,        ///< create a new account with associated code
+	CALLCOLOR,          ///< message-call into an account
+	CALLCCODE,          ///< message-call with another account's code only
+
 	SUICIDE = 0xff		///< halt execution and register account for later deletion
 };
 

@@ -579,7 +579,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 					m_context << u256(0);
 					m_context << u256(1);
 				}
-			m_context << Instruction::CREATE;
+			m_context << Instruction::CREATECOLOR;
 			// Check if zero (out of stack or not enough balance).
 			m_context << Instruction::DUP1 << Instruction::ISZERO;
 			m_context.appendConditionalJumpTo(m_context.errorTag());
@@ -820,7 +820,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			_functionCall.expression().accept(*this);
 			arguments[0]->accept(*this);
 			utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
-			m_context << Instruction::CALLVALUE;
+			m_context << Instruction::CALLCVALUE;
 			break;
 		}
         case Location::GetBalance:
@@ -828,7 +828,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
             _functionCall.expression().accept(*this);
             arguments[0]->accept(*this);
             utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
-            m_context << Instruction::BALANCE;
+            m_context << Instruction::COLORBALANCE;
             break;
         }
 		case Location::ObjectCreation:
@@ -1684,9 +1684,9 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	if (isDelegateCall)
 		m_context << Instruction::DELEGATECALL;
 	else if (isCallCode)
-		m_context << Instruction::CALLCODE;
+		m_context << Instruction::CALLCCODE;
 	else
-		m_context << Instruction::CALL;
+		m_context << Instruction::CALLCOLOR;
 
 	unsigned remainsSize =
 		2 + // contract address, input_memory_end

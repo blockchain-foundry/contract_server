@@ -105,7 +105,6 @@ void ContractCompiler::initializeContext(
 void ContractCompiler::appendCallValueCheck()
 {
 	// Throw if function is not payable but call contained ether.
-	m_context << u256(1);
 	m_context << Instruction::CALLVALUE;
 	m_context.appendConditionalJumpTo(m_context.errorTag());
 }

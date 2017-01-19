@@ -326,6 +326,12 @@ func opAddress(instr instruction, pc *uint64, env Environment, contract *Contrac
 }
 
 func opBalance(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	addr := common.BigToAddress(stack.pop())
+	balance := env.Db().GetBalance(uint(1) ,addr)
+	stack.push(new(big.Int).Set(balance))
+}
+
+func opColorBalance(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	color := stack.pop()
 	addr := common.BigToAddress(stack.pop())
 	balance := env.Db().GetBalance(uint(color.Uint64()),addr)
@@ -341,6 +347,16 @@ func opCaller(instr instruction, pc *uint64, env Environment, contract *Contract
 }
 
 func opCallValue(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	var value *big.Int
+	if val, ok := contract.Value()[uint(1)]; ok {
+		value = new(big.Int).Set(val)
+	}else{
+		value = new(big.Int).Set(common.Big0)
+	}
+	stack.push(value)
+}
+
+func opCallColorValue(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	// it should pop an parameter as a color
 	color :=stack.pop()
 	var value *big.Int
@@ -522,6 +538,29 @@ func opGas(instr instruction, pc *uint64, env Environment, contract *Contract, m
 
 func opCreate(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	var (
+		value  = stack.pop()
+		offset, size = stack.pop(), stack.pop()
+		input        = memory.Get(offset.Int64(), size.Int64())
+		gas          = new(big.Int).Set(contract.Gas)
+	)
+	contract.UseGas(contract.Gas)
+	_, addr, suberr := env.Create(contract, input, gas, contract.Price, common.NewBalance(value, uint(1)))
+	// Push item on the stack based on the returned error. If the ruleset is
+	// homestead we must check for CodeStoreOutOfGasError (homestead only
+	// rule) and treat as an error, if the ruleset is frontier we must
+	// ignore this error and pretend the operation was successful.
+	//if env.RuleSet().IsHomestead(env.BlockNumber()) && suberr == CodeStoreOutOfGasError {
+	if suberr == CodeStoreOutOfGasError {
+		stack.push(new(big.Int))
+	} else if suberr != nil && suberr != CodeStoreOutOfGasError {
+		stack.push(new(big.Int))
+	} else {
+		stack.push(addr.Big())
+	}
+}
+
+func opCreateColor(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	var (
 		color, value  = stack.pop(), stack.pop()
 		offset, size = stack.pop(), stack.pop()
 		input        = memory.Get(offset.Int64(), size.Int64())
@@ -544,6 +583,37 @@ func opCreate(instr instruction, pc *uint64, env Environment, contract *Contract
 }
 
 func opCall(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	gas := stack.pop()
+	// pop gas and value of the stack.
+	addr, value := stack.pop(), stack.pop()
+	value = U256(value)
+	// pop input size and offset
+	inOffset, inSize := stack.pop(), stack.pop()
+	// pop return size and offset
+	retOffset, retSize := stack.pop(), stack.pop()
+
+	address := common.BigToAddress(addr)
+
+	// Get the arguments from the memory
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	if len(value.Bytes()) > 0 {
+		gas.Add(gas, params.CallStipend)
+	}
+
+	ret, err := env.Call(contract, address, args, gas, contract.Price, common.NewBalance(value,uint(1)))
+
+	if err != nil {
+		stack.push(new(big.Int))
+
+	} else {
+		stack.push(big.NewInt(1))
+
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+}
+
+func opCallColor(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	gas := stack.pop()
 	// pop gas and value of the stack.
 	addr, color, value := stack.pop(), stack.pop(), stack.pop()
@@ -575,6 +645,37 @@ func opCall(instr instruction, pc *uint64, env Environment, contract *Contract, 
 }
 
 func opCallCode(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	gas := stack.pop()
+	// pop gas and value of the stack.
+	addr, value := stack.pop(), stack.pop()
+	value = U256(value)
+	// pop input size and offset
+	inOffset, inSize := stack.pop(), stack.pop()
+	// pop return size and offset
+	retOffset, retSize := stack.pop(), stack.pop()
+
+	address := common.BigToAddress(addr)
+
+	// Get the arguments from the memory
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	if len(value.Bytes()) > 0 {
+		gas.Add(gas, params.CallStipend)
+	}
+
+	ret, err := env.CallCode(contract, address, args, gas, contract.Price, common.NewBalance(value,uint(1)))
+
+	if err != nil {
+		stack.push(new(big.Int))
+
+	} else {
+		stack.push(big.NewInt(1))
+
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+}
+
+func opCallColorCode(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
 	gas := stack.pop()
 	// pop gas and value of the stack.
 	addr, color, value := stack.pop(), stack.pop(), stack.pop()
