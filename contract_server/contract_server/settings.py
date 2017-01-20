@@ -71,6 +71,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
+GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
+GCOIN_BACKEND_SETTINGS = {
+    'BASE_URL': 'http://oss2.diqi.us:8888',
+    'KEY_STORE_CLASS': None
+}
 
 # Database
 # https://docs.djangoproject.com/en/1.10/ref/settings/#databases

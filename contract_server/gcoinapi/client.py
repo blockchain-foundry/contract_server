@@ -42,6 +42,12 @@ class GcoinAPIClient(object):
         else:
             raise error.GcoinAPIError
 
+    def get_address_balance(self, address):
+        end_point = '/base/v1/balance/{address}'.format(address=address)
+        response = self.request(end_point, 'GET')
+        balance = response.json()
+        return balance
+
     def prepare_raw_tx(self, from_address, to_address, amount, color_id):
         end_point = '/base/v1/transaction/prepare'
         params = {
@@ -64,6 +70,34 @@ class GcoinAPIClient(object):
 
         tx_hash = response.json()['tx_id']
         return tx_hash
+
+    def get_tx(self, tx_hash):
+        end_point = '/base/v1/transaction/{tx_hash}'.format(tx_hash=tx_hash)
+        response = self.request(end_point, 'GET')
+        tx = response.json()
+        return tx
+
+    def get_txs_by_address(self, address, starting_after, tx_type):
+        end_point = '/explorer/v1/transactions/address/{address}'.format(address=address)
+        params = {}
+        if starting_after:
+            params['starting_after'] = starting_after
+        if tx_type:
+            params['tx_type'] = tx_type
+        response = self.request(end_point, 'GET', params=params)
+        page, txs = response.json()['page'], response.json()['txs']
+        return page, txs
+
+    def subscribe_tx_notification(self, tx_hash, confirmation_count, callback_url):
+        end_point = '/notification/v1/tx/subscription'
+        data = {
+            'tx_hash': tx_hash,
+            'confirmation_count': confirmation_count,
+            'callback_url': callback_url
+        }
+        response = self.request(end_point, 'POST', data=data)
+        subscription = response.json()
+        return subscription
 
     def prepare_smartcontract_raw_tx(self, from_address, to_address, non_diqi_amount, color_id, op_return, diqi_amount):
         end_point = '/base/v1/smartcontract/prepare'
