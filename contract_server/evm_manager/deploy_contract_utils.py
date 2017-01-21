@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 from gcoinbackend import core as gcoincore
 
-from gcoin import *
+from .utils import wallet_address_to_evm
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 
@@ -88,12 +88,8 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, need_deploy, _ti
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    multisig_hex = base58.b58decode(multisig_addr)
-    multisig_hex = hexlify(multisig_hex)
-    multisig_hex = "0x" + hash160(multisig_hex)
-    sender_hex = base58.b58decode(sender_addr)
-    sender_hex = hexlify(sender_hex)
-    sender_hex = "0x" + hash160(sender_hex)
+    multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
+    sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
 
