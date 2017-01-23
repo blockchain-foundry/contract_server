@@ -222,3 +222,11 @@ class WithdrawFromContractTest(TestCase):
         json_data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(json_data['error'], 'Contract matching query does not exist.')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+    def test_get_event_by_name(self):
+        contract_func = ContractFunc()
+        TEST_EVENT_NAME = 'AttributesSet'
+        event = contract_func._get_event_by_name(self.contract.interface, TEST_EVENT_NAME)
+
+        self.assertEqual(event['anonymous'], False)
+        self.assertEqual(event['name'], TEST_EVENT_NAME)
