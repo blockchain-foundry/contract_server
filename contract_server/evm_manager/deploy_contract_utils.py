@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 from gcoinbackend import core as gcoincore
 
-from .utils import wallet_address_to_evm
+from gcoin import *
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 
@@ -41,7 +41,7 @@ def get_contracts_info(tx):
     bytecode = None
     sender_addr = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
     value = {}
-    need_deploy = True
+    is_deploy = True
 
     for vout in tx['vout']:
         if vout['scriptPubKey']['type'] == 'nulldata':
@@ -53,7 +53,7 @@ def get_contracts_info(tx):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
                 bytecode = data.get('function_inputs_hash')
-                need_deploy = False
+                is_deploy = False
             else:
                 raise ValueError("Contract OP RETURN is not valid")
 
@@ -77,10 +77,10 @@ def get_contracts_info(tx):
         )
     for v in value:
         value[v] = str(value[v]/100000000)
-    return sender_addr, multisig_addr, bytecode, json.dumps(value), need_deploy
+    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
 
 
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, need_deploy, _time):
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
@@ -88,12 +88,16 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, need_deploy, _ti
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
-    sender_hex = "0x" + wallet_address_to_evm(sender_addr)
+    multisig_hex = base58.b58decode(multisig_addr)
+    multisig_hex = hexlify(multisig_hex)
+    multisig_hex = "0x" + hash160(multisig_hex)
+    sender_hex = base58.b58decode(sender_addr)
+    sender_hex = hexlify(sender_hex)
+    sender_hex = "0x" + hash160(sender_hex)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
 
-    if need_deploy:
+    if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
