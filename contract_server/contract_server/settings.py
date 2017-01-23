@@ -71,9 +71,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
+STATIC_URL = '/static/'
+OSS_API_URL =  '<oss_url>'
+
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
-    'BASE_URL': 'http://oss2.diqi.us:8888',
+    'BASE_URL': OSS_API_URL,
     'KEY_STORE_CLASS': None
 }
 
@@ -123,9 +126,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
-
-STATIC_URL = '/static/'
-OSS_API_URL = 'http://oss2.diqi.us:8888'
 
 
 # loggin related settings
