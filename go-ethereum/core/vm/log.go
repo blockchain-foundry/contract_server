@@ -71,18 +71,8 @@ func (l *Log) JsonString() string {
         topicsArray = append(topicsArray, fmt.Sprintf(`"%s"`, topic.Hex()))
     }
     topicsString := fmt.Sprintf("%s", strings.Join(topicsArray, ", "))
-   
-    // Arrange data 
-    var dataArray []string 
-    pointer := 0
-    for pointer + 32 <= len(l.Data) {
-        dataArray = append(dataArray, fmt.Sprintf(`"%s"`, common.BytesToHash(l.Data[pointer:pointer+32]).Hex()))
-        pointer += 32
-    }
-
-    dataString := fmt.Sprintf("%s", strings.Join(dataArray, ","))  
  
-	return fmt.Sprintf(`{"address":"%x", "topics":[%s], "data":[%s], "alldata":"%x", "transactionHash":"%x", "transactionIndex":%d, "blockHash":"%x", "logIndex":%d}`, l.Address, topicsString, dataString, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
+	return fmt.Sprintf(`{"address":"%x", "topics":[%s], "data":"%x", "transactionHash":"%x", "transactionIndex":%d, "blockHash":"%x", "logIndex":%d}`, l.Address, topicsString, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
 }
 
 func (r *Log) MarshalJSON() ([]byte, error) {
