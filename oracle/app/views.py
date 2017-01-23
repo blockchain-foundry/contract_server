@@ -49,6 +49,7 @@ class Proposes(APIView):
             response = {'status': 'worng argument'}
             return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
 
+
         private_key = sha256(get_random_string(64, '0123456789abcdef'))
         public_key = privtopub(private_key)
         address = pubtoaddr(public_key)
@@ -200,6 +201,21 @@ class GetStorage(APIView):
             response = {}
             return JsonResponse(response, status=httplib.OK)
 
+class DumpContractState(APIView):
+    """
+    Get contract state file
+    """
+    def get(self, request, multisig_address):
+        EVM_PATH = '../oracle/' + multisig_address
+        contract_evm_address = wallet_address_to_evm(multisig_address)
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                response = content
+                return JsonResponse(response, status=httplib.OK)
+        except:
+            response = {}
+            return JsonResponse(response, status=httplib.OK)
 
 class CheckContractCode(APIView):
 
