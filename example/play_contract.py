@@ -23,6 +23,8 @@ oss_url = conf.OSS_URL
 contract_url = conf.CONTRACT_URL
 oracle_url = conf.ORACLE_URL
 
+contract_file = 'greeter.sol'
+
 owner_address = '14UeDhNQWCprVdFWfUoFNQwJ9fvh4kLvvL'
 owner_privkey = 'KyNBNdEzvVHyFVYcTAdBmZTd9dMkpXJPT54mPnWfQedTvRDy4B6Y'
 owner_pubkey = '02c37ee4139e22fb6b234f5a1e92d964805c82196fcd895f88553503f742e51e86'
@@ -157,7 +159,7 @@ def decodeStorageExample():
 
 def deployContract():
     # 1. Create a contract
-    source_code = loadContract('greeter.sol')
+    source_code = loadContract(contract_file)
 
     print('Create a contract')
     r_json_createRawContract = prepareRawContract(source_code, owner_address)
@@ -253,6 +255,5 @@ def testContract(contract_addr):
 
 if __name__ == '__main__':
     contract_addr = deployContract()
-    contract_addr = '3EtJYwhy4m185sMTSMe4E8wBupxvcBp4A3'
     testContract(contract_addr)
     # decodeStorageExample()

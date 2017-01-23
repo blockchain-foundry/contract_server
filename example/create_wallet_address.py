@@ -34,7 +34,7 @@ bonus_user_pubkey = '02c37ee4139e22fb6b234f5a1e92d964805c82196fcd895f88553503f74
 # 3. broadcast mint tx
 def mint(color_id, mint_amount, mint_pubkey, mint_privkey):
     url = oss_url + 'base/v1/mint/prepare'
-    # print(url)
+
     data = {
         'mint_pubkey': mint_pubkey,
         'color_id': color_id,
@@ -43,20 +43,14 @@ def mint(color_id, mint_amount, mint_pubkey, mint_privkey):
     r = get(url, data)
     r_json = r.json()
     raw_tx = r_json['raw_tx']
-    # print(raw_tx)
 
     signed_tx = signall(raw_tx, mint_privkey)
-    # print(signed_tx)
 
     url = oss_url + 'base/v1/mint/send'
-    # print(url)
     data = {
         'raw_tx': signed_tx,
     }
     r = post(url, data)
-    # r_json = r.json()
-    # tx_id = r_json['tx_id']
-    # print('tx_id: {0}'.format(tx_id))
     return True
 
 
@@ -80,20 +74,15 @@ def getLicense(alliance_member_address, color_id, name, to_address,
     r = get(url, data)
     r_json = r.json()
     raw_tx = r_json['raw_tx']
-    # print(raw_tx)
 
     signed_tx = signall(raw_tx, alliance_privkey)
-    # print(signed_tx)
 
     url = oss_url + 'base/v1/license/send'
-    # print(url)
+
     data = {
         'raw_tx': signed_tx,
     }
     r = post(url, data)
-    # r_json = r.json()
-    # tx_id = r_json['tx_id']
-    # print('tx_id: {0}'.format(tx_id))
     return True
 
 
@@ -103,7 +92,7 @@ def getLicense(alliance_member_address, color_id, name, to_address,
 # 3. broadcast tx
 def sendTx(from_address, to_address, color_id, amount, from_privkey):
     url = oss_url + 'base/v1/transaction/prepare'
-    # print(url)
+
     data = {
         'from_address': from_address,
         'to_address': to_address,
@@ -114,20 +103,14 @@ def sendTx(from_address, to_address, color_id, amount, from_privkey):
     r = get(url, data)
     r_json = r.json()
     raw_tx = r_json['raw_tx']
-    # print(raw_tx)
 
     signed_tx = signall(raw_tx, from_privkey)
-    # print(signed_tx)
 
     url = oss_url + 'base/v1/transaction/send'
-    # print(url)
     data = {
         'raw_tx': signed_tx,
     }
     r = post(url, data=data)
-    # r_json = r.json()
-    # tx_id = r_json['tx_id']
-    # print('tx_id: {0}'.format(tx_id))
     return True
 
 
