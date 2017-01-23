@@ -26,12 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-# Gcoin OSS API
-GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
-GCOIN_BACKEND_SETTINGS = {
-    'BASE_URL': OSS_API_URL,
-    'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
-}
 
 # Application definition
 
@@ -192,4 +186,11 @@ LOGGING = {
 
 
     }
+}
+
+# Gcoin OSS API
+GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
+GCOIN_BACKEND_SETTINGS = {
+    'BASE_URL': OSS_API_URL,
+    'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
 }
