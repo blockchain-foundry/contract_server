@@ -22,13 +22,14 @@ import (
 	"math/big"
 	"os"
 	//"runtime"
-//	"time"
-	"io/ioutil"
+	//	"time"
 	"encoding/json"
+	"io/ioutil"
 	//"strings"
 	"strconv"
 	//"github.com/ethereum/go-ethereum/cmd/utils"
 	"path/filepath"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -36,34 +37,33 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger/glog"
-	"gopkg.in/urfave/cli.v1"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 var (
-
-	app       *cli.App
+	app      *cli.App
 	FundFlag = cli.StringFlag{
-		Name : "fund",
-		Usage : "make-up fund for sender",
+		Name:  "fund",
+		Usage: "make-up fund for sender",
 	}
 	DeployFlag = cli.BoolFlag{
-		Name: "deploy",
+		Name:  "deploy",
 		Usage: "deploy new contract",
 	}
 	SenderFlag = cli.StringFlag{
-		Name: "sender",
+		Name:  "sender",
 		Usage: "sender of the transaction",
 	}
 	ReceiverFlag = cli.StringFlag{
-		Name: "receiver",
+		Name:  "receiver",
 		Usage: "receiver of the transaction",
 	}
 	WriteFlag = cli.StringFlag{
-		Name: "write",
+		Name:  "write",
 		Usage: "wrtie states to a file",
 	}
 	ReadFlag = cli.StringFlag{
-		Name: "read",
+		Name:  "read",
 		Usage: "read states from a file",
 	}
 	DebugFlag = cli.BoolFlag{
@@ -121,26 +121,27 @@ var (
 		Name:  "time",
 		Usage: "The current block time",
 	}
+	WriteLogFlag = cli.StringFlag{
+		Name:  "writelog",
+		Usage: "wrtie logs to a file",
+	}
 )
 
-
-
-func ReadStateDB(statedb *state.StateDB,world state.World) {
-	for key, value := range world.Accounts{
-	//	fmt.Println("Address:",key)
-		 statedb.CreateAccount(common.HexToAddress(key))
-		for storage_location, storage_value := range value.Storage{
-	//		fmt.Println(common.HexToHash(storage_value),storage_value)
-			statedb.SetState(common.HexToAddress(key),common.HexToHash(storage_location),common.HexToHash(storage_value))
+func ReadStateDB(statedb *state.StateDB, world state.World) {
+	for key, value := range world.Accounts {
+		//	fmt.Println("Address:",key)
+		statedb.CreateAccount(common.HexToAddress(key))
+		for storage_location, storage_value := range value.Storage {
+			//		fmt.Println(common.HexToHash(storage_value),storage_value)
+			statedb.SetState(common.HexToAddress(key), common.HexToHash(storage_location), common.HexToHash(storage_value))
 		}
-		statedb.SetCode(common.HexToAddress(key),common.Hex2Bytes(value.Code))
-		for k,v := range value.Balance{
-			color,_ :=strconv.Atoi(k)
-			statedb.AddBalance(uint(color),common.HexToAddress(key),common.Big(v))
+		statedb.SetCode(common.HexToAddress(key), common.Hex2Bytes(value.Code))
+		for k, v := range value.Balance {
+			color, _ := strconv.Atoi(k)
+			statedb.AddBalance(uint(color), common.HexToAddress(key), common.Big(v))
 		}
 	}
 }
-
 
 func init() {
 	app = NewApp("0.2", "the evm command line interface")
@@ -164,9 +165,11 @@ func init() {
 		DeployFlag,
 		FundFlag,
 		TimeFlag,
+		WriteLogFlag,
 	}
 	app.Action = run
 }
+
 // NewApp creates an app with sane defaults.
 func NewApp(version, usage string) *cli.App {
 	app := cli.NewApp()
@@ -198,12 +201,10 @@ func run(ctx *cli.Context) error {
 		//fmt.Println(sender)
 	}
 
-
-
 	//MyTime := big.NewInt(time.Now().Unix())
 	MyTime := big.NewInt(int64(ctx.GlobalInt(TimeFlag.Name)))
 	vmenv := NewEnv(statedb, common.StringToAddress("evmuser"), common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
-	//vmenv := NewEnv(statedb, common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
+		//vmenv := NewEnv(statedb, common.Big(ctx.GlobalString(ValueFlag.Name)), vm.Config{
 		Debug:     ctx.GlobalBool(DebugFlag.Name),
 		ForceJit:  ctx.GlobalBool(ForceJitFlag.Name),
 		EnableJit: !ctx.GlobalBool(DisableJitFlag.Name),
@@ -216,7 +217,6 @@ func run(ctx *cli.Context) error {
 		err error
 	)
 
-
 	//morris' testing
 	//expecting to get file name by --read [filename]
 	if ctx.GlobalString(ReadFlag.Name) != "" {
@@ -225,7 +225,7 @@ func run(ctx *cli.Context) error {
 			return err
 		}
 		var jjson state.World
-		json.Unmarshal(f,&jjson)
+		json.Unmarshal(f, &jjson)
 		ReadStateDB(statedb, jjson)
 		statedb.Commit()
 
@@ -238,8 +238,7 @@ func run(ctx *cli.Context) error {
 			input,
 			common.Big(ctx.GlobalString(GasFlag.Name)),
 			common.Big(ctx.GlobalString(PriceFlag.Name)),
-			common.NewBalance(common.Big(ctx.GlobalString(ValueFlag.Name)),25),
-
+			common.NewBalance(common.Big(ctx.GlobalString(ValueFlag.Name)), 25),
 		)
 	} else {
 		receiver := statedb.CreateAccount(common.StringToAddress("receiver"))
@@ -256,17 +255,16 @@ func run(ctx *cli.Context) error {
 		}
 		//
 
-
 		if ctx.GlobalString(CodeFlag.Name) != "" {
 			receiver.SetCode(common.Hex2Bytes(ctx.GlobalString(CodeFlag.Name)))
 		}
 
 		//   adding the money to the sender
-		if ctx.GlobalString(FundFlag.Name) != ""{
-		//	fmt.Println(string(common.BalanceToJson(common.NewBalance(common.Big("50"),60))))
+		if ctx.GlobalString(FundFlag.Name) != "" {
+			//	fmt.Println(string(common.BalanceToJson(common.NewBalance(common.Big("50"),60))))
 			fundbalance := common.JsonToBalance([]byte(ctx.GlobalString(FundFlag.Name)))
-			for k, v := range fundbalance{
-				fmt.Println(k,v)
+			for k, v := range fundbalance {
+				fmt.Println(k, v)
 				statedb.AddBalance(k, sender.Address(), v)
 			}
 		}
@@ -289,20 +287,26 @@ func run(ctx *cli.Context) error {
 	}
 	//	vmdone := time.Since(tstart) removing runtime
 
-
-
 	if ctx.GlobalBool(DumpFlag.Name) {
 		statedb.Commit()
+
+		fmt.Println("------statedb.Dump()-------")
 		fmt.Println(string(statedb.Dump()))
+
+		fmt.Println("------statedb.Logs()-------")
+		fmt.Println(statedb.Logs())
+
+        fmt.Println("------statedb.GcoinGetLogs()-------")
+        fmt.Println(statedb.GcoinGetLogs())
 	}
 	vm.StdErrFormat(vmenv.StructLogs())
 
 	if ctx.GlobalBool(SysStatFlag.Name) {
-	//	var mem runtime.MemStats
-	//	runtime.ReadMemStats(&mem)
-	//	fmt.Printf("vm took %v\n", vmdone)
-	//	fmt.Printf(`alloc:      %d
-	//tot alloc:  %d
+		//	var mem runtime.MemStats
+		//	runtime.ReadMemStats(&mem)
+		//	fmt.Printf("vm took %v\n", vmdone)
+		//	fmt.Printf(`alloc:      %d
+		//tot alloc:  %d
 	}
 
 	fmt.Printf("OUT: 0x%x", ret)
@@ -311,7 +315,6 @@ func run(ctx *cli.Context) error {
 		fmt.Printf(" error: %v", err)
 	}
 	//fmt.Println()
-
 
 	//morris' testing
 	//write states to a [filename]
@@ -325,6 +328,20 @@ func run(ctx *cli.Context) error {
 		f.Close()
 	}
 
+	//write logs to a [filename]
+	if ctx.GlobalString(WriteLogFlag.Name) != "" {
+		f, err := os.OpenFile(ctx.GlobalString(WriteLogFlag.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return err
+		}
+		statedb.Commit()
+		logs := statedb.GcoinGetLogs()
+		// str := ""
+		// for _, lgs := range logs {
+		// 	str += fmt.Sprintf("%#v", lgs)
+		// }
+		f.WriteString(logs)
+	}
 
 	return nil
 }
@@ -352,9 +369,6 @@ type VMEnv struct {
 }
 
 func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg vm.Config, myTime *big.Int) *VMEnv {
-
-
-
 	env := &VMEnv{
 		state:      state,
 		transactor: &transactor,
@@ -373,23 +387,27 @@ func NewEnv(state *state.StateDB, transactor common.Address, value *big.Int, cfg
 //func (ruleSet) IsHomestead(*big.Int) bool { return true }
 //set all IsHomestead to be true
 
-func (self *VMEnv) MarkCodeHash(common.Hash)   {}
+func (self *VMEnv) MarkCodeHash(common.Hash) {}
+
 //func (self *VMEnv) RuleSet() vm.RuleSet        { return ruleSet{} }
 func (self *VMEnv) Vm() vm.Vm                  { return self.evm }
 func (self *VMEnv) Db() vm.Database            { return self.state }
 func (self *VMEnv) MakeSnapshot() vm.Database  { return self.state.Copy() }
 func (self *VMEnv) SetSnapshot(db vm.Database) { self.state.Set(db.(*state.StateDB)) }
 func (self *VMEnv) Origin() common.Address     { return *self.transactor }
+
 //func (self *VMEnv) BlockNumber() *big.Int      { return common.Big0 }
 //func (self *VMEnv) Coinbase() common.Address   { return *self.transactor }
-func (self *VMEnv) Time() *big.Int             { return self.time }
+func (self *VMEnv) Time() *big.Int { return self.time }
+
 //func (self *VMEnv) Difficulty() *big.Int       { return common.Big1 }
 //func (self *VMEnv) BlockHash() []byte          { return make([]byte, 32) }
-func (self *VMEnv) Value() *big.Int            { return self.value }
-func (self *VMEnv) GasLimit() *big.Int         { return big.NewInt(1000000000) }
-func (self *VMEnv) VmType() vm.Type            { return vm.StdVmTy }
-func (self *VMEnv) Depth() int                 { return 0 }
-func (self *VMEnv) SetDepth(i int)             { self.depth = i }
+func (self *VMEnv) Value() *big.Int    { return self.value }
+func (self *VMEnv) GasLimit() *big.Int { return big.NewInt(1000000000) }
+func (self *VMEnv) VmType() vm.Type    { return vm.StdVmTy }
+func (self *VMEnv) Depth() int         { return 0 }
+func (self *VMEnv) SetDepth(i int)     { self.depth = i }
+
 /*
 func (self *VMEnv) GetHash(n uint64) common.Hash {
 	if self.block.Number().Cmp(big.NewInt(int64(n))) == 0 {
@@ -408,8 +426,8 @@ func (self *VMEnv) AddLog(log *vm.Log) {
 	self.state.AddLog(log)
 }
 func (self *VMEnv) CanTransfer(from common.Address, balance map[uint]*big.Int) bool {
-	for k,v := range balance{
-		if self.state.GetBalance(k,from).Cmp(v) < 0{
+	for k, v := range balance {
+		if self.state.GetBalance(k, from).Cmp(v) < 0 {
 			return false
 		}
 	}
