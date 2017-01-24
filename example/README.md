@@ -46,7 +46,19 @@ python create_wallet_address.py
 設定
 
 1. 一個有錢的合約地址
-2. 設定要測試的合約檔案路徑: `contract_file = 'greeter.sol'`
+2. 設定要測試的合約檔案路徑
+3. contract server 中的 oracle 設定
+
+```
+contract_file = 'CONTRACT_FILE'
+
+owner_address = 'ADDRESS'
+owner_privkey = 'PRIVATE_KEY'
+owner_pubkey = 'PUBLIC_KEY'
+
+oracle_list = [{"url": "ORACLE_SERVER",
+                "name": "ORACLE_SERVER_NAME"}]
+```
 
 Main function 包含:
 
