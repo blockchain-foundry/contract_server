@@ -36,12 +36,6 @@ try:
 except ImportError:
     import httplib
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -93,7 +87,7 @@ class Events(APIView):
             subscription_id: The subscription_id from OSS
         """
         response = {}
-        http_status = status.HTTP_400_BAD_REQUEST
+        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
 
         try:
             json_data = json.loads(request.body.decode('utf8'))
@@ -105,12 +99,12 @@ class Events(APIView):
             oracle_url = json_data['oracle_url']
         except:
             response = {'error': 'missing input'}
-            http_status = status.HTTP_400_BAD_REQUEST
+            http_status = status.HTTP_406_NOT_ACCEPTABLE
             return JsonResponse(response, status=http_status)
 
         # Subscribe address
         try:
-            subscription_id, created_time = OSSclient.subscribe_address(
+            subscription_id, created_time = OSSclient.subscribe_address_notification(
                 multisig_address,
                 callback_url)
         except:
@@ -181,7 +175,7 @@ class Events(APIView):
             # Check the Timeout
             if time.time() - tStart > 1000 or watch.is_expired:
                 response = {'error': 'Time Out'}
-                http_status = httplib.INTERNAL_SERVER_ERROR
+                http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
                 subscription_id_list.remove(subscription_id)
 
                 watch.is_closed = True
@@ -213,7 +207,8 @@ class Notify(APIView):
         except Contract.DoesNotExist:
             return 'contract not found'
             response = {'error': 'contract not found'}
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            http_status = status.HTTP_404_NOT_FOUND
+            return JsonResponse(response, status=http_status)
 
         # Get event JSON
         contract_func = ContractFunc()
@@ -239,15 +234,11 @@ class Notify(APIView):
         logger.debug('raw_tx:{}'.format(raw_tx))
 
         tx = get_tx_info(tx_hash)
-        _time = tx['blocktime']
-        block_hash = tx['blockhash']
-        block = get_block_info(block_hash)
-        block_number = block['height']
 
-        logger.debug('[Transaction Info] tx_hash:{}, blocktime:{}, block_number:{}'.format(tx_hash, _time, block_number))
         sender_address, multisig_address, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
         value = "\'" + str(value) + "\'"
         blocktime = "\'" + str(blocktime) + "\'"
+        logger.debug('[Transaction Info] tx_hash:{}, blocktime:{}'.format(tx_hash, blocktime))
 
         logger.debug(
             '[Contract Info] sender_addr:{}, multisig_address:{}, bytecode:{}'.format(
@@ -351,7 +342,8 @@ class Notify(APIView):
         else:
             errors = ', '.join(reduce(lambda x, y: x + y, form.errors.values()))
             response = {"error": errors}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            http_status = status.HTTP_406_NOT_ACCEPTABLE
+            return JsonResponse(response, status=http_status)
 
         # Get event_name from subscription_id
         watch = None
@@ -359,7 +351,8 @@ class Notify(APIView):
             watch = Watch.objects.get(subscription_id=subscription_id)
         except Watch.DoesNotExist:
             response = {'error': 'watch is not found'}
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            http_status = status.HTTP_404_NOT_FOUND
+            return JsonResponse(response, status=http_status)
         if watch.is_closed or watch.is_expired:
             if watch.is_closed:
                 response = {'message': 'watch is closed'}
@@ -400,12 +393,14 @@ class Notify(APIView):
 
                 if event is None:
                     response = {'error': 'event not found'}
-                    return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+                    http_status = status.HTTP_404_NOT_FOUND
+                    return JsonResponse(response, status=http_status)
                 watch.args = event["args"]
                 watch.save()
         except IOError:
             response = {'error': 'contract log not found'}
-            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+            http_status = HTTP_500_INTERNAL_SERVER_ERROR
+            return JsonResponse(response, status=http_status)
 
         # Callback
         global subscription_id_list
@@ -413,10 +408,10 @@ class Notify(APIView):
         try:
             subscription_id_list.remove(subscription_id)
             response = {'Event Notify': subscription_id}
+            http_status = status.HTTP_200_OK
         except:
             response = {'No subscription_id': subscription_id}
+            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         finally:
             lock.release()
-            return JsonResponse(response)
-
-        return JsonResponse(response, status=status.HTTP_200_OK)
+            return JsonResponse(response, status=http_status)

@@ -139,11 +139,10 @@ class GcoinAPIClient(object):
         block = response.json()['block']
         return block
 
-    def subscribe_address(self, address, callback_url):
+    def subscribe_address_notification(self, address, callback_url):
         end_point = '/notification/v1/address/subscription'
         data = {'address': address, 'callback_url': callback_url}
         response = self.request(end_point, 'POST', data=data)
         subscription_id = response.json()['id']
         created_time = response.json()['created_time']
-
         return subscription_id, created_time

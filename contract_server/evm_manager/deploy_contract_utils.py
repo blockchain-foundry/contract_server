@@ -42,6 +42,7 @@ def get_contracts_info(tx):
     sender_addr = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
     value = {}
     is_deploy = True
+    blocktime = tx['blocktime']
 
     for vout in tx['vout']:
         if vout['scriptPubKey']['type'] == 'nulldata':
@@ -77,7 +78,7 @@ def get_contracts_info(tx):
         )
     for v in value:
         value[v] = str(value[v]/100000000)
-    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
+    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy, blocktime
 
 
 def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
@@ -88,12 +89,8 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    multisig_hex = base58.b58decode(multisig_addr)
-    multisig_hex = hexlify(multisig_hex)
-    multisig_hex = "0x" + hash160(multisig_hex)
-    sender_hex = base58.b58decode(sender_addr)
-    sender_hex = hexlify(sender_hex)
-    sender_hex = "0x" + hash160(sender_hex)
+    multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
+    sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
 
