@@ -7,7 +7,6 @@
 .
 ├── README.md
 ├── conf.py
-├── create_wallet_address.py
 ├── greeter.sol
 ├── play_contract.py
 ├── requirements.txt
@@ -27,15 +26,10 @@ pip install ethereum-abi-utils
 ### 1. 設定 `conf.py`
 
 - 設定 server 的位址
-- 設定有權限聯盟成員的地址, 要用來發 license 與鑄幣
 
-### 2. 生成可用的 wallet 地址與進行鑄幣
+### 2. 生成可用的 wallet 地址, 必須先有地氣幣
 
-> 這段可以省略，如果你有一個有地氣幣的合約地址, 直接跳 step 3
-
-```python
-python create_wallet_address.py
-```
+- 之後在 `play_contract.py` 中需要設定 `owner_address`
 
 ### 3. 要測試合約的原始碼
 

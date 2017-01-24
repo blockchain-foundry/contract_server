@@ -13,14 +13,14 @@ from pprint import pprint
 
 from eth_abi.abi import decode_abi, decode_single
 
-contract_file = 'greeter.sol'
+contract_file = 'CONTRACT_FILE'
 
-owner_address = '14UeDhNQWCprVdFWfUoFNQwJ9fvh4kLvvL'
-owner_privkey = 'KyNBNdEzvVHyFVYcTAdBmZTd9dMkpXJPT54mPnWfQedTvRDy4B6Y'
-owner_pubkey = '02c37ee4139e22fb6b234f5a1e92d964805c82196fcd895f88553503f742e51e86'
+owner_address = 'ADDRESS'
+owner_privkey = 'PRIVATE_KEY'
+owner_pubkey = 'PUBLIC_KEY'
 
-oracle_list = [{"url": "http://45.33.14.79:7788",
-                "name": "gcoin-oracle"}]
+oracle_list = [{"url": "ORACLE_SERVER",
+                "name": "ORACLE_SERVER_NAME"}]
 
 
 def decodeStorageExample():
