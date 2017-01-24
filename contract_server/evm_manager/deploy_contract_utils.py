@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 from gcoinbackend import core as gcoincore
 
-from gcoin import *
+from .utils import wallet_address_to_evm
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 

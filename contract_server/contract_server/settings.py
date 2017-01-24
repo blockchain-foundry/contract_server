@@ -72,7 +72,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
 STATIC_URL = '/static/'
-OSS_API_URL =  '<oss_url>'
+OSS_API_URL = '<oss_url>'
 
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
@@ -188,10 +188,4 @@ LOGGING = {
             'level': 'DEBUG',
         }
     }
-}
-
-GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
-GCOIN_BACKEND_SETTINGS = {
-    'BASE_URL': OSS_API_URL,
-    'KEY_STORE_CLASS': None
 }
