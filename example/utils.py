@@ -55,20 +55,16 @@ def wallet_address_to_evm(address):
     return address
 
 
-def prepareRawContract(source_code, owner_address):
+def prepareRawContract(source_code, owner_address, oracle_list):
     """Prepare raw contract transaction
     """
     url = contract_url + 'contracts/'
+
     data = {
         "source_code": source_code,
         "address": owner_address,
         "m": 1,
-        "oracles": [
-            {
-                "url": "http://45.33.14.79:7788",
-                "name": "gcoin-oracle"
-            }
-        ]
+        "oracles": oracle_list,
     }
     return post(url, json=data, headers=headers).json()
 

@@ -13,12 +13,14 @@ from pprint import pprint
 
 from eth_abi.abi import decode_abi, decode_single
 
-
 contract_file = 'greeter.sol'
 
 owner_address = '14UeDhNQWCprVdFWfUoFNQwJ9fvh4kLvvL'
 owner_privkey = 'KyNBNdEzvVHyFVYcTAdBmZTd9dMkpXJPT54mPnWfQedTvRDy4B6Y'
 owner_pubkey = '02c37ee4139e22fb6b234f5a1e92d964805c82196fcd895f88553503f742e51e86'
+
+oracle_list = [{"url": "http://45.33.14.79:7788",
+                "name": "gcoin-oracle"}]
 
 
 def decodeStorageExample():
@@ -54,7 +56,7 @@ def deployContract():
     source_code = loadContract(contract_file)
 
     print('Create a contract')
-    r_json_createRawContract = prepareRawContract(source_code, owner_address)
+    r_json_createRawContract = prepareRawContract(source_code, owner_address, oracle_list)
 
     contract_addr = r_json_createRawContract['multisig_address']
     print('Obtain a contract address: ' + contract_addr)
