@@ -18,6 +18,7 @@ from django.contrib import admin
 from .views import *
 
 urlpatterns = [
+    url(r'^events/', include('events.urls')),
     url(r'^oracles/', include('oracles.urls')),
     url(r'^', include('contracts.urls')),
 ]

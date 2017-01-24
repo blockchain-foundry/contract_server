@@ -26,7 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -39,6 +38,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'oracles',
     'contracts',
+    'events',
 ]
 
 MIDDLEWARE = [
@@ -182,15 +182,16 @@ LOGGING = {
         'contract_server': {
             'handlers': ['file', 'mail_admins'],
             'level': 'DEBUG',
+        },
+        'events': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
         }
-
-
     }
 }
 
-# Gcoin OSS API
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
     'BASE_URL': OSS_API_URL,
-    'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
+    'KEY_STORE_CLASS': None
 }
