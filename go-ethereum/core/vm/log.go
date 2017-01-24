@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-    "strings"
+	"strings"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -65,13 +65,12 @@ func (l *Log) String() string {
 }
 
 func (l *Log) JsonString() string {
-    // Arrange topics
-    var topicsArray []string
-    for _, topic := range l.Topics {
-        topicsArray = append(topicsArray, fmt.Sprintf(`"%s"`, topic.Hex()))
-    }
-    topicsString := fmt.Sprintf("%s", strings.Join(topicsArray, ", "))
- 
+	// Arrange topics
+  var topicsArray []string
+  for _, topic := range l.Topics {
+  	topicsArray = append(topicsArray, fmt.Sprintf(`"%s"`, topic.Hex()))
+  }
+  topicsString := fmt.Sprintf("%s", strings.Join(topicsArray, ", "))
 	return fmt.Sprintf(`{"address":"%x", "topics":[%s], "data":"%x", "transactionHash":"%x", "transactionIndex":%d, "blockHash":"%x", "logIndex":%d}`, l.Address, topicsString, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
 }
 

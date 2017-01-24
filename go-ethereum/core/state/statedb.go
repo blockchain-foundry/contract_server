@@ -111,19 +111,20 @@ func (self *StateDB) GetLogs(hash common.Hash) vm.Logs {
 
 func (self *StateDB) GcoinGetLogs() string {
 	var logsStr string
-    logsStr += `{ "logs":[`
+  logsStr += `{ "logs":[`
 	count := 0
-    for _, lgs := range self.logs {
+
+	for _, lgs := range self.logs {
 		for _, lg := range lgs {
-            count += 1
-            if count != 1 {
-                logsStr += ", "
-            }
+      count += 1
+      if count != 1 {
+        logsStr += ", "
+      }
 			logsStr += lg.JsonString()
 		}
 	}
+  logsStr += "]}"
 
-    logsStr += "]}"
 	return logsStr
 }
 
@@ -152,12 +153,12 @@ func (self *StateDB) GetAccount(addr common.Address) vm.Account {
 }
 
 // Retrieve the balance from the given address or 0 if object not found
-func (self *StateDB) GetBalance(color uint, addr common.Address) *big.Int {
+func (self *StateDB) GetBalance(color uint,addr common.Address) *big.Int {
 	stateObject := self.GetStateObject(addr)
 	if stateObject != nil {
 		if val, ok := stateObject.balance[color]; ok {
 			return val
-		} else {
+		}else{
 			return common.Big0
 		}
 
@@ -165,13 +166,12 @@ func (self *StateDB) GetBalance(color uint, addr common.Address) *big.Int {
 
 	return common.Big0
 }
-
 // Retrieve the balance as a map
 func (self *StateDB) GetBalanceMap(addr common.Address) map[uint]*big.Int {
 	mymap := make(map[uint]*big.Int)
 	stateObject := self.GetStateObject(addr)
-	for k, v := range stateObject.balance {
-		mymap[k] = v
+	for k,v := range stateObject.balance{
+		mymap[k]=v
 	}
 	return mymap
 }
@@ -214,10 +214,10 @@ func (self *StateDB) IsDeleted(addr common.Address) bool {
  * SETTERS
  */
 
-func (self *StateDB) AddBalance(color uint, addr common.Address, amount *big.Int) {
+func (self *StateDB) AddBalance(color uint,addr common.Address, amount *big.Int) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
-		stateObject.AddBalance(color, amount)
+		stateObject.AddBalance(color,amount)
 	}
 }
 
@@ -341,8 +341,8 @@ func (self *StateDB) CreateStateObject(addr common.Address) *StateObject {
 	// If it existed set the balance to the new account
 	if so != nil {
 		newSo.balance = make(map[uint]*big.Int)
-		for k2, v2 := range so.balance {
-			newSo.balance[k2] = v2
+		for k2,v2 := range so.balance {
+			newSo.balance[k2]=v2
 		}
 		newSo.balance = so.balance
 	}
