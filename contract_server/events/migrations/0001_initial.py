@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
+import events.models
 
 
 class Migration(migrations.Migration):
@@ -11,15 +12,15 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Event',
+            name='Watch',
             fields=[
-                ('id', models.AutoField(verbose_name='ID', auto_created=True, serialize=False, primary_key=True)),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('multisig_address', models.CharField(blank=True, default='', max_length=100)),
-                ('key', models.TextField()),
-                ('storage_before', models.TextField(blank=True, default='')),
-                ('storage_after', models.TextField(blank=True, default='')),
-                ('is_expired', models.BooleanField()),
+                ('id', models.AutoField(primary_key=True, verbose_name='ID', serialize=False, auto_created=True)),
+                ('created', models.DateTimeField(default=events.models.default_time)),
+                ('multisig_address', models.CharField(max_length=100)),
+                ('key', models.CharField(max_length=200)),
+                ('subscription_id', models.CharField(max_length=100)),
+                ('args', models.CharField(default='', max_length=1000, blank=True)),
+                ('is_closed', models.BooleanField(default=False)),
             ],
             options={
                 'ordering': ('created',),
