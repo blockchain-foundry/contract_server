@@ -6,9 +6,9 @@ ALLIANCE_ADDRESS = '1BykHSXsmhzKYX2pNQGSdToU9uSNLzq4Db'
 ALLIANCE_PRIVKEY = 'L37xKfSx4e7Vdma3Uk4EVARzcwpvgfMKZVVM2ooy92JbZoEuqjco'
 ALLIANCE_PUBKEY = '03b6fcbc4dec8f21caf55a83f6d6be89e8fbbb929027aa8ccc2345c8c1f7f46252'
 
-OSS_URL = "http://[OSS-SERVER-IP:PORT]/"
-CONTRACT_URL = "http://[CONTRACT-SERVER-IP:PORT]/"
-ORACLE_URL = "http://[ORACLE-SERVER-IP:PORT]/"
+OSS_URL = "http://45.33.14.79:7790/"
+CONTRACT_URL = "http://45.33.14.79:7787/"
+ORACLE_URL = "http://45.33.14.79:7788/"
 
 # # Not necessary right now
 # # Coin seetting
