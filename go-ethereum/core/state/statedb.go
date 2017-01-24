@@ -110,20 +110,20 @@ func (self *StateDB) GetLogs(hash common.Hash) vm.Logs {
 }
 
 func (self *StateDB) GcoinGetLogs() string {
-	var logsStr string
-  logsStr += `{ "logs":[`
+    var logsStr string
+    logsStr += `{ "logs":[`
 	count := 0
 
 	for _, lgs := range self.logs {
-		for _, lg := range lgs {
-      count += 1
-      if count != 1 {
-        logsStr += ", "
-      }
+	    for _, lg := range lgs {
+            count += 1
+            if count != 1 {
+                logsStr += ", "
+            }
 			logsStr += lg.JsonString()
 		}
 	}
-  logsStr += "]}"
+    logsStr += "]}"
 
 	return logsStr
 }
