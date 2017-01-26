@@ -827,8 +827,13 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
         case Location::GetBalance:
         {
             _functionCall.expression().accept(*this);
-            arguments[0]->accept(*this);
-            utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
+            if (arguments.size() != 0)
+            {
+                arguments[0]->accept(*this);
+                utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
+            }
+            else
+                m_context<<u256(1);
             m_context << Instruction::COLORBALANCE;
             break;
         }

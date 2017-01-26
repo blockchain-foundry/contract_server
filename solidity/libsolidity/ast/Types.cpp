@@ -392,6 +392,7 @@ MemberList::MemberMap IntegerType::nativeMembers(ContractDefinition const*) cons
 {
 	if (isAddress())
 		return {
+			{"balance", make_shared<IntegerType >(256)},
 			{"balance", make_shared<FunctionType >(strings{"uint"},strings{"uint"},FunctionType::Location::GetBalance,true)},
 			{"call", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::Bare, true, false, true)},
 			{"callcode", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareCallCode, true, false, true)},
