@@ -609,8 +609,9 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			// Note that function is not the original function, but the ".value" function.
 			// Its values of gasSet and valueSet is equal to the original function's though.
 			if (function.valueSet())
-				m_context << Instruction::POP;
+				m_context << Instruction::POP << Instruction::POP;
 			arguments.front()->accept(*this);
+			arguments[1]->accept(*this);
 			break;
 		case Location::Send:
 			_functionCall.expression().accept(*this);
