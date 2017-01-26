@@ -365,7 +365,18 @@ func opCallColorValue(instr instruction, pc *uint64, env Environment, contract *
 	}else{
 		value = new(big.Int).Set(common.Big0)
 	}
-	stack.push(value)  
+	stack.push(value)
+}
+
+func opCheckValue(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
+	var value *big.Int = new(big.Int)
+	for _, v := range contract.Value(){
+		if v.Cmp(common.Big0) != 0{
+			value.Set(v)
+			break
+		}
+	}
+	stack.push(value)
 }
 
 func opCalldataLoad(instr instruction, pc *uint64, env Environment, contract *Contract, memory *Memory, stack *stack) {
