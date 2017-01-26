@@ -623,14 +623,20 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				*arguments.front()->annotation().type,
 				*function.parameterTypes().front(), true
 			);
-			arguments[1]->accept(*this);
-			utils().convertType(
-				*arguments[1]->annotation().type,
-				*function.parameterTypes()[1], true
-			);
+            if (arguments.size() > 1)
+            {
+			    arguments[1]->accept(*this);
+			    utils().convertType(
+				    *arguments[1]->annotation().type,
+				    *function.parameterTypes()[1], true
+			    );
+            }
+            else
+                m_context<<u256(1);
 			// gas <- gas * !value
 			m_context << Instruction::SWAP2 << Instruction::DUP2;
 			m_context << Instruction::ISZERO << Instruction::MUL << Instruction::SWAP2;
+
 			appendExternalFunctionCall(
 				FunctionType(
 					TypePointers{},
