@@ -80,6 +80,7 @@ enum class Instruction: uint8_t
 
 	COLORBALANCE,       ///< get balance of the given account
 	CALLCVALUE,         ///< get deposited value by the instruction/transaction responsible for this execution
+	CHECKVALUE,         ///< check is there any value>
 
 	BLOCKHASH = 0x40,	///< get hash of most recent complete block
 	COINBASE,			///< get the block's coinbase address

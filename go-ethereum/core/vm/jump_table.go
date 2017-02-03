@@ -67,6 +67,7 @@ func newJumpTable() vmJumpTable {
 	jumpTable[CALLER] = jumpPtr{opCaller, true}
 	jumpTable[CALLVALUE] = jumpPtr{opCallValue, true}
 	jumpTable[CALLCVALUE] = jumpPtr{opCallColorValue, true}
+	jumpTable[CHECKVALUE] = jumpPtr{opCheckValue, true}
 	jumpTable[CALLDATALOAD] = jumpPtr{opCalldataLoad, true}
 	jumpTable[CALLDATASIZE] = jumpPtr{opCalldataSize, true}
 	jumpTable[CALLDATACOPY] = jumpPtr{opCalldataCopy, true}

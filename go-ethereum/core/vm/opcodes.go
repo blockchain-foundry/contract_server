@@ -85,6 +85,7 @@ const (
 
 	COLORBALANCE
 	CALLCVALUE
+	CHECKVALUE
 )
 
 const (
@@ -261,6 +262,8 @@ var opCodeToString = map[OpCode]string{
 
 	COLORBALANCE: "COLORBALANCE",
 	CALLCVALUE:   "CALLCVALUE",
+
+	CHECKVALUE:   "CHECKVALUE",
 
 	// 0x40 range - block operations
 	BLOCKHASH:   "BLOCKHASH",
