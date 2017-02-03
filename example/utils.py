@@ -134,3 +134,10 @@ def callContractFunction(contract_addr, data):
     """
     url = contract_url + 'contracts/' + contract_addr + '/'
     return post(url, json=data, headers=headers).json()
+
+
+def getOracleList():
+    """Get oracle list registered from contract server
+    """
+    url = contract_url + 'oracles/'
+    return get(url).json()

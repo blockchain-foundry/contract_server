@@ -7,7 +7,7 @@ import time
 from utils import (get, post, loadContract, wallet_address_to_evm,
                    prepareRawContract, signAndSendTx, subscribeTx,
                    getBalance, getStorage, getABI, getCurrentStatus,
-                   callContractFunction)
+                   callContractFunction, getOracleList)
 
 from pprint import pprint
 
@@ -17,10 +17,7 @@ contract_file = 'CONTRACT_FILE'
 
 owner_address = 'ADDRESS'
 owner_privkey = 'PRIVATE_KEY'
-owner_pubkey = 'PUBLIC_KEY'
-
-oracle_list = [{"url": "ORACLE_SERVER",
-                "name": "ORACLE_SERVER_NAME"}]
+owner_pubkey  = 'PUBLIC_KEY'
 
 
 def decodeStorageExample():
@@ -54,6 +51,7 @@ def decodeStorageExample():
 def deployContract():
     # 1. Create a contract
     source_code = loadContract(contract_file)
+    oracle_list = getOracleList().get('oracles')
 
     print('Create a contract')
     r_json_createRawContract = prepareRawContract(source_code, owner_address, oracle_list)
