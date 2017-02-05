@@ -10,6 +10,8 @@ class Contract(models.Model):
     multisig_script = models.CharField(max_length=4096, blank=True, default='')
     interface = models.TextField(default='')
     oracles = models.ManyToManyField('Oracle')
+    least_sign_number = models.PositiveIntegerField(default=1)
+
     class Meta:
         ordering = ('created',)
 
