@@ -2113,7 +2113,7 @@ MemberList::MemberMap FunctionType::nativeMembers(ContractDefinition const*) con
 				members.push_back(MemberList::Member(
 					"value",
 					make_shared<FunctionType>(
-						parseElementaryTypeVector({"uint"}),
+						parseElementaryTypeVector({"uint", "uint"}),
 						TypePointers{copyAndSetGasOrValue(false, true)},
 						strings(),
 						strings(),
