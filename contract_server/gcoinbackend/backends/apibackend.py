@@ -106,6 +106,12 @@ class GcoinAPIBackend(BaseGcoinBackend):
         tx_hash = self.client.send_tx(signed_tx)
         return tx_hash
 
+    def send_tx(self, signed_tx):
+        return self.client.send_tx(signed_tx)
+
+    def prepare_general_raw_tx(self, data):
+        return self.client.prepare_general_raw_tx(data)
+
     def get_tx(self, tx_hash):
         return self.client.get_tx(tx_hash)
 

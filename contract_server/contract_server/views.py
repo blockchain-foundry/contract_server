@@ -10,7 +10,9 @@ from rest_framework.views import APIView, status
 
 from gcoinbackend import core as gcoincore
 from oracles.models import Oracle, Contract
+from evm_manager.utils import get_evm_balance
 from evm_manager.deploy_contract_utils import deploy_contracts, get_contracts_info, get_tx_info
+from .cashout import clear_evm_accouts
 
 
 
@@ -42,5 +44,6 @@ class NewTxNotified(APIView):
             return JsonResponse(response, status=httplib.OK)
 
         response['data'] = "State-Update completed: tx_id = " + tx_id + " multisig_address = " + multisig_address
+        response = clear_evm_accouts(multisig_address)
         return JsonResponse(response, status=httplib.OK)
 

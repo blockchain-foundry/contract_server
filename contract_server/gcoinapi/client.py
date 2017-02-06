@@ -10,7 +10,7 @@ class GcoinAPIClient(object):
         self.verify = verify
         self.timeout = timeout
 
-    def request(self, end_point, method, params=None, data=None, headers=None):
+    def request(self, end_point, method, params=None, data=None, json=None, headers=None):
         url = self.base_url + end_point
         try:
             response = requests.request(
@@ -18,6 +18,7 @@ class GcoinAPIClient(object):
                 url=url,
                 params=params,
                 data=data,
+                json=json,
                 headers=headers,
                 verify=self.verify,
                 timeout=self.timeout,
@@ -26,6 +27,8 @@ class GcoinAPIClient(object):
             raise error.TimeoutError
         except requests.exceptions.ConnectionError as e:
             raise error.ConnectionError
+        except Exception as e:
+            print(e)
 
         if response.ok:
             return response
@@ -47,18 +50,6 @@ class GcoinAPIClient(object):
         response = self.request(end_point, 'GET')
         balance = response.json()
         return balance
-
-    def prepare_raw_tx(self, from_address, to_address, amount, color_id):
-        end_point = '/base/v1/transaction/prepare'
-        params = {
-            'from_address': from_address,
-            'to_address': to_address,
-            'amount': amount,
-            'color_id': color_id
-        }
-        response = self.request(end_point, 'GET', params=params)
-        raw_tx = response.json()['raw_tx']
-        return raw_tx
 
     def send_tx(self, raw_tx):
         end_point = '/base/v1/transaction/send'
@@ -98,6 +89,25 @@ class GcoinAPIClient(object):
         response = self.request(end_point, 'POST', data=data)
         subscription = response.json()
         return subscription
+
+    def prepare_raw_tx(self, from_address, to_address, amount, color_id):
+        end_point = '/base/v1/transaction/prepare'
+        params = {
+            'from_address': from_address,
+            'to_address': to_address,
+            'amount': amount,
+            'color_id': color_id
+        }
+        response = self.request(end_point, 'GET', params=params)
+        raw_tx = response.json()['raw_tx']
+        return raw_tx
+
+    def prepare_general_raw_tx(self, data):
+        end_point = '/base/v1/general-transaction/prepare'
+        data = {"tx_info": data}
+        response = self.request(end_point, 'POST', json=data)
+        raw_tx = response.json()['raw_tx']
+        return raw_tx
 
     def prepare_smartcontract_raw_tx(self, from_address, to_address, non_diqi_amount, color_id, op_return, diqi_amount):
         end_point = '/base/v1/smartcontract/prepare'
