@@ -4,3 +4,4 @@ requests==2.4.3
 pysha3==1.0b1
 base58==0.2.2
 rlp==0.4.7
+mock==2.0.0

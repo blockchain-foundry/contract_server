@@ -1,50 +1,39 @@
+import ast
 import json
 
 from django import forms
 
 
-def type_check(data_type, value):
-    if data_type == 'string':
-        return str(value)
-    elif data_type == 'int':
-        return int(value)
+class GenContractRawTxForm(forms.Form):
+    source_code = forms.CharField(required=True)
+    address = forms.CharField(required=True)
+    m = forms.IntegerField(required=True)
+    # have to change to dict
+    oracles = forms.CharField(required=True)
 
-class ContractFunctionPostForm(forms.Form):
-    function_id = forms.IntegerField(min_value=1)
-    function_inputs = forms.CharField()
-    from_address = forms.CharField()
-    to_address = forms.CharField(required=False)
-    amount = forms.IntegerField( min_value=1)
-    color = forms.IntegerField(min_value=0)
 
-    is_payment = False
+class ContractFunctionCallFrom(forms.Form):
+    from_address = forms.CharField(required=True)
+    amount = forms.IntegerField(required=True)
+    color = forms.IntegerField(required=True)
+    function_name = forms.CharField(required=True)
+    function_inputs = forms.CharField(required=True)
 
     def clean_function_inputs(self):
-        function_inputs = json.loads((self.cleaned_data['function_inputs']))
-        inputs = []
-        for i in function_inputs:
-            try:
-                type_check(i['type'], i['value'])
-            except ValueError:
-                raise forms.ValidationError('Can not convert \'{value}\' to type \'{data_type}\''.format(value=i['value'], data_type=i['type']))
-        return function_inputs
-
-    def clean(self):
-        super(ContractFunctionPostForm, self).clean()
-        from_address = self.cleaned_data.get('from_address')
-        to_address = self.cleaned_data.get('to_address')
-        amount = self.cleaned_data.get('amount')
-        color = self.cleaned_data.get('color')
-
-        if from_address and to_address and amount and color:
-            self.is_payment = True
+        function_inputs = self.cleaned_data['function_inputs']
+        return ast.literal_eval(function_inputs)
 
 
-class MultisigPaymentForm(forms.Form):
+class WithdrawFromContractForm(forms.Form):
+    multisig_address = forms.CharField(required=True)
+    user_address = forms.CharField(required=True)
+    colors = forms.CharField(required=True)
+    amounts = forms.CharField(required=True)
 
-    user_address = forms.CharField()
+    def clean_colors(self):
+        colors = self.cleaned_data['colors']
+        return ast.literal_eval(colors)
 
-
-class WithdrawForm(forms.Form):
-    user_address = forms.CharField(max_length=100)
-    multisig_address = forms.CharField(max_length=100)
+    def clean_amounts(self):
+        amounts = self.cleaned_data['amounts']
+        return ast.literal_eval(amounts)
