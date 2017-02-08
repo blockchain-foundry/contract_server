@@ -65,7 +65,7 @@ def loadContract(filename):
     with open(filename, 'r') as f:
         codes = remove_comments(f.read())
     return ''.join(l.strip() for l in codes.split('\n'))
-    
+
 
 def remove_comments(string):
     pattern = r"(\".*?\"|\'.*?\')|(/\*.*?\*/|//[^\r\n]*$)"

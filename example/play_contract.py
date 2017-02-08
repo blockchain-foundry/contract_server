@@ -52,21 +52,12 @@ def deployContract():
     # 1. Create a contract
     source_code = loadContract(contract_file)
 
-<<<<<<< HEAD
     print('Get oracle list')
-=======
->>>>>>> remove comments from solidity code
-    print(getOracleList())
     oracle_list = getOracleList().get('oracles')
+    print(oracle_list)
 
     if not oracle_list:
         raise ValueError('Empty oracle list')
-<<<<<<< HEAD
-=======
-
-    print('Create a contract')
-    r_json_createRawContract = prepareRawContract(source_code, owner_address, oracle_list)
->>>>>>> remove comments from solidity code
 
     print('Create a contract')
     min_successes = 1
@@ -82,22 +73,12 @@ def deployContract():
 
     # 3. Contract is deployed
     print('Deploy the contract')
-<<<<<<< HEAD
     r_json_subscribeTx = subscribeTx(tx_id)
 
     # Check whether the contract is deployed or not
     deployed_list = []
     if is_contract_deployed(oracle_list, contract_addr, min_successes, deployed_list) == False:
         raise Exception('Deploy timeout exception')
-=======
-    callback_url = subscribeTx(tx_id)
-    print(callback_url)
-    print('Waiting for 80 seconds..')
-
-    time.sleep(80)
-    
-    # Make sure Tx is included in the block
->>>>>>> remove comments from solidity code
 
     # 4. Check contract status, but not necessary
     print('Get balance')
@@ -137,14 +118,7 @@ def testTransactionCall(contract_addr):
 
     print('Waiting for 60 seconds..')
     time.sleep(60)
-<<<<<<< HEAD
     print()
-=======
-
-    # Make sure Tx is included in the block
->>>>>>> remove comments from solidity code
-
-# After function call
 
     getCurrentStatus(contract_addr)
 
@@ -175,11 +149,7 @@ def testConstantCall(contract_addr):
 
 if __name__ == '__main__':
     contract_addr = deployContract()
-<<<<<<< HEAD
-    # contract_addr = '3Ap3omNPtBToU89BK6E74Q1wm3KNvgLGYh'
-=======
     # contract_addr = '3AytWwkkdre1ByX8zFYyU3yGKdfTqZaVUU'
->>>>>>> remove comments from solidity code
     testTransactionCall(contract_addr)
     testConstantCall(contract_addr)
     # decodeStorageExample()
