@@ -65,21 +65,30 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         return {'error': 'prepare multisig payment failed'}
 
     # multisig sign
-    for oracle in oracles:
-        data = {
-            'transaction': raw_tx,
-            'multisig_address': from_address,
-            'user_address': to_address,
-            'color_id': color_id,
-            'amount': amount,
-            'script': contract.multisig_script
-        }
-        r = requests.post(oracle.url + '/sign/', data=data)
+    # calculate counts of inputs
+    tx_inputs = deserialize(raw_tx)['ins']
+    for i in range(len(tx_inputs)):
+        sigs = []
+        for oracle in oracles:
+            data = {
+                'tx': raw_tx,
+                'multisig_address': from_address,
+                'user_address': to_address,
+                'color_id': color_id,
+                'amount': amount,
+                'script': contract.multisig_script,
+                'input_index': i,
+            }
+            r = requests.post(oracle.url + '/sign/', data=data)
 
-        signature = r.json().get('signature')
-        if signature is not None:
-            # sign success, update raw_tx
-            raw_tx = signature
+            signature = r.json().get('signature')
+            print('Get ' + oracle.url + '\'s signature.')
+            if signature is not None:
+                # sign success, update raw_tx
+                sigs.append(signature)
+        raw_tx = apply_multisignatures(raw_tx, i, contract.multisig_script,
+                                       sigs[:contract.least_sign_number])
+
     # send
     try:
         tx_id = OSSclient.send_tx(raw_tx)
@@ -118,7 +127,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
                 return JsonResponse(response, status=httplib.BAD_REQUEST)
             tx_id = r.get('tx_id')
 
-            if tx_id == None:
+            if tx_id is None:
                 errors.append({color_id: r})
                 continue
             txs.append(tx_id)
@@ -151,7 +160,6 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         '''
             get public keys from an oracle
         '''
-
         data = {
             'source_code': source_code
         }
@@ -161,6 +169,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             "url": url,
             "pubkey": pubkey
         }
+        print("get " + url + "'s pubkey.")
         url_map_pubkeys.append(url_map_pubkey)
 
     def _get_multisig_addr(self, oracle_list, source_code, m):
@@ -172,14 +181,10 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         url_map_pubkeys = []
         pubkeys = []
         threads = []
+
         for oracle in oracle_list:
-            t = Thread(target=self._get_pubkey_from_oracle,
-                       args=(oracle['url'], source_code, url_map_pubkeys)
-                       )
-            t.start()
-            threads.append(t)
-        for t in threads:
-            t.join()
+            self._get_pubkey_from_oracle(oracle['url'], source_code, url_map_pubkeys)
+
         for url_map_pubkey in url_map_pubkeys:
             pubkeys.append(url_map_pubkey["pubkey"])
         if len(pubkeys) != len(oracle_list):
@@ -276,7 +281,8 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 multisig_script=multisig_script,
                 interface=interface,
                 color_id=1,
-                amount=0
+                amount=0,
+                least_sign_number=m
             )
 
             contract.save()
@@ -288,8 +294,8 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 "compiled_code": compiled_code
             }
         except Exception as e:
-            response = {'status': 'Bad request.' + str(e)}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            response = {'status': 'Bad request. ' + str(e)}
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
         response = {
             'multisig_address': multisig_addr,
