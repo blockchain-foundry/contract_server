@@ -3,17 +3,16 @@ from events.views import Events, Notify
 from oracles.models import Contract
 from events.models import Watch
 
-TEST_MULTISIG_ADDRESS = '34EbmGsm5cBedTDQ7c9q3EmM8miVpURwrb'
-TEST_SUBSCRIPTION_ID = '597caf7b-7d60-4d3f-9dd4-a4ccb9b36ea8'
+TEST_MULTISIG_ADDRESS = '3NEga9GGxi4hPYqryL1pUsDicwnDsCNYyF'
+TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
 
 class NotifyTestCase(TestCase):
     def setUp(self):
         # monk contract
-        source_code = "contract TestGcoin { event TestEvent( string _message, uint indexed _my_uint, int _my_int , uint _timestamp, address _my_address); uint password = 12345; string message = 'hello'; mapping(address => uint) public storedUint; function setUint(uint inputUint, int inputInt, string inputString) { storedUint[msg.sender] = inputUint; password = inputUint; TestEvent( inputString, inputUint, inputInt, now, msg.sender); } }"
+        source_code = ""
         multisig_address = TEST_MULTISIG_ADDRESS
-        multisig_script = '514104e989178111484245d79e7bf65a97dd4d0b626586946016ae2080b5cdb8d214f7f4fa18651f22dde3c33469e7ea83b07fbf6eb1cd78c7d6f9a73d6ee6e5a8572551ae'
-        interface = '[{"constant": true, "type": "function", "name": "storedUint", "outputs": [{"type": "uint256", "name": ""}], "payable": false, "id": 1, "inputs": [{"type": "address", "name": ""}]}, {"constant": false, "type": "function", "name": "setUint", "outputs": [], "payable": false, "id": 2, "inputs": [{"type": "uint256", "name": "inputUint"}, {"type": "int256", "name": "inputInt"}, {"type": "string", "name": "inputString"}]}, {"type": "event", "id": 3, "inputs": [{"type": "string", "indexed": false, "name": "_message"}, {"type": "uint256", "indexed": true, "name": "_my_uint"}, {"type": "int256", "indexed": false, "name": "_my_int"}, {"type": "uint256", "indexed": false, "name": "_timestamp"}, {"type": "address", "indexed": false, "name": "_my_address"}], "name": "TestEvent", "anonymous": false}]'
-
+        multisig_script = '514104403f136ee837c4e206dc69356bc6a4609a3cfeaf795fb7d1338f7063d9d23a3b749c0e048574dc18789f5d498e5f2827a8927cd48eb75ee1b45f88620a22649a51ae'
+        interface = '[{"outputs": [{"name": "", "type": "uint256"}], "constant": true, "type": "function", "inputs": [{"name": "", "type": "address"}], "id": 1, "name": "storedUint", "payable": false}, {"outputs": [], "constant": false, "type": "function", "inputs": [{"name": "inputUint", "type": "uint256"}, {"name": "inputInt", "type": "int256"}, {"name": "inputString", "type": "string"}, {"name": "inputBytes", "type": "bytes"}], "id": 2, "name": "setValue", "payable": false}, {"id": 3, "anonymous": false, "name": "TestEvent", "type": "event", "inputs": [{"name": "_message", "indexed": false, "type": "string"}, {"name": "_my_uint", "indexed": true, "type": "uint256"}, {"name": "_my_int", "indexed": false, "type": "int256"}, {"name": "_my_address", "indexed": false, "type": "address"}, {"name": "_my_bytes", "indexed": false, "type": "bytes"}]}]'
         contract = Contract.objects.create(
             source_code=source_code,
             multisig_address=multisig_address,
@@ -46,19 +45,37 @@ class NotifyTestCase(TestCase):
         event_name = 'TestEvent'
         key, event_args = notify._get_event_key(multisig_address, event_name)
 
-        expect_key = 'TestEvent(string,uint256,int256,uint256,address)'
+        expect_key = 'TestEvent(string,uint256,int256,address,bytes)'
         self.assertEqual(key, expect_key)
 
-        expect_event_args = [{'indexed': False, 'name': '_message', 'type': 'string', 'order': 0}, {'indexed': True, 'name': '_my_uint', 'type': 'uint256', 'order': 1}, {'indexed': False, 'name': '_my_int', 'type': 'int256', 'order': 2}, {'indexed': False, 'name': '_timestamp', 'type': 'uint256', 'order': 3}, {'indexed': False, 'name': '_my_address', 'type': 'address', 'order': 4}]
+        expect_event_args = [
+            {'indexed': False, 'name': '_message', 'type': 'string', 'order': 0},
+            {'indexed': True, 'name': '_my_uint', 'type': 'uint256', 'order': 1},
+            {'indexed': False, 'name': '_my_int', 'type': 'int256', 'order': 2},
+            {'indexed': False, 'name': '_my_address', 'type': 'address', 'order': 3},
+            {'indexed': False, 'name': '_my_bytes', 'type': 'bytes', 'order': 4}]
         self.assertEqual(event_args, expect_event_args)
 
     def test_get_event_from_logs(self):
         notify = Notify()
 
-        logs = [{'blockHash': '0000000000000000000000000000000000000000000000000000000000000000', 'logIndex': 0, 'address': 'e7cb54645a4cc9856319e68e278c6ce967d06fc3', 'transactionIndex': 0, 'topics': ['0xfee4a3829113d3807b9bb7f2b510ff21dd8734905679bb13a1d2f5b5633cb79e', '0x00000000000000000000000000000000000000000000000000000000000015be'], 'data': '000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000015be000000000000000000000000000000000000000000000000000000005885f1cd000000000000000000000000c38303f940a55b93aac72f3af15442c1a9f834e7000000000000000000000000000000000000000000000000000000000000000a68656c6c6f776f726c6400000000000000000000000000000000000000000000', 'transactionHash': '0000000000000000000000000000000000000000000000000000000000000000'}]
-        evm_address = 'e7cb54645a4cc9856319e68e278c6ce967d06fc3'
-        event_hex = 'fee4a3829113d3807b9bb7f2b510ff21dd8734905679bb13a1d2f5b5633cb79e'
-        event_args = [{'type': 'string', 'name': '_message', 'order': 0, 'indexed': False}, {'type': 'uint256', 'name': '_my_uint', 'order': 1, 'indexed': True}, {'type': 'int256', 'name': '_my_int', 'order': 2, 'indexed': False}, {'type': 'uint256', 'name': '_timestamp', 'order': 3, 'indexed': False}, {'type': 'address', 'name': '_my_address', 'order': 4, 'indexed': False}]
+        logs = [
+        {   "address":"1503be2df26f867d62481d93c1d55ab1ea11ad23",
+            "topics":["0xf2b599259a3c14af4a4b44075e64f5d5535176716ce26402e6c5e0904ea1925d",
+                "0x00000000000000000000000000000000000000000000000000000000000015be"],
+            "data":"000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000015be000000000000000000000000891bc670fd33feeb556eafe7d635f298d21c153600000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d736d617274636f6e74726163740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063078313233340000000000000000000000000000000000000000000000000000",
+            "transactionHash":"0000000000000000000000000000000000000000000000000000000000000000",
+            "transactionIndex":0, "blockHash":"0000000000000000000000000000000000000000000000000000000000000000",
+            "logIndex":0}]
+        evm_address = '1503be2df26f867d62481d93c1d55ab1ea11ad23'
+        key = 'TestEvent(string,uint256,int256,address,bytes)'
+        event_hex = 'f2b599259a3c14af4a4b44075e64f5d5535176716ce26402e6c5e0904ea1925d'
+        event_args = [
+            {'type': 'string', 'name': '_message', 'order': 0, 'indexed': False},
+            {'type': 'uint256', 'name': '_my_uint', 'order': 1, 'indexed': True},
+            {'type': 'int256', 'name': '_my_int', 'order': 2, 'indexed': False},
+            {'type': 'address', 'name': '_my_address', 'order': 3, 'indexed': False},
+            {'type': 'bytes', 'name': '_my_bytes', 'order': 4, 'indexed': False}]
 
         event = notify._get_event_from_logs(
             logs=logs,
@@ -66,6 +83,12 @@ class NotifyTestCase(TestCase):
             event_hex=event_hex,
             event_args=event_args)
 
-        expect_event = {'args': [{'type': 'string', 'name': '_message', 'value': 'helloworld', 'indexed': 'False'}, {'type': 'uint256', 'name': '_my_uint', 'value': 5566, 'indexed': 'True'}, {'type': 'int256', 'name': '_my_int', 'value': 5566, 'indexed': 'False'}, {'type': 'uint256', 'name': '_timestamp', 'value': 1485173197, 'indexed': 'False'}, {'type': 'address', 'name': '_my_address', 'value': 'c38303f940a55b93aac72f3af15442c1a9f834e7', 'indexed': 'False'}]}
-        self.assertEqual(event, expect_event)
+        expect_event = {'args': [
+            {'indexed': 'False', 'name': '_message', 'type': 'string', 'value': 'smartcontract'},
+            {'indexed': 'True', 'name': '_my_uint', 'type': 'uint256', 'value': 5566},
+            {'indexed': 'False', 'name': '_my_int', 'type': 'int256', 'value': 5566},
+            {'indexed': 'False', 'name': '_my_address', 'type': 'address', 'value': '891bc670fd33feeb556eafe7d635f298d21c1536'},
+            {'indexed': 'False', 'name': '_my_bytes', 'type': 'bytes', 'value': b'0x1234'}
+        ]}
 
+        self.assertEqual(event, expect_event)

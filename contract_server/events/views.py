@@ -304,6 +304,8 @@ class Notify(APIView):
                 # For JSON string
                 if arg['type'] == 'bool':
                     value = str(value)
+                elif arg['type'] == 'address' or arg['type'] == 'bytes':
+                    value = value
                 elif 'int' not in arg['type']:
                     value = value.decode("utf-8")
 
