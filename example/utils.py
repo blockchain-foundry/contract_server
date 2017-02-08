@@ -2,10 +2,13 @@
 # encoding: utf-8
 
 import base58
+import re
+import requests
+import time
 
 from pprint import pprint
-
-import requests
+from requests_toolbelt import MultipartEncoder
+from threading import Thread
 
 from binascii import hexlify
 from gcoin import signall, hash160
@@ -22,28 +25,61 @@ headers = {'Content-type': 'application/json'}
 
 # GET
 def get(url, payload={}):
-    r = requests.get(url, params=payload)
-    if r.status_code == requests.codes.ok:
+    try:
+        r = requests.get(url, params=payload)
+
+        if 400 <= r.status_code < 500:
+            return "Bad request, raw response body: {0}".format(r.text)
+        elif r.status_code >= 500:
+            return "Server error, raw response body: {0}".format(r.text)
+        elif not r.status_code // 100 == 2:
+            return "Error: Unexpected response {}".format(r)
         return r
-    else:
-        print(r.raise_for_status())
+    except ConnectionError as e:
+        return "Error: {}".format(e)
+    except requests.exceptions.RequestException as e:
+        return "Ensure that the backend is working properly"
 
 
 #  POST
 def post(url, data={}, headers={}, json={}):
-    r = requests.post(url, data=data, headers=headers, json=json)
-    if r.status_code == requests.codes.ok:
+    try:
+        r = requests.post(url, data=data, headers=headers, json=json)
+
+        if 400 <= r.status_code < 500:
+            return "Bad request, raw response body: {0}".format(r.text)
+        elif r.status_code >= 500:
+            return "Server error, raw response body: {0}".format(r.text)
+        elif not r.status_code // 100 == 2:
+            return "Error: Unexpected response {}".format(r)
         return r
-    else:
-        print(r.raise_for_status())
+    except ConnectionError as e:
+        return "Error: {}".format(e)
+    except requests.exceptions.RequestException as e:
+        return "Ensure that the backend is working properly"
 
 
 def loadContract(filename):
     """Load solidty code and intergrate to one line
     """
     with open(filename, 'r') as f:
-        lines = f.readlines()
-    return ''.join([l.strip() for l in lines])
+        codes = remove_comments(f.read())
+    return ''.join(l.strip() for l in codes.split('\n'))
+
+
+def remove_comments(string):
+    pattern = r"(\".*?\"|\'.*?\')|(/\*.*?\*/|//[^\r\n]*$)"
+    # first group captures quoted strings (double or single)
+    # second group captures comments (//single-line or /* multi-line */)
+    regex = re.compile(pattern, re.MULTILINE|re.DOTALL)
+    def _replacer(match):
+        # if the 2nd group (capturing comments) is not None,
+        # it means we have captured a non-quoted (real) comment string.
+        if match.group(2) is not None:
+            return "" # so we will return empty to remove the comment
+        else: # otherwise, we will return the 1st group
+            return match.group(1) # captured quoted-string
+    return regex.sub(_replacer, string)
 
 
 def wallet_address_to_evm(address):
@@ -55,7 +91,7 @@ def wallet_address_to_evm(address):
     return address
 
 
-def prepareRawContract(source_code, owner_address, oracle_list):
+def prepareRawContract(source_code, owner_address, min_successes, oracle_list):
     """Prepare raw contract transaction
     """
     url = contract_url + 'contracts/'
@@ -63,10 +99,12 @@ def prepareRawContract(source_code, owner_address, oracle_list):
     data = {
         "source_code": source_code,
         "address": owner_address,
-        "m": 1,
-        "oracles": oracle_list,
+        "m": str(min_successes),
+        "oracles": str(oracle_list),
     }
-    return post(url, json=data, headers=headers).json()
+
+    data = MultipartEncoder(data)
+    return post(url, data=data, headers={'Content-Type': data.content_type}).json()
 
 
 def signAndSendTx(raw_tx, from_privkey):
@@ -92,8 +130,32 @@ def subscribeTx(tx_id):
         'callback_url': callback_url,
         'confirmation_count': 1,
     }
-    r_json = post(url, data).json()
-    return r_json['callback_url']
+    return post(url, data).json()
+
+
+def is_contract_deployed(oracle_list, multisig_address, min_successes, deployed_list):
+    time.sleep(18)
+    threads = []
+    for oracle in oracle_list:
+        t = Thread(target=get_deployed_status_from_oracle,
+                   args=(oracle['url'], multisig_address, deployed_list))
+        t.setDaemon(True)
+        t.start()
+
+    while(True):
+        time.sleep(3)
+        if len(deployed_list) >= min_successes:
+            return True
+    return False
+
+
+def get_deployed_status_from_oracle(url, multisig_address, deployed_list):
+    while(True):
+        time.sleep(2)
+        r = get(url + '/getcontract/' + multisig_address)
+        if r.status_code == requests.codes.ok:
+            deployed_list.append(url)
+            break
 
 
 def getBalance(tx_id):
@@ -132,8 +194,10 @@ def getCurrentStatus(contract_addr):
 def callContractFunction(contract_addr, data):
     """Call contract function
     """
+    data = MultipartEncoder(data)
+
     url = contract_url + 'contracts/' + contract_addr + '/'
-    return post(url, json=data, headers=headers).json()
+    return post(url, data=data, headers={'Content-Type': data.content_type}).json()
 
 
 def getOracleList():

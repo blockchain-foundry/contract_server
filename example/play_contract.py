@@ -3,11 +3,11 @@
 
 
 import time
-
+import re
 from utils import (get, post, loadContract, wallet_address_to_evm,
                    prepareRawContract, signAndSendTx, subscribeTx,
                    getBalance, getStorage, getABI, getCurrentStatus,
-                   callContractFunction, getOracleList)
+                   callContractFunction, getOracleList, is_contract_deployed)
 
 from pprint import pprint
 
@@ -51,11 +51,17 @@ def decodeStorageExample():
 def deployContract():
     # 1. Create a contract
     source_code = loadContract(contract_file)
+
+    print('Get oracle list')
+    print(getOracleList())
     oracle_list = getOracleList().get('oracles')
 
-    print('Create a contract')
-    r_json_createRawContract = prepareRawContract(source_code, owner_address, oracle_list)
+    if not oracle_list:
+        raise ValueError('Empty oracle list')
 
+    print('Create a contract')
+    min_successes = 1
+    r_json_createRawContract = prepareRawContract(source_code, owner_address, min_successes, oracle_list)
     contract_addr = r_json_createRawContract['multisig_address']
     print('Obtain a contract address: ' + contract_addr)
 
@@ -67,12 +73,12 @@ def deployContract():
 
     # 3. Contract is deployed
     print('Deploy the contract')
-    callback_url = subscribeTx(tx_id)
-    print('Waiting for 80 seconds..')
-    time.sleep(80)
-    # Make sure Tx is included in the block
-    r_json_callback = post(callback_url).json()
-    pprint(r_json_callback)
+    r_json_subscribeTx = subscribeTx(tx_id)
+
+    # Check whether the contract is deployed or not
+    deployed_list = []
+    if is_contract_deployed(oracle_list, contract_addr, min_successes, deployed_list) == False:
+        raise Exception('Deploy timeout exception')
 
     # 4. Check contract status, but not necessary
     print('Get balance')
@@ -98,7 +104,7 @@ def testTransactionCall(contract_addr):
     # Test a non-consant function call
     data = {
         'function_name': 'setGreeting',
-        'function_inputs': [{'value': 'gcoin'}],
+        'function_inputs': str([{'value': 'gcoin'}]),
         'from_address': owner_address,
         'amount': '0',
         'color': '0',
@@ -108,14 +114,11 @@ def testTransactionCall(contract_addr):
 
     print('Signed & broadcast Tx call')
     tx_id = signAndSendTx(raw_tx, owner_privkey)
-    callback_url = subscribeTx(tx_id)
+    r_json_subscribeTx = subscribeTx(tx_id)
 
     print('Waiting for 60 seconds..')
     time.sleep(60)
-
-    # Make sure Tx is included in the block
-    r_json_callback = post(callback_url).json()
-    pprint(r_json_callback)
+    print()
 
 # After function call
 
@@ -133,14 +136,14 @@ def testConstantCall(contract_addr):
     # Test a constant function call
     constant_data = {
         'function_name': 'greet',
-        'function_inputs': [],
+        'function_inputs': str([]),
         'from_address': owner_address,
         'amount': '0',
         'color': '0',
     }
+
     r_json_callContractFunction = callContractFunction(contract_addr, constant_data)
-    out = r_json_callContractFunction['out']
-    pprint(out)
+    pprint(r_json_callContractFunction)
     print()
 
     getCurrentStatus(contract_addr)
@@ -148,7 +151,7 @@ def testConstantCall(contract_addr):
 
 if __name__ == '__main__':
     contract_addr = deployContract()
-    # contract_addr = '3D8KG1XQeMS5MjwqE82t2XrXrSNU99GdEa'
+    # contract_addr = '3Ap3omNPtBToU89BK6E74Q1wm3KNvgLGYh'
     testTransactionCall(contract_addr)
     testConstantCall(contract_addr)
     # decodeStorageExample()
