@@ -88,7 +88,7 @@ class NotifyTestCase(TestCase):
             {'indexed': 'True', 'name': '_my_uint', 'type': 'uint256', 'value': 5566},
             {'indexed': 'False', 'name': '_my_int', 'type': 'int256', 'value': 5566},
             {'indexed': 'False', 'name': '_my_address', 'type': 'address', 'value': '891bc670fd33feeb556eafe7d635f298d21c1536'},
-            {'indexed': 'False', 'name': '_my_bytes', 'type': 'bytes', 'value': b'0x1234'}
+            {'indexed': 'False', 'name': '_my_bytes', 'type': 'bytes', 'value': '0x1234'}
         ]}
 
         self.assertEqual(event, expect_event)
