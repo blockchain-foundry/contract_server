@@ -10,6 +10,7 @@ class GenContractRawTxForm(forms.Form):
     m = forms.IntegerField(required=True)
     # have to change to dict
     oracles = forms.CharField(required=True)
+    data = forms.CharField(required=True)
 
 
 class ContractFunctionCallFrom(forms.Form):

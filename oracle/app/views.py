@@ -12,7 +12,7 @@ import base58
 from rest_framework import status
 from rest_framework.views import APIView
 import gcoinrpc
-from app.models import Proposal, Registration, Keystore
+from app.models import Proposal, Registration, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer, RegistrationSerializer
 from .deploy_contract_utils import *
 from .forms import SignForm
@@ -37,7 +37,6 @@ class Proposes(APIView):
     """
     Give the publicKey when invoked.
     """
-
     def post(self, request):
         # Return public key to Contract-Server
         body_unicode = request.body.decode('utf-8')
@@ -45,6 +44,7 @@ class Proposes(APIView):
         json_data = json.loads(body_unicode)
         try:
             source_code = json_data['source_code']
+            conditions = json_data['conditions']
         except:
             response = {'status': 'worng argument'}
             return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
@@ -56,6 +56,16 @@ class Proposes(APIView):
         k = Keystore(public_key=public_key, private_key=private_key)
         p.save()
         k.save()
+
+        for condition in conditions:
+            if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
+                o = OraclizeContract.objects.get(name=condition['condition_type'])
+                l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
+                p.links.add(l)
+            else:
+                o = OraclizeContract.objects.get(name=condition['condition_type'])
+                l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
+                p.links.add(l)
 
         response = {'public_key': public_key}
         return JsonResponse(response, status=httplib.OK)
@@ -239,4 +249,16 @@ class NewTxNotified(APIView):
         deploy_contracts(tx_hash)
 
         response['data'] = 'ok, received notify with tx_hash ' + tx_hash
+        return JsonResponse(response, status=httplib.OK)
+
+class OraclizeContractInterface(APIView):
+
+    def get(self, request, contract_name):
+        response = {}
+
+        obj = OraclizeContract.objects.get(name=contract_name)
+        response = {
+            'address': obj.address,
+            'interface': obj.interface,
+        }
         return JsonResponse(response, status=httplib.OK)
