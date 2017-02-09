@@ -63,3 +63,8 @@ def send_contract_tx(from_address, tx):
 def subscribe_tx_notification(tx_hash, confirmation_count, callback_url):
     backend = get_gcoin_backend()
     return backend.subscribe_tx_notification(tx_hash, confirmation_count, callback_url)
+
+def subscribe_address_notification(multisig_address, callback_url):
+    backend = get_gcoin_backend()
+    print('multisig_address:{}, callback_url:{}'.format(multisig_address, callback_url))
+    return backend.subscribe_address_notification(multisig_address, callback_url)

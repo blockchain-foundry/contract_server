@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
+	"strings"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -62,6 +62,17 @@ func (l *Log) DecodeRLP(s *rlp.Stream) error {
 
 func (l *Log) String() string {
 	return fmt.Sprintf(`log: %x %x %x %x %d %x %d`, l.Address, l.Topics, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
+}
+
+func (l *Log) JsonString() string {
+    // Arrange topics
+    var topicsArray []string
+    for _, topic := range l.Topics {
+  	    topicsArray = append(topicsArray, fmt.Sprintf(`"%s"`, topic.Hex()))
+    }
+    topicsString := fmt.Sprintf("%s", strings.Join(topicsArray, ", "))
+    
+    return fmt.Sprintf(`{"address":"%x", "topics":[%s], "data":"%x", "transactionHash":"%x", "transactionIndex":%d, "blockHash":"%x", "logIndex":%d}`, l.Address, topicsString, l.Data, l.TxHash, l.TxIndex, l.BlockHash, l.Index)
 }
 
 func (r *Log) MarshalJSON() ([]byte, error) {

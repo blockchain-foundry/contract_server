@@ -200,6 +200,20 @@ class GetStorage(APIView):
             response = {}
             return JsonResponse(response, status=httplib.OK)
 
+class DumpContractState(APIView):
+    """
+    Get contract state file
+    """
+    def get(self, request, multisig_address):
+        contract_evm_address = wallet_address_to_evm(multisig_address)
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                response = content
+                return JsonResponse(response, status=httplib.OK)
+        except:
+            response = {}
+            return JsonResponse(response, status=httplib.OK)
 
 class CheckContractCode(APIView):
 

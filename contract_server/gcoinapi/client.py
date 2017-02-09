@@ -109,6 +109,7 @@ class GcoinAPIClient(object):
             'code': op_return,
             'contract_fee': diqi_amount,
         }
+
         response = self.request(end_point, 'POST', data=data)
         raw_tx = response.json()['raw_tx']
         return raw_tx
@@ -125,3 +126,23 @@ class GcoinAPIClient(object):
             diqi_amount = contract_fee
             non_diqi_amount = amount
         return self.prepare_smartcontract_raw_tx(from_address, to_address, non_diqi_amount, color_id, compiled_code, diqi_amount)
+
+    def get_tx(self, tx_hash):
+        end_point = '/base/v1/transaction/{tx_hash}'.format(tx_hash=tx_hash)
+        response = self.request(end_point, 'GET')
+        tx = response.json()
+        return tx
+
+    def get_block_by_hash(self, block_hash):
+        end_point = '/explorer/v1/blocks/{block_hash}'.format(block_hash=block_hash)
+        response = self.request(end_point, 'GET')
+        block = response.json()['block']
+        return block
+
+    def subscribe_address_notification(self, address, callback_url):
+        end_point = '/notification/v1/address/subscription'
+        data = {'address': address, 'callback_url': callback_url}
+        response = self.request(end_point, 'POST', data=data)
+        subscription_id = response.json()['id']
+        created_time = response.json()['created_time']
+        return subscription_id, created_time

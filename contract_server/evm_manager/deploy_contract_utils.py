@@ -41,7 +41,8 @@ def get_contracts_info(tx):
     bytecode = None
     sender_addr = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
     value = {}
-    need_deploy = True
+    is_deploy = True
+    blocktime = tx['blocktime']
 
     for vout in tx['vout']:
         if vout['scriptPubKey']['type'] == 'nulldata':
@@ -53,7 +54,7 @@ def get_contracts_info(tx):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
                 bytecode = data.get('function_inputs_hash')
-                need_deploy = False
+                is_deploy = False
             else:
                 raise ValueError("Contract OP RETURN is not valid")
 
@@ -77,10 +78,10 @@ def get_contracts_info(tx):
         )
     for v in value:
         value[v] = str(value[v]/100000000)
-    return sender_addr, multisig_addr, bytecode, json.dumps(value), need_deploy
+    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy, blocktime
 
 
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, need_deploy, _time):
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
@@ -93,7 +94,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, need_deploy, _ti
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
 
-    if need_deploy:
+    if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)

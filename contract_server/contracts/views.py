@@ -344,6 +344,20 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
                 })
         return function_list, event_list
 
+    def _get_event_by_name(self, interface, event_name):
+        '''
+        interface is string of a list of dictionary containing id, name, type, inputs and outputs
+        '''
+        if not interface:
+            return {}
+
+        interface = json.loads(interface.replace("'", '"'))
+        for i in interface:
+            name = i.get('name')
+            if name == event_name and i['type'] == 'event':
+                return i
+        return {}
+
     def _get_function_by_name(self, interface, function_name):
         '''
         interface is string of a list of dictionary containing id, name, type, inputs and outputs

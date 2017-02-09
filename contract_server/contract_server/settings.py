@@ -26,7 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -39,6 +38,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'oracles',
     'contracts',
+    'events',
 ]
 
 MIDDLEWARE = [
@@ -72,7 +72,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
 STATIC_URL = '/static/'
-OSS_API_URL =  '<oss_url>'
+OSS_API_URL = '<oss_url>'
 
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
@@ -182,8 +182,10 @@ LOGGING = {
         'contract_server': {
             'handlers': ['file', 'mail_admins'],
             'level': 'DEBUG',
+        },
+        'events': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
         }
-
-
     }
 }

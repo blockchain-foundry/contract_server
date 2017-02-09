@@ -4,3 +4,11 @@
 **.sqlite*
 solidity/solc/solc
 solidity/include/solidity/BuildInfo.h
+
+env/
+log/
+gcoin-rpc/
+go-ethereum/build/_workspace/pkg/
+go-ethereum/build/bin/
+pygcointools/
+log/django.log

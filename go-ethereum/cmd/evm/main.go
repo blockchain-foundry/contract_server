@@ -121,6 +121,10 @@ var (
 		Name:  "time",
 		Usage: "The current block time",
 	}
+	WriteLogFlag = cli.StringFlag{
+		Name:  "writelog",
+		Usage: "wrtie logs to a file",
+	}
 )
 
 
@@ -164,6 +168,7 @@ func init() {
 		DeployFlag,
 		FundFlag,
 		TimeFlag,
+		WriteLogFlag,
 	}
 	app.Action = run
 }
@@ -293,7 +298,11 @@ func run(ctx *cli.Context) error {
 
 	if ctx.GlobalBool(DumpFlag.Name) {
 		statedb.Commit()
+		fmt.Println("------statedb.Dump()-------")
 		fmt.Println(string(statedb.Dump()))
+		fmt.Println("------statedb.GcoinGetLogs()-------")
+		fmt.Println(statedb.GcoinGetLogs())
+
 	}
 	vm.StdErrFormat(vmenv.StructLogs())
 
@@ -323,6 +332,17 @@ func run(ctx *cli.Context) error {
 		statedb.Commit()
 		f.WriteString(string(statedb.Dump()))
 		f.Close()
+	}
+
+	//write logs to a [filename]
+	if ctx.GlobalString(WriteLogFlag.Name) != "" {
+		f, err := os.OpenFile(ctx.GlobalString(WriteLogFlag.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return err
+		}
+		statedb.Commit()
+		logs := statedb.GcoinGetLogs()
+		f.WriteString(logs)
 	}
 
 
