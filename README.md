@@ -46,3 +46,12 @@ and you'll get **rpcuser**, **rpcpassword**.
     $ cd solidity
     $ cmake3 .
     $ make
+
+## Install py-solc 
+    $ source env/bin/activate
+    $ pip install py-solc
+
+# Set solc path
+    Set environment variable SOLC_BINARY to your solc binary file
+    It's better setting up in bash
+    
