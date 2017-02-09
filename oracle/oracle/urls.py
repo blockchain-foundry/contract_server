@@ -1,5 +1,4 @@
 """oracle URL Configuration
-
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/1.10/topics/http/urls/
 Examples:
@@ -23,6 +22,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^proposals/', Proposes.as_view()),
     url(r'^sign/', Sign.as_view()),
+    url(r'^signnew/', SignNew.as_view()),
     url(r'^multisigaddress/', Multisig_addr.as_view()),
     url(r'^proposallist/', ProposalList.as_view()),
     url(r'^storage/(?P<multisig_address>[a-zA-Z0-9]+)/', GetStorage.as_view()),

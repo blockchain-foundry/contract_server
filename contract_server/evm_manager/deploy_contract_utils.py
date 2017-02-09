@@ -117,7 +117,7 @@ def deploy_contracts(tx_hash):
     # _time = 0;
     if tx['type'] == 'CONTRACT':
         try:
-            sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
+            sender_addr, multisig_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
         except:
             print("Not fount tx: " + tx_hash)
             return False

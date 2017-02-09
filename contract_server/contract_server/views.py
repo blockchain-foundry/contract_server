@@ -13,11 +13,12 @@ from oracles.models import Oracle, Contract
 from evm_manager.utils import get_evm_balance
 from evm_manager.deploy_contract_utils import deploy_contracts, get_contracts_info, get_tx_info
 from .cashout import clear_evm_accouts
-
+from .decorators import handle_uncaught_exception
 
 
 class NewTxNotified(APIView):
 
+    @handle_uncaught_exception
     def get(self, request, tx_id):
         response = {}
         print('ok, received notify with tx_id ' + tx_id)
@@ -27,7 +28,7 @@ class NewTxNotified(APIView):
                 response['data'] = 'tx_id ' + tx_id + ' is not CONTRACT type' 
                 return JsonResponse(response, status=httplib.OK)
            
-            sender_address, multisig_address, bytecode, value, is_deploy = get_contracts_info(tx)
+            sender_address, multisig_address, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
         except Exception as e:
             print (e)
             response['data'] = 'Not found: tx_id =' + tx_id 
