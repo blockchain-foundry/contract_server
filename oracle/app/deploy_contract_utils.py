@@ -13,6 +13,10 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 from gcoinbackend import core as gcoincore
 
 from gcoin import *
+
+from app.models import OraclizeContract, ProposalOraclizeLink, Proposal
+from app.oraclize import deployOraclizeContract, set_var_oraclize_contract
+
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 
@@ -21,6 +25,13 @@ def get_tx_info(tx_hash):
     tx = gcoincore.get_tx(tx_hash)
     return tx
 
+def get_block_info(block_hash):
+    block = gcoincore.get_block_by_hash(block_hash)
+    return block
+
+def get_latest_blocks():
+    blocks = gcoincore.get_latest_blocks()
+    return blocks
 
 def get_sender_addr(txid, vout):
     try:
@@ -29,6 +40,13 @@ def get_sender_addr(txid, vout):
     except:
         print("[ERROR] getting sender address")
 
+def get_address_balance(address, color):
+    balance = gcoincore.get_address_balance(address, color)
+    return balance
+
+def get_license_info(color):
+    info = gcoincore.get_license_info(color)
+    return info
 
 def get_contracts_info(tx):
     """
@@ -79,8 +97,32 @@ def get_contracts_info(tx):
         value[v] = str(value[v]/100000000)
     return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
 
-
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
+def get_oraclize_info(link, tx, sender_addr):
+    contract = link.oraclize_contract
+    blockhash = tx['blockhash']
+    block = get_block_info(blockhash)
+    if contract.name == 'start_of_block' or contract.name == 'end_of_block':
+        return block['height']
+    elif contract.name == 'block_confirm_number':
+        blocks = get_latest_blocks()
+        latest_block_number = blocks[0]['height']
+        block_confirmation_count = str(int(latest_block_number) - int(block['height']))
+        return block_confirmation_count
+    elif contract.name == 'trand_confirm_number':
+        return str(tx['confirmations'])
+    elif contract.name == 'specifies_balance':
+        balance = get_address_balance(link.receiver, link.color)
+        return balance[link.color]
+    elif contract.name == 'issuance_of_asset_transfer':
+        license_info = get_license_info(link.color) 
+        if license_info['owner'] == link.receiver:
+            return '1'
+        else:
+            return '0'
+    else:
+        print('Exception OC')
+        
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, tx_hash):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
@@ -96,17 +138,29 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     sender_hex = "0x" + hash160(sender_hex)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
+    tx = get_tx_info(tx_hash)
+    _time = tx['blocktime']
 
+    p = Proposal.objects.get(multisig_addr=multisig_addr)
+    links = p.links.all()
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+        check_call(command, shell=True)
+
+        for link in links:
+            contract = link.oraclize_contract
+            deployOraclizeContract(multisig_addr, contract.address, contract.byte_code)
     else:
+        for link in links:
+            info = get_oraclize_info(link, tx, sender_addr)
+            set_var_oraclize_contract(multisig_addr, link.oraclize_contract.address, info)
+
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
             multisig_hex + " --read " + contract_path + " --time " + str(_time)
-    check_call(command, shell=True)
-
+        check_call(command, shell=True)
 
 def deploy_contracts(tx_hash):
     """
@@ -114,14 +168,12 @@ def deploy_contracts(tx_hash):
         Using thread doesn't help due to the fact that rpc getrawtransaction
         locks cs_main, which blocks other operations requiring cs_main lock.
     """
-
     tx = get_tx_info(tx_hash)
-    _time = tx['blocktime']
-    # _time = 0;
+
     if tx['type'] == 'CONTRACT':
         try:
             sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
         except:
             print("Not fount tx: " + tx_hash)
             return False
-        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time)
+        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, tx_hash)

@@ -31,6 +31,8 @@ from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
 from .exceptions import *
 
+from solc import compile_source
+
 try:
     import http.client as httplib
 except ImportError:
@@ -156,12 +158,13 @@ class Contracts(BaseFormView, CsrfExemptMixin):
     http_method_names = ['post']
     form_class = GenContractRawTxForm
 
-    def _get_pubkey_from_oracle(self, url, source_code, url_map_pubkeys):
+    def _get_pubkey_from_oracle(self, url, source_code, conditions, url_map_pubkeys):
         '''
             get public keys from an oracle
         '''
         data = {
-            'source_code': source_code
+            'source_code': source_code,
+            'conditions': conditions
         }
         r = requests.post(url + '/proposals/', data=json.dumps(data))
         pubkey = json.loads(r.text)['public_key']
@@ -172,7 +175,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         print("get " + url + "'s pubkey.")
         url_map_pubkeys.append(url_map_pubkey)
 
-    def _get_multisig_addr(self, oracle_list, source_code, m):
+    def _get_multisig_addr(self, oracle_list, source_code, conditions, m):
         """
             get public keys and create multisig_address
         """
@@ -183,7 +186,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         threads = []
 
         for oracle in oracle_list:
-            self._get_pubkey_from_oracle(oracle['url'], source_code, url_map_pubkeys)
+            self._get_pubkey_from_oracle(oracle['url'], source_code, conditions, url_map_pubkeys)
 
         for url_map_pubkey in url_map_pubkeys:
             pubkeys.append(url_map_pubkey["pubkey"])
@@ -205,33 +208,12 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 )
         return oracle_list
 
-    def _compile_code_and_interface(self, source_code):
-        command = [self.SOLIDITY_PATH, "--abi", "--bin"]
-        try:
-            p = Popen(command, stdout=PIPE, stdin=PIPE, stderr=STDOUT)
-        except Exception as e:
-            print(e)
-        r = str(p.communicate(input=bytes(source_code, "utf8"))[0], "utf8")
-        r = r.strip()
-        if p.returncode != 0:
-            raise Compiled_error(str(r))
-
-        str1 = r.split('Binary:')
-        str2 = str1[1].split('\n')
-        compiled_code_in_hex = str2[1]
-        abi = str2[3]
-        abi = json.loads(abi)
-        interface = []
-        ids = 1
-        for func in abi:
-            try:
-                func["id"] = ids
-                interface.append(func)
-                ids = ids + 1
-            except:
-                pass
+    def _compile_code_and_interface(self, source_code, contract_name):        
+        output = compile_source(source_code)
+        byte_code = output[contract_name]['bin']
+        interface = output[contract_name]['abi'] 
         interface = json.dumps(interface)
-        return compiled_code_in_hex, interface
+        return byte_code, interface
 
     def _save_multisig_addr(self, multisig_addr, url_map_pubkeys):
         for url_map_pubkey in url_map_pubkeys:
@@ -249,13 +231,16 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         address = form.cleaned_data['address']
         m = form.cleaned_data['m']
         oracles = form.cleaned_data['oracles']
+        data = json.loads(form.cleaned_data['data'])
         try:
             oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
 
+            conditions = data['conditions']
             multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
-                oracle_list, source_code, m)
+                oracle_list, source_code, conditions, m)
 
-            compiled_code, interface = self._compile_code_and_interface(source_code)
+            contract_name = data['name']
+            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
             code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_addr})
 
         except Compiled_error as e:
@@ -332,13 +317,11 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         for i in interface:
             if i['type'] == 'function':
                 function_list.append({
-                    'id': i['id'],
                     'name': i['name'],
                     'inputs': i['inputs']
                 })
             elif i['type'] == 'event':
                 event_list.append({
-                    'id': i['id'],
                     'name': i['name'],
                     'inputs': i['inputs']
                 })
