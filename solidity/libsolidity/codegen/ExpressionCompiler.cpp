@@ -1655,7 +1655,7 @@ void ExpressionCompiler::appendExternalFunctionCall(
 	}
 	else
 		{
-			m_context << u256(1);
+			m_context << u256(0);
 			m_context << u256(0);
 		}
 	m_context << dupInstruction(m_context.baseToCurrentStackOffset(contractStackPos));
