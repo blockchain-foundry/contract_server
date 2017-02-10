@@ -1166,7 +1166,8 @@ bool TypeChecker::visit(FunctionCall const& _functionCall)
 		_functionCall.annotation().type = make_shared<TupleType>(functionType->returnParameterTypes());
 
 	TypePointers parameterTypes = functionType->parameterTypes();
-	if (!functionType->takesArbitraryParameters() && parameterTypes.size() != arguments.size())
+	if (!functionType->takesArbitraryParameters() && parameterTypes.size() != arguments.size()
+        && (functionType->location() != functionType->Location::SetValue || parameterTypes.size() != arguments.size() + 1))
 	{
 		string msg =
 			"Wrong argument count for function call: " +

@@ -451,7 +451,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 	TypePointers parameterTypes = functionType->parameterTypes();
 	vector<ASTPointer<Expression const>> const& callArguments = _functionCall.arguments();
 	vector<ASTPointer<ASTString>> const& callArgumentNames = _functionCall.names();
-	if (!functionType->takesArbitraryParameters())
+	if (!functionType->takesArbitraryParameters() && (functionType->location() != functionType->Location::SetValue || parameterTypes.size() != callArguments.size() + 1))
 		solAssert(callArguments.size() == parameterTypes.size(), "");
 
 	vector<ASTPointer<Expression const>> arguments;
@@ -611,7 +611,17 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			if (function.valueSet())
 				m_context << Instruction::POP << Instruction::POP;
 			arguments.front()->accept(*this);
-			arguments[1]->accept(*this);
+            if (arguments.size() > 1)
+            {
+			    arguments[1]->accept(*this);
+			    utils().convertType(
+				    *arguments[1]->annotation().type,
+				    *function.parameterTypes()[1], true
+			    );
+            }
+            else
+                m_context<<u256(1);
+
 			break;
 		case Location::Send:
 			_functionCall.expression().accept(*this);
