@@ -1,3 +1,4 @@
+import ast
 import json
 import time
 from binascii import hexlify
@@ -6,7 +7,7 @@ from gcoin import *
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
-from django.views.generic.edit import BaseFormView
+from django.views.generic.edit import BaseFormView, ProcessFormView
 
 import base58
 from rest_framework import status
@@ -15,7 +16,7 @@ import gcoinrpc
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
 from .deploy_contract_utils import *
-from .forms import SignForm
+from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 
 try:
@@ -33,22 +34,17 @@ def wallet_address_to_evm(address):
     return address
 
 
-class Proposes(APIView):
+class Proposes(CsrfExemptMixin, BaseFormView):
     """
     Give the publicKey when invoked.
     """
+    http_method_name = ['post']
+    form_class = ProposeForm
 
-    def post(self, request):
+    def form_valid(self, form):
         # Return public key to Contract-Server
-        body_unicode = request.body.decode('utf-8')
-
-        json_data = json.loads(body_unicode)
-        try:
-            source_code = json_data['source_code']
-            conditions = json_data['conditions']
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+        source_code = form.cleaned_data.get('source_code')
+        conditions = ast.literal_eval(form.cleaned_data.get('conditions'))
 
         private_key = sha256(get_random_string(64, '0123456789abcdef'))
         public_key = privtopub(private_key)
@@ -58,33 +54,33 @@ class Proposes(APIView):
         p.save()
         k.save()
 
-        for condition in conditions:
-            if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
-                o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition[
-                                                        'color_id'], oraclize_contract=o)
-                p.links.add(l)
-            else:
-                o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(
-                    receiver='0', color='0', oraclize_contract=o)
-                p.links.add(l)
+        if conditions:
+            for condition in conditions:
+                if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
+                    o = OraclizeContract.objects.get(name=condition['condition_type'])
+                    l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
+                    p.links.add(l)
+                else:
+                    o = OraclizeContract.objects.get(name=condition['condition_type'])
+                    l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
+                    p.links.add(l)
 
         response = {'public_key': public_key}
         return JsonResponse(response, status=httplib.OK)
 
+    def form_invalid(self, form):
+        response = {'error': form.errors}
 
-class Multisig_addr(APIView):
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-    def post(self, request):
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-        try:
-            pubkey = json_data['pubkey']
-            multisig_addr = json_data['multisig_addr']
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+
+class Multisig_addr(CsrfExemptMixin, BaseFormView):
+    http_method_name = ['post']
+    form_class = MultisigAddrFrom
+
+    def form_valid(self, form):
+        pubkey = form.cleaned_data.get('pubkey')
+        multisig_addr = form.cleaned_data.get('multisig_addr')
 
         p = Proposal.objects.get(public_key=pubkey)
         p.multisig_addr = multisig_addr
@@ -93,6 +89,10 @@ class Multisig_addr(APIView):
             "status": "success"
         }
         return JsonResponse(response)
+
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
 class Sign(CsrfExemptMixin, BaseFormView):
@@ -151,7 +151,8 @@ class ProposalList(APIView):
         return HttpResponse(json.dumps(response), content_type="application/json")
 
 
-class GetBalance(APIView):
+class GetBalance(ProcessFormView):
+    http_method_name = ['get']
 
     def get(self, request, multisig_address, address):
         user_evm_address = wallet_address_to_evm(address)
@@ -201,6 +202,7 @@ class DumpContractState(APIView):
 
 
 class CheckContractCode(APIView):
+    http_method_name = ['get']
 
     def get(self, request, multisig_address):
         contract_evm_address = wallet_address_to_evm(multisig_address)
@@ -216,9 +218,11 @@ class CheckContractCode(APIView):
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
 
-class NewTxNotified(APIView):
+class NewTxNotified(CsrfExemptMixin, ProcessFormView):
+    http_method_name = ['post']
 
-    def post(self, request, tx_hash):
+    def post(self, request, *args, **kwargs):
+        tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
         deploy_contracts(tx_hash)
