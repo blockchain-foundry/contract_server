@@ -396,47 +396,6 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
 
         return JsonResponse(response, status=httplib.OK)
 
-    def _decode_evm_output(self, interface, function_name, out):
-        ''' Decode EVM outputs
-        interface is string of a list of dictionary containing id, name, type, inputs and outputs
-        '''
-        if not interface:
-            return {}
-
-        # get output_type_list
-        interface = json.loads(interface.replace("'", '"'))
-        output_type_list = []
-        for i in interface:
-            name = i.get('name')
-            if name == function_name and i['type'] == 'function':
-                # only one return value for now
-                for item in i['outputs']:
-                    output_type_list.append(item['type'])
-                break
-
-        # decode
-        decoded_data = decode_abi(output_type_list, out)
-
-        # wrap to json args
-        function_outputs = []
-        count = 0
-        for output_type in output_type_list:
-            item = {
-                'type': output_type,
-                'value': decoded_data[count]
-            }
-
-            # For JSON string
-            if item['type'] == 'bool':
-                item['value'] = item['value']
-            elif 'int' not in item['type']:
-                item['value'] = item['value'].decode("utf-8")
-
-            count += 1
-            function_outputs.append(item)
-
-        return function_outputs
-
     def post(self, request, multisig_address):
         self.multisig_address = multisig_address
         return super().post(request, multisig_address)
