@@ -13,6 +13,15 @@ class GenContractRawTxForm(forms.Form):
     data = forms.CharField(required=True)
 
 
+class SubContractFunctionCallForm(forms.Form):
+    from_address = forms.CharField(required=True)
+    to_address = forms.CharField(required=True)
+    amount = forms.IntegerField(required=True)
+    color = forms.IntegerField(required=True)
+    function_name = forms.CharField(required=True)
+    function_inputs = forms.CharField(required=False)
+    
+
 class ContractFunctionCallFrom(forms.Form):
     from_address = forms.CharField(required=True)
     amount = forms.IntegerField(required=True)
@@ -29,7 +38,6 @@ class GenSubContractRawTxForm(forms.Form):
     source_code = forms.CharField(required=True)
     deploy_address = forms.CharField(required=True)
     from_address = forms.CharField(required=True)
-    to_address = forms.CharField(required=True)
     data = forms.CharField(required=True)
 
 

@@ -21,11 +21,11 @@ from eth_abi.abi import *
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import *
 from gcoin import *
-from oracles.models import Oracle, Contract
+from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import *
 
 from .config import *
-from .forms import GenContractRawTxForm, ContractFunctionCallFrom, WithdrawFromContractForm
+from .forms import GenContractRawTxForm, GenSubContractRawTxForm, ContractFunctionCallFrom, SubContractFunctionCallForm, WithdrawFromContractForm
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -146,7 +146,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
-class SubContract(BaseFormView, CsrfExemptMixin):
+class SubContracts(BaseFormView, CsrfExemptMixin):
 
     http_method_names = ['get', 'post']
     form_class = GenSubContractRawTxForm
@@ -189,13 +189,13 @@ class SubContract(BaseFormView, CsrfExemptMixin):
             
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-            code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_addr})
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr': to_address})
             subcontract = SubContract(
                 parent_contract=contract,
                 deploy_address=deploy_address,
                 source_code=source_code,
-                color_id=color,
-                amount=amount,
+                color_id=1,
+                amount=0,
                 interface=interface)
             subcontract.save()
 
@@ -206,8 +206,8 @@ class SubContract(BaseFormView, CsrfExemptMixin):
             }
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-        tx_hex = OSSclient.deploy_multiple_contract_raw_tx(
-            from_address, to_address, deploy_address, amount, color, code, CONTRACT_FEE)
+        tx_hex = OSSclient.deploy_contract_raw_tx(
+            from_address, to_address, code, CONTRACT_FEE)
         response = {'raw_tx': tx_hex}
 
         return JsonResponse(response)
@@ -537,7 +537,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
     EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
 
     http_method_names = ['get', 'post']
-    form_class = ContractFunctionCallFrom
+    form_class = SubContractFunctionCallForm
 
     def _get_abi_list(self, interface):
         if not interface:
@@ -658,8 +658,8 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         function_inputs = form.cleaned_data['function_inputs']
 
         try:
-            contract = Contract.objects.get(multisig_address=to_address)
-            subcontract = contract.subcontract.filter(deploy_address=to_address)
+            contract = Contract.objects.get(multisig_address=multisig_address)
+            subcontract = contract.subcontract.all().filter(deploy_address=to_address)[0]
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
@@ -679,7 +679,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             "multisig_addr": to_address
         })
         tx_hex = OSSclient.operate_subcontract_raw_tx(
-            from_address, to_address, multisig_address, amount, color, code, CONTRACT_FEE)
+            from_address, to_address, multisig_addr, amount, color, code, CONTRACT_FEE)
         response = {'raw_tx': tx_hex}
 
         return JsonResponse(response)
