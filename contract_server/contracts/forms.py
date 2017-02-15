@@ -25,6 +25,14 @@ class ContractFunctionCallFrom(forms.Form):
         return ast.literal_eval(function_inputs)
 
 
+class GenSubContractRawTxForm(forms.Form):
+    source_code = forms.CharField(required=True)
+    deploy_address = forms.CharField(required=True)
+    from_address = forms.CharField(required=True)
+    to_address = forms.CharField(required=True)
+    data = forms.CharField(required=True)
+
+
 class WithdrawFromContractForm(forms.Form):
     multisig_address = forms.CharField(required=True)
     user_address = forms.CharField(required=True)
