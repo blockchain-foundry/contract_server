@@ -44,7 +44,7 @@ class Proposes(CsrfExemptMixin, BaseFormView):
     def form_valid(self, form):
         # Return public key to Contract-Server
         source_code = form.cleaned_data.get('source_code')
-        conditions = ast.literal_eval(form.cleaned_data.get('conditions'))
+        conditions_string = form.cleaned_data.get('conditions')
 
         private_key = sha256(get_random_string(64, '0123456789abcdef'))
         public_key = privtopub(private_key)
@@ -54,7 +54,8 @@ class Proposes(CsrfExemptMixin, BaseFormView):
         p.save()
         k.save()
 
-        if conditions:
+        if conditions_string:
+            conditions = ast.literal_eval(conditions_string)
             for condition in conditions:
                 if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
                     o = OraclizeContract.objects.get(name=condition['condition_type'])
@@ -70,7 +71,6 @@ class Proposes(CsrfExemptMixin, BaseFormView):
 
     def form_invalid(self, form):
         response = {'error': form.errors}
-
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
@@ -82,11 +82,18 @@ class Multisig_addr(CsrfExemptMixin, BaseFormView):
         pubkey = form.cleaned_data.get('pubkey')
         multisig_addr = form.cleaned_data.get('multisig_addr')
 
-        p = Proposal.objects.get(public_key=pubkey)
+        try:
+            p = Proposal.objects.get(public_key=pubkey)
+        except Proposal.DoesNotExist:
+            response = {
+                'error': 'Cannot find proposal with this pubkey.'
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
         p.multisig_addr = multisig_addr
         p.save()
         response = {
-            "status": "success"
+            'status': 'success'
         }
         return JsonResponse(response)
 
@@ -116,12 +123,12 @@ class Sign(CsrfExemptMixin, BaseFormView):
                 account = content['accounts'][user_evm_address]
                 if not account:
                     response = {'error': 'Address not found'}
-                    return JsonResponse(response, status=httplib.NOT_FOUND)
+                    return JsonResponse(response, status=httplib.BAD_REQUEST)
                 account_amount = account['balance'][color_id]
         except IOError:
             # Log
             response = {'error': 'contract not found'}
-            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
         if int(account_amount) < int(amount):
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
