@@ -15,7 +15,6 @@ from eth_abi.abi import decode_abi, decode_single
 
 contract_file = 'CONTRACT_FILE'
 contract_name = 'CONTRACT_NAME'
-oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
 
 owner_address = 'ADDRESS'
 owner_privkey = 'PRIVATE_KEY'
