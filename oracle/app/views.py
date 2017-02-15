@@ -12,8 +12,8 @@ import base58
 from rest_framework import status
 from rest_framework.views import APIView
 import gcoinrpc
-from app.models import Proposal, Registration, Keystore, OraclizeContract, ProposalOraclizeLink
-from app.serializers import ProposalSerializer, RegistrationSerializer
+from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
+from app.serializers import ProposalSerializer
 from .deploy_contract_utils import *
 from .forms import SignForm
 from oracle.mixins import CsrfExemptMixin
@@ -37,6 +37,7 @@ class Proposes(APIView):
     """
     Give the publicKey when invoked.
     """
+
     def post(self, request):
         # Return public key to Contract-Server
         body_unicode = request.body.decode('utf-8')
@@ -60,11 +61,13 @@ class Proposes(APIView):
         for condition in conditions:
             if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
                 o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
+                l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition[
+                                                        'color_id'], oraclize_contract=o)
                 p.links.add(l)
             else:
                 o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
+                l = ProposalOraclizeLink.objects.create(
+                    receiver='0', color='0', oraclize_contract=o)
                 p.links.add(l)
 
         response = {'public_key': public_key}
@@ -90,28 +93,6 @@ class Multisig_addr(APIView):
             "status": "success"
         }
         return JsonResponse(response)
-
-
-class Registrate(APIView):
-
-    def post(self, request):
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-
-        try:
-            public_key = json_data['public_key']
-            p = Proposal.objects.get(public_key=json_data['public_key'])
-            multisig_address = json_data['multisig_address']
-            redeem_script = json_data['redeem_script']
-            r = Registration(proposal=p, multisig_address=multisig_address,
-                             redeem_script=redeem_script)
-            r.save()
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
-
-        response = {'status': 'success'}
-        return HttpResponse(json.dumps(response), content_type="aplication/json")
 
 
 class Sign(CsrfExemptMixin, BaseFormView):
@@ -170,15 +151,6 @@ class ProposalList(APIView):
         return HttpResponse(json.dumps(response), content_type="application/json")
 
 
-class RegistrationList(APIView):
-
-    def get(self, request):
-        registrations = Registration.objects.all()
-        serializer = RegistrationSerializer(registrations, many=True)
-        response = {'registration': serializer.data}
-        return HttpResponse(json.dumps(response), content_type="application/json")
-
-
 class GetBalance(APIView):
 
     def get(self, request, multisig_address, address):
@@ -210,10 +182,12 @@ class GetStorage(APIView):
             response = {}
             return JsonResponse(response, status=httplib.OK)
 
+
 class DumpContractState(APIView):
     """
     Get contract state file
     """
+
     def get(self, request, multisig_address):
         contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
@@ -224,6 +198,7 @@ class DumpContractState(APIView):
         except:
             response = {}
             return JsonResponse(response, status=httplib.OK)
+
 
 class CheckContractCode(APIView):
 
@@ -250,6 +225,7 @@ class NewTxNotified(APIView):
 
         response['data'] = 'ok, received notify with tx_hash ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
+
 
 class OraclizeContractInterface(APIView):
 
