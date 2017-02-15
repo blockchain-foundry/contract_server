@@ -208,10 +208,10 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 )
         return oracle_list
 
-    def _compile_code_and_interface(self, source_code, contract_name):        
+    def _compile_code_and_interface(self, source_code, contract_name):
         output = compile_source(source_code)
         byte_code = output[contract_name]['bin']
-        interface = output[contract_name]['abi'] 
+        interface = output[contract_name]['abi']
         interface = json.dumps(interface)
         return byte_code, interface
 
@@ -242,7 +242,6 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
             code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_addr})
-
         except Compiled_error as e:
             response = {
                 'code:': ERROR_CODE['compiled_error'],
@@ -255,6 +254,9 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 'message': str(e)
             }
             return JsonResponse(response, status=httplib.BAD_REQUEST)
+        except Exception as e:
+            response = {'status': 'Bad request. ' + str(e)}
+            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             tx_hex = OSSclient.deploy_contract_raw_tx(address, multisig_addr, code, CONTRACT_FEE)
@@ -324,7 +326,6 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
                 })
             elif i['type'] == 'constructor':
                 function_list.append({
-                    'id': i['id'],
                     'inputs': i['inputs'],
                     'type': i['type']
                 })
@@ -335,6 +336,20 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
                     'type': i['type']
                 })
         return function_list, event_list
+
+    def _get_event_by_name(self, interface, event_name):
+        '''
+        interface is string of a list of dictionary containing id, name, type, inputs and outputs
+        '''
+        if not interface:
+            return {}
+
+        interface = json.loads(interface.replace("'", '"'))
+        for i in interface:
+            name = i.get('name')
+            if name == event_name and i['type'] == 'event':
+                return i
+        return {}
 
     def _get_function_by_name(self, interface, function_name):
         '''

@@ -91,7 +91,7 @@ def wallet_address_to_evm(address):
     return address
 
 
-def prepareRawContract(source_code, owner_address, min_successes, oracle_list):
+def prepareRawContract(source_code, owner_address, min_successes, oracle_list, oraclize_data):
     """Prepare raw contract transaction
     """
     url = contract_url + 'contracts/'
@@ -101,6 +101,7 @@ def prepareRawContract(source_code, owner_address, min_successes, oracle_list):
         "address": owner_address,
         "m": str(min_successes),
         "oracles": str(oracle_list),
+        "data": str(oraclize_data),
     }
 
     data = MultipartEncoder(data)

@@ -14,6 +14,8 @@ from pprint import pprint
 from eth_abi.abi import decode_abi, decode_single
 
 contract_file = 'CONTRACT_FILE'
+contract_name = 'CONTRACT_NAME'
+oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
 
 owner_address = 'ADDRESS'
 owner_privkey = 'PRIVATE_KEY'
@@ -61,7 +63,11 @@ def deployContract():
 
     print('Create a contract')
     min_successes = 1
-    r_json_createRawContract = prepareRawContract(source_code, owner_address, min_successes, oracle_list)
+
+    # without oraclize condition
+    oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
+
+    r_json_createRawContract = prepareRawContract(source_code, owner_address, min_successes, oracle_list, oraclize_data)
     contract_addr = r_json_createRawContract['multisig_address']
     print('Obtain a contract address: ' + contract_addr)
 
