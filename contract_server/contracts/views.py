@@ -164,9 +164,9 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         '''
         data = {
             'source_code': source_code,
-            'conditions': conditions
+            'conditions': str(conditions)
         }
-        r = requests.post(url + '/proposals/', data=json.dumps(data))
+        r = requests.post(url + '/proposals/', data=data)
         pubkey = json.loads(r.text)['public_key']
         url_map_pubkey = {
             "url": url,
@@ -208,10 +208,13 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 )
         return oracle_list
 
-    def _compile_code_and_interface(self, source_code, contract_name):        
-        output = compile_source(source_code)
+    def _compile_code_and_interface(self, source_code, contract_name):
+        try:
+            output = compile_source(source_code)
+        except Exception as e:
+            print(str(e))
         byte_code = output[contract_name]['bin']
-        interface = output[contract_name]['abi'] 
+        interface = output[contract_name]['abi']
         interface = json.dumps(interface)
         return byte_code, interface
 
@@ -222,7 +225,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 "pubkey": url_map_pubkey["pubkey"],
                 "multisig_addr": multisig_addr
             }
-            r = requests.post(url + "/multisigaddress/", data=json.dumps(data))
+            r = requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
     def form_valid(self, form):
