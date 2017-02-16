@@ -1,0 +1,19 @@
+python evm_test_tools.py [--flag value]
+
+flags:
+--sender: sender's addr
+--receiver: receiver's addr
+--deploy: solidity source code file.
+--function: function name
+--function-input: function inputs in a list.
+	Example: "[{'type': 'string', 'name': '_greeting', 'value': 'hey you'}]"
+--contract-name: state/interface file name 
+	This field should be unique. State file will be stored in ./state/<name>, and interface will be stored in ./interface/<name>.
+--value: values from sender to reciever
+
+example:
+	1. Deploy new contract:
+  		python evm_test_tools.py  --contract-name test --sender 16N81VcwUcqN9CYFTHh6B6hxXKF8PCnsRq --receiver 3MXG5xgX33E23GSP6G1vZDqedn1VCgjWfq --deploy test.sol
+  		
+  	2. Function call:
+  		 python evm_test_tools.py  --contract-name test --sender 16N81VcwUcqN9CYFTHh6B6hxXKF8PCnsRq --receiver 3MXG5xgX33E23GSP6G1vZDqedn1VCgjWfq --function setGreeting --function-input "[{'type': 'string', 'name': '_greeting', 'value': 'hey you'}]"
