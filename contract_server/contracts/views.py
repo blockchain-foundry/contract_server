@@ -174,13 +174,13 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         `function_inputs` is a list
         '''
         from_address = form.cleaned_data['from_address']
-        to_address = self.multisig_address
-        deploy_address = form.cleaned_data['deploy_address']
+        multisig_address = self.multisig_address
+        to_address = form.cleaned_data['deploy_address']
         source_code = form.cleaned_data['source_code']
         data = json.loads(form.cleaned_data['data'])
 
         try:
-            contract = Contract.objects.get(multisig_address=to_address)
+            contract = Contract.objects.get(multisig_address=multisig_address)
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
@@ -189,10 +189,10 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-            code = json.dumps({'source_code': compiled_code, 'multisig_addr': to_address})
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
             subcontract = SubContract(
                 parent_contract=contract,
-                deploy_address=deploy_address,
+                deploy_address=to_address,
                 source_code=source_code,
                 color_id=1,
                 amount=0,
@@ -207,7 +207,7 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         tx_hex = OSSclient.deploy_contract_raw_tx(
-            from_address, to_address, code, CONTRACT_FEE)
+            from_address, multisig_address, code, CONTRACT_FEE)
         response = {'raw_tx': tx_hex}
 
         return JsonResponse(response)
@@ -676,10 +676,11 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
 
         code = json.dumps({
             "function_inputs_hash": evm_input_code,
-            "multisig_addr": to_address
+            "multisig_addr": multisig_address,
+            "to_addr": to_address
         })
-        tx_hex = OSSclient.operate_subcontract_raw_tx(
-            from_address, to_address, multisig_addr, amount, color, code, CONTRACT_FEE)
+        tx_hex = OSSclient.operate_contract_raw_tx(
+            from_address, multisig_address, amount, color, code, CONTRACT_FEE)
         response = {'raw_tx': tx_hex}
 
         return JsonResponse(response)

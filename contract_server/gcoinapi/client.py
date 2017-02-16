@@ -119,7 +119,6 @@ class GcoinAPIClient(object):
             'code': op_return,
             'contract_fee': diqi_amount,
         }
-
         response = self.request(end_point, 'POST', data=data)
         raw_tx = response.json()['raw_tx']
         return raw_tx
