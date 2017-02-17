@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'oracles',
     'contracts',
+    'evm_manager',
     'events',
 ]
 
@@ -180,6 +181,10 @@ LOGGING = {
             'level': 'DEBUG',
         },
         'contract_server': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        },
+        'evm_manager': {
             'handlers': ['file', 'mail_admins'],
             'level': 'DEBUG',
         },
