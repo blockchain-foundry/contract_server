@@ -49,6 +49,12 @@ class GcoinAPIClient(object):
         balance = response.json()
         return balance
 
+    def get_address_utxos(self, address):
+        end_point = '/base/v1/addresses/{address}/utxo'.format(address=address)
+        response = self.request(end_point, 'GET')
+        utxos = response.json()
+        return utxos
+
     def get_license_info(self, color_id):
         end_point = '/base/v1/license/{color_id}'.format(color_id=color_id)
         response = self.request(end_point, 'GET')
@@ -150,6 +156,16 @@ class GcoinAPIClient(object):
             'tx_hash': tx_hash,
             'confirmation_count': confirmation_count,
             'callback_url': callback_url
+        }
+        response = self.request(end_point, 'POST', data=data)
+        subscription = response.json()
+        return subscription
+
+    def subscribe_address_notification(self,address, callback_url):
+        end_point = '/notification/v1/address/subscription'
+        data = {
+            'tx_hash': tx_hash,
+             'callback_url': callback_url
         }
         response = self.request(end_point, 'POST', data=data)
         subscription = response.json()

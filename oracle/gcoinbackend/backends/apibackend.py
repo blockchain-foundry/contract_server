@@ -86,6 +86,10 @@ class GcoinAPIBackend(BaseGcoinBackend):
             return {color_id: balance.get(color_id, decimal.Decimal('0'))}
         else:
             return balance
+    
+    def get_address_utxos(self, address):
+        utxos = self.client.get_address_utxos(address)
+        return utxos
 
     def send(self, from_address, to_address, amount, color_id):
         try:
@@ -132,6 +136,12 @@ class GcoinAPIBackend(BaseGcoinBackend):
     def subscribe_tx_notification(self, tx_hash, confirmation_count, callback_url):
         try:
             return self.client.subscribe_tx_notification(tx_hash, confirmation_count, callback_url)
+        except GcoinAPIError:
+            raise exceptions.SubscribeTxNotificationFail
+
+    def subscribe_address_notification(self, address, callback_url):
+        try:
+            return self.client.subscribe_address_notification(address, callback_url)
         except GcoinAPIError:
             raise exceptions.SubscribeTxNotificationFail
 

@@ -18,6 +18,16 @@ from app.serializers import ProposalSerializer
 from .deploy_contract_utils import *
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
+from gcoinbackend import core as gcoincore
+import binascii
+import hashlib
+import re
+
+from django.contrib.sites.shortcuts import get_current_site
+
+pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
+pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
+script_hash_re = re.compile(r'^a914[a-f0-9]{40}87$')
 
 try:
     import http.client as httplib
@@ -26,6 +36,28 @@ except ImportError:
 
 EVM_PATH = '../oracle/states/{multisig_address}'
 
+def addressFromScriptPubKey(script_pub_key):
+    script_pub_key = script_pub_key.lower()
+    version_prefix = b'\x00'
+    # pay to pubkey hash
+    if pubkey_hash_re.match(script_pub_key):
+        pubkey_hash = binascii.unhexlify(script_pub_key[6:-4])
+    # pay to pubkey
+    elif pubkey_re.match(script_pub_key):
+        hash1 = hashlib.sha256(binascii.unhexlify(script_pub_key[2:-2]))
+        pubkey_hash = ripemd.RIPEMD160(hash1.digest()).digest()
+    # pay to script hash
+    elif script_hash_re.match(script_pub_key):
+        pubkey_hash = binascii.unhexlify(script_pub_key[4:-2])
+        version_prefix = b'\x05'
+    else:
+        return ''
+
+    padded = version_prefix + pubkey_hash
+    hash2 = hashlib.sha256(padded)
+    hash3 = hashlib.sha256(hash2.digest())
+    padded += hash3.digest()[:4]
+    return base58.b58encode(padded)
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
@@ -147,6 +179,94 @@ class Sign(CsrfExemptMixin, BaseFormView):
         response = {'error': form.errors}
 
         return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
+class SignNew(CsrfExemptMixin, BaseFormView):
+    http_method_name = ['post']
+    form_class = SignForm
+
+    def form_valid(self, form):
+        tx = form.cleaned_data['tx']
+        script = form.cleaned_data['script']
+        input_index = form.cleaned_data['input_index']
+        user_address = form.cleaned_data['user_address']
+        multisig_address = form.cleaned_data['multisig_address']
+
+        decoded_tx = deserialize(tx)
+        try:
+            old_utxo = self.get_oldest_utxo(multisig_address)
+        except:
+            response = {'error': 'Do not contain oldest tx'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        contained_old = False
+        for vin in decoded_tx['ins']:
+            if old_utxo['txid'] == vin['outpoint']['hash']:
+                contained_old = True
+        if not contained_old:
+            response = {'error': 'Do not contain oldest tx'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        # need to check contract result before sign Tx
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                for vout in decoded_tx['outs']:
+                    output_address = addressFromScriptPubKey(vout['script'])
+                    output_color = vout['color']
+                    #convert to diqi
+                    output_value = vout['value']/100000000
+                    if output_address == multisig_address:
+                        continue
+                    output_evm_address = wallet_address_to_evm(output_address)
+                    account = content['accounts'][output_evm_address]
+                    if not account:
+                        response = {'error': 'Address not found'}
+                        return JsonResponse(response, status=httplib.NOT_FOUND)
+                    amount = account['balance'].get(str(output_color))
+                    if not amount:
+                        response = {'error': 'insufficient funds'}
+                        return JsonResponse(response, status=httplib.BAD_REQUEST)
+                    if int(amount) < int(output_value):
+                        response = {'error': 'insufficient funds'}
+                        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        except IOError:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+ 
+        #signature = connection.signrawtransaction(tx)
+        p = Proposal.objects.get(multisig_addr=multisig_address)
+        private_key = Keystore.objects.get(public_key=p.public_key).private_key
+
+        signature = multisign(tx, input_index, script, private_key)
+        # return only signature hex
+        response = {'signature': signature}
+
+        return JsonResponse(response, status=httplib.OK)
+ 
+   
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
+    def get_oldest_utxo(self, multisig_address):
+        utxos = gcoincore.get_address_utxos(multisig_address)
+        block_time = None
+        old_utxo = None
+        for utxo in utxos:
+            raw_tx  = gcoincore.get_tx(utxo['txid'])
+            try:
+                block = gcoincore.get_block_by_hash(raw_tx['blockhash'])
+                if block_time == None or int(block['time']) < block_time:
+                    old_utxo = utxo
+                    block_time = int(block['time'])
+            except:
+                print('unconfirmed')
+
+        return old_utxo
+
 
 
 class ProposalList(APIView):
