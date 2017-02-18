@@ -358,15 +358,15 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-        try:
-            deploy_contracts(tx_hash)
-        except Exception as e:
-            print(e)
-            raise(e)
-        response['data'] = 'ok, received notify with tx_hash ' + tx_hash
+
+        completed = deploy_contracts(tx_id)
+        if completed == False:
+            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
+            return JsonResponse(response, status=httplib.OK)
+
+        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
       
-
 
 class OraclizeContractInterface(APIView):
 
