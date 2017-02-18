@@ -50,6 +50,10 @@ def get_contracts_info(tx):
             bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
             data = json.loads(bytecode.decode('utf-8'))
             multisig_addr = data.get('multisig_addr')
+            if data.get('to_addr'):
+                to_addr = data.get('to_addr')
+            else:
+                to_addr = multisig_addr
             if data.get('source_code'):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
@@ -78,10 +82,10 @@ def get_contracts_info(tx):
         )
     for v in value:
         value[v] = str(value[v]/100000000)
-    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy, blocktime
+    return sender_addr, multisig_addr, to_addr, bytecode, json.dumps(value), is_deploy, blocktime
 
 
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time):
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time, to_addr):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
@@ -89,7 +93,10 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
+    if multisig_addr == to_addr:
+        multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
+    else:
+        multisig_hex = to_addr
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
@@ -117,8 +124,8 @@ def deploy_contracts(tx_hash):
     # _time = 0;
     if tx['type'] == 'CONTRACT':
         try:
-            sender_addr, multisig_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
-        except:
-            print("Not fount tx: " + tx_hash)
+            sender_addr, multisig_addr, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
+        except Exception as e:
+            print("Not fount tx: " + tx_hash, e)
             return False
-        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time)
+        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, _time, to_addr)
