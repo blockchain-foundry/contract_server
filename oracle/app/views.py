@@ -22,7 +22,7 @@ from gcoinbackend import core as gcoincore
 import binascii
 import hashlib
 import re
-
+import time
 from django.contrib.sites.shortcuts import get_current_site
 
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
@@ -193,17 +193,23 @@ class SignNew(CsrfExemptMixin, BaseFormView):
 
         decoded_tx = deserialize(tx)
         try:
-            old_utxo = self.get_oldest_utxo(multisig_address)
+            old_utxo, all_utxos = self.get_oldest_utxo(multisig_address)
         except:
             response = {'error': 'Do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         contained_old = False
+
         for vin in decoded_tx['ins']:
-            if old_utxo['txid'] == vin['outpoint']['hash']:
+            vin = (vin['outpoint']['hash'], vin['outpoint']['index'])
+            if vin not in all_utxos:
+                response = {'error': 'vins contains wrong utxo'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
+                
+            if vin == old_utxo:
                 contained_old = True
         if not contained_old:
-            response = {'error': 'Do not contain oldest tx'}
+            response = {'error': 'vins do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         # need to check contract result before sign Tx
@@ -253,7 +259,9 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         utxos = gcoincore.get_address_utxos(multisig_address)
         block_time = None
         old_utxo = None
+        all_utxos = []
         for utxo in utxos:
+            all_utxos.append ((utxo['txid'], utxo['vout']))
             raw_tx  = gcoincore.get_tx(utxo['txid'])
             try:
                 block = gcoincore.get_block_by_hash(raw_tx['blockhash'])
@@ -263,8 +271,8 @@ class SignNew(CsrfExemptMixin, BaseFormView):
             except:
                 print('unconfirmed')
 
-        return old_utxo
-
+        old_utxo = (old_utxo['txid'], old_utxo['vout'])
+        return old_utxo, all_utxos
 
 
 class ProposalList(APIView):
