@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 import gcoinrpc
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
-from .deploy_contract_utils import *
+from evm_manager.deploy_contract_utils import deploy_contracts
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
@@ -184,7 +184,6 @@ class Sign(CsrfExemptMixin, BaseFormView):
 class SignNew(CsrfExemptMixin, BaseFormView):
     http_method_name = ['post']
     form_class = SignForm
-
     def form_valid(self, form):
         tx = form.cleaned_data['tx']
         script = form.cleaned_data['script']
@@ -244,7 +243,6 @@ class SignNew(CsrfExemptMixin, BaseFormView):
 
         return JsonResponse(response, status=httplib.OK)
  
-   
     def form_invalid(self, form):
         response = {'error': form.errors}
 
@@ -352,10 +350,14 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-        deploy_contracts(tx_hash)
-
+        try:
+            deploy_contracts(tx_hash)
+        except Exception as e:
+            print(e)
+            raise(e)
         response['data'] = 'ok, received notify with tx_hash ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
+      
 
 
 class OraclizeContractInterface(APIView):
