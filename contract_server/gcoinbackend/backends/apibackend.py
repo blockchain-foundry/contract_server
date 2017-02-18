@@ -115,8 +115,8 @@ class GcoinAPIBackend(BaseGcoinBackend):
     def get_tx(self, tx_hash):
         return self.client.get_tx(tx_hash)
 
-    def get_txs_by_address(self, address, starting_after=None, tx_type=None):
-        page, txs = self.client.get_txs_by_address(address, starting_after, tx_type)
+    def get_txs_by_address(self, address, starting_after=None, since=None, tx_type=None):
+        page, txs = self.client.get_txs_by_address(address, starting_after, since, tx_type)
         response = {
             'page': page,
             'txs': txs
@@ -157,3 +157,15 @@ class GcoinAPIBackend(BaseGcoinBackend):
         signed_tx = signall(str(raw_tx), privkey)
         tx_hash = self.client.send_tx(signed_tx)
         return tx_hash
+
+
+    def send_cashout_tx(self, signed_tx, oracles=None):
+        tx_hash = self.client.send_tx(signed_tx)
+
+        # subscribe tx notifiaction
+        if oracles != None:
+            for oracle in oracles:
+                callback_url = oracle + "/notify/" + tx_hash
+                result = self.subscribe_tx_notification(tx_hash, 1, callback_url)
+        return tx_hash
+

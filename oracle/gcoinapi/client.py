@@ -133,13 +133,17 @@ class GcoinAPIClient(object):
         tx = response.json()
         return tx
 
-    def get_txs_by_address(self, address, starting_after, tx_type):
+    def get_txs_by_address(self, address, starting_after, since, tx_type):
         end_point = '/explorer/v1/transactions/address/{address}'.format(address=address)
         params = {}
         if starting_after:
             params['starting_after'] = starting_after
+        if since:
+            params['since'] = since
         if tx_type:
             params['tx_type'] = tx_type
+        params['page_size'] = 200
+
         response = self.request(end_point, 'GET', params=params)
         page, txs = response.json()['page'], response.json()['txs']
         return page, txs
