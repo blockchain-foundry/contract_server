@@ -358,8 +358,7 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-
-        completed = deploy_contracts(tx_id)
+        completed = deploy_contracts(tx_hash)
         if completed == False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)

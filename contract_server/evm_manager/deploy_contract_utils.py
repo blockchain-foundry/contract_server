@@ -20,8 +20,13 @@ import logging
 
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
-lock = Lock()
+LOCK_POOL_SIZE = 10
+LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 logger = logging.getLogger(__name__)
+
+def get_lock(filename)
+    index = abs(hash(str(filename))) % LOCK_POOL_SIZE
+    return LOCKS[index]
 
 def get_tx_info(tx_hash):
     tx = gcoincore.get_tx(tx_hash)
@@ -174,7 +179,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
             multisig_hex + " --read " + contract_path + " --time " + str(_time)
-   
+    lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
         if state.latest_tx_hash == ex_tx_hash:
@@ -242,8 +247,9 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_addr):
         try:
             sender_address = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
             if sender_address[0] == '1':
+                lock = get_lock(multisig_addr)
                 with lock:
-                    state, created = StateInfo.objects.get_or_create(multisig_address=multisig_address)
+                    state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
                     if state.latest_tx_hash == ex_tx_hash:
                         state.latest_tx_hash = tx_hash
                         state.latest_tx_time = _time
@@ -269,6 +275,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_addr):
 def update_state_after_payment(vouts, multisig_addr, tx_hash, ex_tx_hash, _time):
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
 
+    lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
         if state.latest_tx_hash == ex_tx_hash:
@@ -302,7 +309,8 @@ def update_state_after_payment(vouts, multisig_addr, tx_hash, ex_tx_hash, _time)
         
         amount = str(int(amount) - int(output_value))
         content['accounts'][output_evm_address]['balance'][str(output_color)] = amount
-
+  
+    lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
         if state.latest_tx_hash == ex_tx_hash:
