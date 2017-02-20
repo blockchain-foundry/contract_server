@@ -68,11 +68,23 @@ class ContractFuncTest(TestCase):
         }
 
     def fake_operate_contract_raw_tx(self, from_address, to_address, amount, color_id, compiled_code, contract_fee):
-        return "fake tx hex"
+        return 'fake tx hex'
+
+    def fake_call_constant_function(sender_addr, multisig_addr, byte_code, value, to_addr):
+        return {
+            'out': 'fake contstant call result',
+        }
+
+    def fake_decode_evm_output(interface, function_name, out):
+        return {
+            'function_outputs': 'fake funciton output'
+        }
 
     def test_get_abi_list(self):
-        contract_func = ContractFunc()
-        function_list, event_list = contract_func._get_abi_list(self.contract.interface)
+        response = self.client.get(self.url)
+        json_data = json.loads(response.content.decode('utf-8'))
+        function_list = json_data['function_list']
+        event_list = json_data['events']
 
         self.assertEqual(function_list[0]['name'], 'getAttributes')
         self.assertEqual(event_list[0]['name'], 'AttributesSet')
@@ -92,7 +104,17 @@ class ContractFuncTest(TestCase):
         self.assertEqual(response.status_code, httplib.NOT_FOUND)
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
-    def test_make_function_call_tx(self):
+    def test_make_non_constant_function_call_tx(self):
+        self.sample_form['function_name'] = 'setAttributes'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    @mock.patch("contracts.views._call_constant_function", fake_call_constant_function)
+    @mock.patch("contracts.views.decode_evm_output", fake_decode_evm_output)
+    def test_make_constant_function_call_tx(self):
+        # Need more tests in detail.
+        self.sample_form['function_name'] = 'getAttributes'
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)
 
@@ -118,25 +140,26 @@ class ContractFuncTest(TestCase):
 class ContractViewTest(TestCase):
 
     def setUp(self):
-        self.url = "/contracts/"
+        self.url = '/contracts/'
         with open('./contracts/test_files/test_source_code', 'r') as source_code_file:
             source_code = source_code_file.read().replace('\n', '')
         Oracle.objects.create(url='http://52.197.157.107:5590', name='oss1')
         self.sample_form = {
-            "source_code": source_code,
-            "address": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
-            "m": 1,
-            "oracles": "[{'url': 'http://52.197.157.107:5590', 'name': 'oss1'}]"
+            'source_code': source_code,
+            'address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
+            'm': 1,
+            'oracles': "[{'url': 'http://52.197.157.107:5590', 'name': 'oss1'}]",
+            'data': '{"name": "abc", "conditions": "[]"}'
         }
 
-    def fake_get_multisig_addr(self, oracle_list, source_code, m):
+    def fake_get_multisig_addr(self, oracle_list, source_code, conditions, m):
         multisig_addr = "3QNNj5LFwt4fD9y8kQsMFibrELih1FCUZM"
         multisig_script = "51210243cdd388d600f1202ac13c70bb7bf93b80ff6a20bc39760dc389ecf8ef9f000251ae"
         url_map_pubkeys = [
             {'pubkey': '03f485a69657f9fb4536e9c60c412c23f84ac861d2cbf60304c8a8f7fa9e769c50', 'url': 'http://52.197.157.107:5590'}]
         return multisig_addr, multisig_script, url_map_pubkeys
 
-    def fake_get_multisig_addr_error(self, oracle_list, source_code, m):
+    def fake_get_multisig_addr_error(self, oracle_list, source_code, conditions, m):
         raise Multisig_error("fake_get_multisig_addr_error")
 
     def fake_deploy_contract_raw_tx(self, address, multisig_addr, code, CONTRACT_FEE):
@@ -230,94 +253,3 @@ class WithdrawFromContractTest(TestCase):
 
         self.assertEqual(event['anonymous'], False)
         self.assertEqual(event['name'], TEST_EVENT_NAME)
-
-    def test_decode_evm_output(self):
-        contract_func = ContractFunc()
-
-        '''
-        pragma solidity ^0.4.7;
-        contract TestGcoin {
-            string myString = 'hello';
-            uint myUint = 12345;
-            int myInt = 12345;
-            bytes1 myBytes1 = 0x12;
-            bytes2 myBytes2 = 0x1234;
-            bytes myBytes = '0x1234';
-            bool myBool = true;
-
-
-            function plusInt(int inputInt) constant returns (int) {
-                return myInt + inputInt;
-            }
-
-            function getSingleParam() constant returns (string) {
-                return myString;
-            }
-
-            function getMultiParams() constant returns (string, uint, int, bytes1, bytes2, bytes, bool) {
-                return (myString, myUint, myInt, myBytes1, myBytes2, myBytes, myBool);
-            }
-
-
-            function getArray() constant returns (uint8[3][3])
-            {
-                uint8[3][3] memory array;
-                uint8 count = 0;
-                for(uint8 x = 0; x < 3; x++)
-                {
-                	for(uint8 y = 0; y < 3; y++)
-                	{
-                		array[x][y] = count;
-                        count = count + 1;
-                	}
-                }
-              	return array;
-            }
-        }
-        '''
-
-        interface = '[{"payable": false, "name": "getMultiParams", "outputs": [{"name": "", "type": "string"}, {"name": "", "type": "uint256"}, {"name": "", "type": "int256"}, {"name": "", "type": "bytes1"}, {"name": "", "type": "bytes2"}, {"name": "", "type": "bytes"}, {"name": "", "type": "bool"}], "inputs": [], "type": "function", "id": 1, "constant": true}, {"payable": false, "name": "plusInt", "outputs": [{"name": "", "type": "int256"}], "inputs": [{"name": "inputInt", "type": "int256"}], "type": "function", "id": 2, "constant": true}, {"payable": false, "name": "getArray", "outputs": [{"name": "", "type": "uint8[3][3]"}], "inputs": [], "type": "function", "id": 3, "constant": true}, {"payable": false, "name": "getSingleParam", "outputs": [{"name": "", "type": "string"}], "inputs": [], "type": "function", "id": 4, "constant": true}]'
-
-        # test 1: getSingleParam()
-        function_name = 'getSingleParam'
-        out = '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000'
-        function_output = contract_func._decode_evm_output(interface, function_name, out)
-
-        self.assertEqual(function_output[0]['value'], 'hello')
-        self.assertEqual(function_output[0]['type'], 'string')
-
-        # test 2: getMultiParams()
-        function_name = 'getMultiParams'
-        out = '0x00000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000303900000000000000000000000000000000000000000000000000000000000030391200000000000000000000000000000000000000000000000000000000000000123400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000568656c6c6f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063078313233340000000000000000000000000000000000000000000000000000'
-        function_output = contract_func._decode_evm_output(interface, function_name, out)
-
-        test_function_output = [
-            {'type': 'string', 'value': 'hello'}, {'type': 'uint256', 'value': 12345},
-            {'type': 'int256', 'value': 12345},
-            {'type': 'bytes1', 'value': '\x12'}, {'type': 'bytes2', 'value': '\x124'},
-            {'type': 'bytes', 'value': '0x1234'}, {'type': 'bool', 'value': True}
-        ]
-
-        is_equal = sorted(test_function_output, key=lambda k: k['type']) == sorted(function_output, key=lambda k: k['type'])
-        self.assertTrue(is_equal)
-
-        # test 3: plusInt(int inputInt)
-        function_name = 'plusInt'
-        out = '0x00000000000000000000000000000000000000000000000000000000000030b4'
-        function_output = contract_func._decode_evm_output(interface, function_name, out)
-
-        # input: {"type": "int", "value": 123}, output should be 12345 + 123 = 12468
-        item = {"value": 12468, "type": "int256"}
-
-        is_equal = function_output[0] == item
-        self.assertTrue(is_equal)
-
-        # test 4: getArray()
-        function_name = 'getArray'
-        out = '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000008'
-        function_output = contract_func._decode_evm_output(interface, function_name, out)
-        # should output 12345 + 123 = 12468
-        item = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
-
-        self.assertEqual(function_output[0]['value'], item)
-        self.assertEqual(function_output[0]['type'], 'uint8[3][3]')
