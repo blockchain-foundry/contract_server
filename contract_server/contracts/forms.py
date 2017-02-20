@@ -21,6 +21,9 @@ class SubContractFunctionCallForm(forms.Form):
     function_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
     
+    def clean_function_inputs(self):
+        function_inputs = self.cleaned_data['function_inputs']
+        return ast.literal_eval(function_inputs)
 
 class ContractFunctionCallFrom(forms.Form):
     from_address = forms.CharField(required=True)
