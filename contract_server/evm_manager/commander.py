@@ -22,7 +22,7 @@ class Commander:
         contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
         return contract_path
 
-    def buildCommand(self, is_deploy, sender_address, multisig_address, bytecode, value, blocktime, subscription_id=''):
+    def buildCommand(self, is_deploy, sender_address, multisig_address, bytecode, value, blocktime, subscription_id='', receiver_address=''):
         '''
         Build EVM command for deployment or calling function
         '''
@@ -46,9 +46,9 @@ class Commander:
         command.addParam('--value', value)
         command.addParam('--write', contract_path)
         command.addParam('--code', bytecode) if is_deploy else command.addParam('--input', bytecode)
-        command.addParam('--receiver', multisig_hex)
+        command.addParam('--receiver', multisig_address) if receiver_address == '' else command.addParam('--receiver', receiver_address)
         command.addParam('--time', str(blocktime))
-        command.addParam('--dump', '')
+        # command.addParam('--dump', '')
         command.addParam('--writelog', contract_path + '_log')
 
         command_string = command.getCommand()

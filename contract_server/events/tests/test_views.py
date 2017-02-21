@@ -1,10 +1,16 @@
+from django.utils import timezone
 from django.test import TestCase
 from events.views import Events, Notify
 from oracles.models import Contract
 from events.models import Watch
+from events.exceptions import *
 
 TEST_MULTISIG_ADDRESS = '3NEga9GGxi4hPYqryL1pUsDicwnDsCNYyF'
 TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
+
+TEST_SUBSCRIPTION_ID_CLOSED = '90d9931e-88cd-458b-96b3-3cea31ae051'
+TEST_SUBSCRIPTION_ID_EXPIRED = '90d9931e-88cd-458b-96b3-3cea31ae052'
+
 
 class NotifyTestCase(TestCase):
     def setUp(self):
@@ -39,11 +45,12 @@ class NotifyTestCase(TestCase):
         hashed_key = notify._hash_key(key)
         self.assertEqual(hashed_key, '70c8251d1f51f94ab26213a0dd53ead1bf32aeeb2e95bb6497d8d8bbde61b98d')
 
-    def test__get_event_key(self):
+    def test_get_event_key(self):
         notify = Notify()
         multisig_address = TEST_MULTISIG_ADDRESS
+        receiver_address = TEST_MULTISIG_ADDRESS
         event_name = 'TestEvent'
-        key, event_args = notify._get_event_key(multisig_address, event_name)
+        key, event_args = notify._get_event_key(multisig_address, receiver_address, event_name)
 
         expect_key = 'TestEvent(string,uint256,int256,address,bytes)'
         self.assertEqual(key, expect_key)
@@ -56,7 +63,7 @@ class NotifyTestCase(TestCase):
             {'indexed': False, 'name': '_my_bytes', 'type': 'bytes', 'order': 4}]
         self.assertEqual(event_args, expect_event_args)
 
-    def test_get_event_from_logs(self):
+    def test_decode_event_from_logs(self):
         notify = Notify()
 
         logs = [
@@ -77,11 +84,12 @@ class NotifyTestCase(TestCase):
             {'type': 'address', 'name': '_my_address', 'order': 3, 'indexed': False},
             {'type': 'bytes', 'name': '_my_bytes', 'order': 4, 'indexed': False}]
 
-        event = notify._get_event_from_logs(
+        event = notify._decode_event_from_logs(
             logs=logs,
             evm_address=evm_address,
             event_hex=event_hex,
-            event_args=event_args)
+            event_args=event_args,
+            receiver_address=evm_address)
 
         expect_event = {'args': [
             {'indexed': 'False', 'name': '_message', 'type': 'string', 'value': 'smartcontract'},
@@ -92,3 +100,37 @@ class NotifyTestCase(TestCase):
         ]}
 
         self.assertEqual(event, expect_event)
+
+    def run_get_alive_watch(self, subscription_id):
+        '''For assertRaises tests
+        '''
+        Notify()._get_alive_watch(subscription_id)
+
+    def test_get_alive_watch(self):
+        # success
+        watch = Notify()._get_alive_watch(TEST_SUBSCRIPTION_ID)
+        self.assertEqual(watch.multisig_address, TEST_MULTISIG_ADDRESS)
+
+    def test_get_alive_watch_is_closed(self):
+        # mock watch
+        watch = Watch.objects.create(
+            multisig_address=TEST_MULTISIG_ADDRESS,
+            key='TestEvent',
+            subscription_id=TEST_SUBSCRIPTION_ID_CLOSED,
+            is_closed=True
+        )
+        watch.save()
+
+        self.assertRaises(WatchIsClosed_error, self.run_get_alive_watch, TEST_SUBSCRIPTION_ID_CLOSED)
+
+    def test_get_alive_watch_is_expired(self):
+        # mock watch
+        watch = Watch.objects.create(
+            multisig_address=TEST_MULTISIG_ADDRESS,
+            key='TestEvent',
+            subscription_id=TEST_SUBSCRIPTION_ID_EXPIRED,
+            created= timezone.now() + timezone.timedelta(minutes=20)
+        )
+        watch.save()
+
+        self.assertRaises(WatchIsExpired_error, self.run_get_alive_watch, TEST_SUBSCRIPTION_ID_EXPIRED)
