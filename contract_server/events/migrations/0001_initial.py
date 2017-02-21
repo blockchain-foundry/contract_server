@@ -14,13 +14,14 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='Watch',
             fields=[
-                ('id', models.AutoField(primary_key=True, verbose_name='ID', serialize=False, auto_created=True)),
+                ('id', models.AutoField(serialize=False, auto_created=True, verbose_name='ID', primary_key=True)),
                 ('created', models.DateTimeField(default=events.models.default_time)),
                 ('multisig_address', models.CharField(max_length=100)),
                 ('key', models.CharField(max_length=200)),
                 ('subscription_id', models.CharField(max_length=100)),
-                ('args', models.CharField(default='', max_length=1000, blank=True)),
+                ('args', models.CharField(blank=True, max_length=1000, default='')),
                 ('is_closed', models.BooleanField(default=False)),
+                ('receiver_address', models.CharField(max_length=100)),
             ],
             options={
                 'ordering': ('created',),
