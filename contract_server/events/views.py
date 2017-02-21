@@ -196,7 +196,6 @@ class Events(APIView):
             key: event name
             callback_url: callback_url of OSS Address Notification
             oracle_url: the oracle_url for querying last state
-
         Return:
             event: the new action result in event.args and event.name
             subscription_id: The subscription_id from OSS
@@ -496,14 +495,11 @@ class Notify(APIView):
     @handle_uncaught_exception
     def post(self, request, multisig_address, receiver_address=''):
         """ Receive Address Notification from OSS Server
-
         The Address Notification related to [:multisig_address] was subscribed from [events/watches/] API.
-
         Args:
             tx_hash: A new transaction hash related to [:multisig_address]
             subscription_id: The subscription_id from OSS
             notification_id: The notification_id from OSS
-
         Returns:
             error: If there's error, return error message.
             message: If it's successful, return messge.
@@ -522,12 +518,7 @@ class Notify(APIView):
             t = threading.Thread(target=self._process_accept_notification, args=(tx_hash, subscription_id, multisig_address, receiver_address))
             t.setDaemon(False)
             t.start()
-
-            # print('[Received notification]: multisig_address:{}, tx_hash:{}, subscription_id:{}, notification_id:{}'.format(multisig_address, tx_hash, subscription_id, notification_id))
-            t = threading.Thread(target=self._process_accept_notification, args=(tx_hash, subscription_id, multisig_address))
-            t.setDaemon(False)
-            t.start()
-
+            
             # Unsubscribe the subscription_id
             self._unsubscribe_address_notification(subscription_id)
 
