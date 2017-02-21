@@ -107,6 +107,21 @@ def prepareRawContract(source_code, owner_address, min_successes, oracle_list, o
     data = MultipartEncoder(data)
     return post(url, data=data, headers={'Content-Type': data.content_type}).json()
 
+def prepareRawSubContract(multisig_addr, source_code, owner_address, deploy_address, oraclize_data):
+    """Prepare raw contract transaction
+    """
+    url = contract_url + 'subcontracts/'+ multisig_addr + '/'
+
+    data = {
+        "source_code": source_code,
+        "from_address": owner_address,
+        "deploy_address": deploy_address,
+        "data": str(oraclize_data),
+    }
+
+    data = MultipartEncoder(data)
+    #print(post(url, data=data, headers={'Content-Type': data.content_type}))
+    return post(url, data=data, headers={'Content-Type': data.content_type}).json()
 
 def signAndSendTx(raw_tx, from_privkey):
     """User has to sign the contract before sending to the network
@@ -191,6 +206,13 @@ def getCurrentStatus(contract_addr):
     pprint(getStorage(contract_addr))
     print()
 
+def callSubContractFunction(contract_addr, data):
+    """Call contract function
+    """
+    data = MultipartEncoder(data)
+
+    url = contract_url + 'subcontracts/' + contract_addr + '/function'
+    return post(url, data=data, headers={'Content-Type': data.content_type}).json()
 
 def callContractFunction(contract_addr, data):
     """Call contract function

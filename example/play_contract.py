@@ -7,7 +7,8 @@ import re
 from utils import (get, post, loadContract, wallet_address_to_evm,
                    prepareRawContract, signAndSendTx, subscribeTx,
                    getBalance, getStorage, getABI, getCurrentStatus,
-                   callContractFunction, getOracleList, is_contract_deployed)
+                   callContractFunction, getOracleList, is_contract_deployed,
+                   prepareRawSubContract, callSubContractFunction)
 
 from pprint import pprint
 
@@ -95,6 +96,49 @@ def deployContract():
 
     return contract_addr
 
+def deploySubContract(multisig_address, deploy_address):
+    # 1. Create a contract
+    source_code = loadContract(contract_file)
+
+    print('Create a contract')
+    min_successes = 1
+
+    # without oraclize condition
+    oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
+
+    r_json_createRawContract = prepareRawSubContract(multisig_address, source_code, owner_address, deploy_address, oraclize_data)
+
+    # 2. Broadcast the transaction
+    raw_tx = r_json_createRawContract['raw_tx']
+    print('Create and broadcast a signed tx')
+    tx_id = signAndSendTx(raw_tx, owner_privkey)
+    print('Unconfirmed Tx id: ' + tx_id)
+
+    # 3. Contract is deployed
+    print('Deploy the contract')
+    r_json_subscribeTx = subscribeTx(tx_id)
+    print('Wait for miner for 60 secs...')
+    time.sleep(60)
+
+def testSubContract(contract_addr, deploy_address, function_name, function_inputs):
+    data = {
+        'from_address': owner_address,
+        'to_address': deploy_address,
+        'amount': '0',
+        'color': '1',
+        'function_name': function_name,
+        'function_inputs':function_inputs
+    }
+    r_json_callContractFunction = callSubContractFunction(contract_addr, data)
+    raw_tx = r_json_callContractFunction['raw_tx']
+    
+    print('Signed & broadcast Tx call')
+    tx_id = signAndSendTx(raw_tx, owner_privkey)
+    r_json_subscribeTx = subscribeTx(tx_id)
+
+    print('Waiting for 60 seconds..')
+    time.sleep(60)
+    print()
 
 def testTransactionCall(contract_addr):
     getCurrentStatus(contract_addr)
@@ -154,7 +198,9 @@ def testConstantCall(contract_addr):
 
 if __name__ == '__main__':
     contract_addr = deployContract()
-    # contract_addr = '3AytWwkkdre1ByX8zFYyU3yGKdfTqZaVUU'
-    testTransactionCall(contract_addr)
-    testConstantCall(contract_addr)
+    #contract_addr = '34Lfc447gjqXF9T6GoCr4rPF6srQLBFbr1'
+    deploySubContract(contract_addr, '157')    
+    testSubContract(contract_addr, '157', 'setgreeter', '[{"name": "_greeting", "type": "string", "value":"Hello World"}]')
+    #testTransactionCall(contract_addr)
+    #testConstantCall(contract_addr)
     # decodeStorageExample()
