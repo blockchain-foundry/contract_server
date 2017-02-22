@@ -92,11 +92,14 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
+    is_sub_contract = False
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
     if multisig_addr == to_addr:
         multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
     else:
         multisig_hex = to_addr
+        is_sub_contract = True
+
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
@@ -105,6 +108,8 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, _time
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+        if is_sub_contract:
+            command += " --read " + contract_path
     else:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
