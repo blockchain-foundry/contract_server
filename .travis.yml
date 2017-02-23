@@ -1,0 +1,9 @@
+language: python
+python:
+  - "3.5"
+env:
+  - DJANGO=1.8
+install:
+    pip install -r requirements.txt
+script:
+  - python contract_server/manage.py test
