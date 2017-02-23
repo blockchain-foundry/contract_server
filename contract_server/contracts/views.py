@@ -619,7 +619,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
-        except Contract.DoesNotExist:
+        except:
             response['error'] = 'contract or subcontract not found'
             return JsonResponse(response, status=httplib.NOT_FOUND)
         function_list, event_list = self._get_abi_list(subcontract.interface)
@@ -663,7 +663,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
-        except Contract.DoesNotExist:
+        except:
             response = {'error': 'contract or subcontract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
