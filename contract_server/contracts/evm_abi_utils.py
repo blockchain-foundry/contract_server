@@ -37,6 +37,16 @@ def get_event_by_name(interface, event_name):
             return i
     return {}
 
+def get_constructor_function(interface):
+    if not interface:
+        return {}
+
+    interface = json.loads(interface.replace("'", '"'))
+    for i in interface:
+        if  i['type'] == 'constructor':
+            return i
+    return {}
+
 def get_function_by_name(interface, function_name):
     '''
     interface is string of a list of dictionary containing id, name, type, inputs and outputs
@@ -48,11 +58,19 @@ def get_function_by_name(interface, function_name):
     for i in interface:
         name = i.get('name')
         if name == function_name and i['type'] == 'function':
-            return i
+            return i, i['constant']
     return {}
 
+def make_evm_constructor_code(function, args):
+    if not function:
+        return ""
+    types = [_process_type(i['type']) for i in function['inputs']]
+    bytes_evm_args = encode_abi(types, args)
+    evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
+    return evm_args
+
 def make_evm_input_code(function, args):
-    types = [self._process_type(i['type']) for i in function['inputs']]
+    types = [_process_type(i['type']) for i in function['inputs']]
     func = function['name'] + '(' + ','.join(types) + ')'
     func = func.encode()
     k = sha3.keccak_256()
