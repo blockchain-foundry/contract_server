@@ -15,7 +15,6 @@ class GenContractRawTxForm(forms.Form):
 
 class SubContractFunctionCallForm(forms.Form):
     from_address = forms.CharField(required=True)
-    to_address = forms.CharField(required=True)
     amount = forms.IntegerField(required=True)
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
@@ -37,7 +36,7 @@ class ContractFunctionCallFrom(forms.Form):
         return ast.literal_eval(function_inputs)
 
 
-class GenSubContractRawTxForm(forms.Form):
+class GenSubContractRawTxForm(forms.Form):    
     source_code = forms.CharField(required=True)
     deploy_address = forms.CharField(required=True)
     from_address = forms.CharField(required=True)

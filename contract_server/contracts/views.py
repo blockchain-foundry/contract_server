@@ -148,7 +148,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
 
 class SubContracts(BaseFormView, CsrfExemptMixin):
 
-    http_method_names = ['get', 'post']
+    http_method_names = ['post']
     form_class = GenSubContractRawTxForm
 
     def _compile_code_and_interface(self, source_code, contract_name):        
@@ -613,30 +613,33 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         return typ
 
     @handle_uncaught_exception
-    def get(self, request, multisig_address):
+    def get(self, request, multisig_address, deploy_address):
         # Get contract details.
         response = {}
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
-        except Contract.DoesNotExist:
-            response['error'] = 'contract not found'
+            subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
+        except:
+            response['error'] = 'contract or subcontract not found'
             return JsonResponse(response, status=httplib.NOT_FOUND)
+        function_list, event_list = self._get_abi_list(subcontract.interface)
 
-        function_list, event_list = self._get_abi_list(contract.interface)
-        serializer = ContractSerializer(contract)
-        addrs = serializer.data['multisig_address']
+        serializer = SubContractSerializer(subcontract)
+
         source_code = serializer.data['source_code']
 
         response['function_list'] = function_list
         response['events'] = event_list
-        response['multisig_address'] = addrs
+        response['multisig_address'] = multisig_address
+        response['deploy_address'] = deploy_address
         response['source_code'] = source_code
 
         return JsonResponse(response, status=httplib.OK)
 
-    def post(self, request, multisig_address):
+    def post(self, request, multisig_address, deploy_address):
         self.multisig_address = multisig_address
-        return super().post(request, multisig_address)
+        self.deploy_address = deploy_address
+        return super().post(request, multisig_address, deploy_address)
 
     @handle_uncaught_exception
     def form_valid(self, form):
@@ -650,7 +653,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         `function_inputs` is a list
         '''
         from_address = form.cleaned_data['from_address']
-        to_address = form.cleaned_data['to_address']
+        deploy_address = self.deploy_address
         multisig_address = self.multisig_address
         amount = form.cleaned_data['amount']
         color = form.cleaned_data['color']
@@ -659,9 +662,9 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
 
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
-            subcontract = contract.subcontract.all().filter(deploy_address=to_address)[0]
-        except Contract.DoesNotExist:
-            response = {'error': 'contract not found'}
+            subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
+        except:
+            response = {'error': 'contract or subcontract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         function = self._get_function_by_name(subcontract.interface, function_name)
@@ -677,7 +680,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         code = json.dumps({
             "function_inputs_hash": evm_input_code,
             "multisig_addr": multisig_address,
-            "to_addr": to_address
+            "to_addr": deploy_address
         })
         tx_hex = OSSclient.operate_contract_raw_tx(
             from_address, multisig_address, amount, color, code, CONTRACT_FEE)
