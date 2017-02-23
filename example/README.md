@@ -1,21 +1,24 @@
 # 合約測試
 
-這份檔案是一個簡單的 wallet client, 目的是用來測試不同合約的功能, 
-
+這份檔案是一個簡單的 wallet client, 目的是用來測試不同合約的功能,
 
 ```
 .
 ├── README.md
 ├── conf.py
-├── greeter.sol
-├── play_contract.py
-├── requirements.txt
-└── utils.py
+├── test/
+├── test/test_scripts/                 # 測試合約script
+├── test/test_scripts/test_contracts/  # 測試合約solidity code
+├── test/test_utils/                   # 測試 utils 功能
+├── utils/                             # utility
+├── utils/api_helper                   # 呼叫 api 相關
+├── utils/apply                        # script 使用apply介面
+└── requirements.txt
 ```
 
 ## 如何使用
 
-### 0. 需要的套件
+### 1. 需要的套件
 
 ```
 pip install ethereum-abi-utils
@@ -23,80 +26,95 @@ pip install ethereum-abi-utils
 
 > 如果遇到沒有 `abi-utils` 套件時
 
-### 1. 設定 `conf.py`
+### 2. 設定 `conf.py`
 
 - 設定 server 的位址
-
-### 2. 生成可用的 wallet 地址, 必須先有地氣幣
-
-- 之後在 `play_contract.py` 中需要設定 `owner_address`
-
-### 3. 要測試合約的原始碼
-
-- greeter.sol
-
-### 4. 執行檔
-
-設定
-
-1. 一個有錢的合約地址
-2. 設定要測試的合約檔案路徑
-3. contract server 中的 oracle 設定
-
+- 設定預設的 Gcoin private key, public key, address
+    - 必須先有地氣幣
 ```
-contract_file = 'CONTRACT_FILE'
+# Setting for each server
+OSS_URL =       "<OSS_URL>"
+CONTRACT_URL =  "<CONTRACT_URL>"
+ORACLE_URL =    "<ORACLE_URL>"
 
-owner_address = 'ADDRESS'
-owner_privkey = 'PRIVATE_KEY'
-owner_pubkey = 'PUBLIC_KEY'
-
-oracle_list = [{"url": "ORACLE_SERVER",
-                "name": "ORACLE_SERVER_NAME"}]
+# Set personal address
+owner_address = '<owner_address>'
+owner_privkey = '<owner_privkey>'
+owner_pubkey  = '<owner_pubkey>'
 ```
 
-Main function 包含:
+### 3. 測試範例script
 
-1. 佈署合約函數
-2. 測試會改變狀態的合約函數 (transaction call)
-3. 測試僅回傳狀態的合約函數 (contant function call)
+位於 `tests/script/` 資料夾下
 
+### 4. 要測試合約的原始碼
 
-```python
-python play_contract.py
+位於 `tests/script/test_contracts/` 資料夾下
+
+## Script 範例
+
+### `tests/test_scripts/test_multi_contracts_script` includes:
+1. Deploy multisig contract
+2. Transaction call  multisig contract function
+3. Constant function call -> multisig contract
+4. Deploy SubContract
+5. Transaction call  SubContract function
+
+### `tests/test_scripts/test_event_script` includes:
+1. Deploy multisig contract
+2. Thread 1: watch events at **multisig contract** and wait for callback
+3. Thread 2: transaction call function -> **multisig contract**
+4. Thread 2 would trigger the watched event, then event will callback in Thread 1.
+
+### `tests/test_scripts/test_bytes32_passer_script` includes:
+1. Deploy multisig contract (Descriptor)
+1. Deploy SubContract (Bytes32Passer)
+2. Thread 1: watch events at **SubContract** and wait for callback
+3. Thread 2:  transaction call function -> **SubContract**
+4.  Thread 2 would trigger the watched event, then event will callback in Thread 1.
+
+### 測試個別script
+```sh
+$ cd example
+$ python tests/test_scripts/test_multi_contracts_script.py
+$ python tests/test_scripts/test_event_script.py
+$ python tests/test_scripts/test_bytes32_passer_script.py
 ```
 
-## 合約範例
+---
 
-測試合約函數, 需要搭配合約的程式碼, 以下例為例:
+# Apply Function
 
-- `greet()`: constant function
-- `setGreeting(string _newgreeting)`: transaction function call
+## For Multisig Address Contract
+### apply_deploy_contract
+- input: contract_file, contract_name
+- output: contract_address
 
-依據函數帶有參數與否, 自行調整呼叫函數的 `params`
+### apply_get_contract_status:
+- print multisig contract address
+- input: contract_address
+- no output
 
+### apply_deploy_sub_contract
+- input: contract_file, contract_name, multisig_address, deploy_address, source_code
+- no output
 
-```
-contract greeter
-{
-    address owner;
-    string greeting;
+### apply_transaction_call_contract
+- input: contract_address, function_name, function_inputs, from_address
+- no output
 
-    function greeter(string _greeting) public {
-        owner = msg.sender;
-        greeting = _greeting;
-    }
+### apply_call_constant_contract
+- input: contract_address, function_name, function_inputs, from_address
+- output: function_outputs
 
-    function greet() constant returns (string) {
-        return greeting;
-    }
+## For SubContract
+### apply_call_sub_contract
+- input: contract_address, deploy_address, function_name, function_inputs
+- no output
 
-    function setGreeting(string _newgreeting) public {
-        greeting = _newgreeting;
-    }
-
-    function kill() {
-        if (msg.sender == owner)
-            suicide(owner);
-    }
-}
-```
+## For Event
+### apply_watch_event
+- input: contract_address, key, oracle_url, callback_url, receiver_address
+  - For testing Multisig Contract, set receiver_address = ''
+  - For testing SubContract, set receiver_address = deploy_address
+- output: event
