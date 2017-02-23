@@ -230,3 +230,94 @@ class WithdrawFromContractTest(TestCase):
 
         self.assertEqual(event['anonymous'], False)
         self.assertEqual(event['name'], TEST_EVENT_NAME)
+
+    def test_decode_evm_output(self):
+        contract_func = ContractFunc()
+
+        '''
+        pragma solidity ^0.4.7;
+        contract TestGcoin {
+            string myString = 'hello';
+            uint myUint = 12345;
+            int myInt = 12345;
+            bytes1 myBytes1 = 0x12;
+            bytes2 myBytes2 = 0x1234;
+            bytes myBytes = '0x1234';
+            bool myBool = true;
+
+
+            function plusInt(int inputInt) constant returns (int) {
+                return myInt + inputInt;
+            }
+
+            function getSingleParam() constant returns (string) {
+                return myString;
+            }
+
+            function getMultiParams() constant returns (string, uint, int, bytes1, bytes2, bytes, bool) {
+                return (myString, myUint, myInt, myBytes1, myBytes2, myBytes, myBool);
+            }
+
+
+            function getArray() constant returns (uint8[3][3])
+            {
+                uint8[3][3] memory array;
+                uint8 count = 0;
+                for(uint8 x = 0; x < 3; x++)
+                {
+                	for(uint8 y = 0; y < 3; y++)
+                	{
+                		array[x][y] = count;
+                        count = count + 1;
+                	}
+                }
+              	return array;
+            }
+        }
+        '''
+
+        interface = '[{"payable": false, "name": "getMultiParams", "outputs": [{"name": "", "type": "string"}, {"name": "", "type": "uint256"}, {"name": "", "type": "int256"}, {"name": "", "type": "bytes1"}, {"name": "", "type": "bytes2"}, {"name": "", "type": "bytes"}, {"name": "", "type": "bool"}], "inputs": [], "type": "function", "id": 1, "constant": true}, {"payable": false, "name": "plusInt", "outputs": [{"name": "", "type": "int256"}], "inputs": [{"name": "inputInt", "type": "int256"}], "type": "function", "id": 2, "constant": true}, {"payable": false, "name": "getArray", "outputs": [{"name": "", "type": "uint8[3][3]"}], "inputs": [], "type": "function", "id": 3, "constant": true}, {"payable": false, "name": "getSingleParam", "outputs": [{"name": "", "type": "string"}], "inputs": [], "type": "function", "id": 4, "constant": true}]'
+
+        # test 1: getSingleParam()
+        function_name = 'getSingleParam'
+        out = '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000'
+        function_output = contract_func._decode_evm_output(interface, function_name, out)
+
+        self.assertEqual(function_output[0]['value'], 'hello')
+        self.assertEqual(function_output[0]['type'], 'string')
+
+        # test 2: getMultiParams()
+        function_name = 'getMultiParams'
+        out = '0x00000000000000000000000000000000000000000000000000000000000000e0000000000000000000000000000000000000000000000000000000000000303900000000000000000000000000000000000000000000000000000000000030391200000000000000000000000000000000000000000000000000000000000000123400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000568656c6c6f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063078313233340000000000000000000000000000000000000000000000000000'
+        function_output = contract_func._decode_evm_output(interface, function_name, out)
+
+        test_function_output = [
+            {'type': 'string', 'value': 'hello'}, {'type': 'uint256', 'value': 12345},
+            {'type': 'int256', 'value': 12345},
+            {'type': 'bytes1', 'value': '\x12'}, {'type': 'bytes2', 'value': '\x124'},
+            {'type': 'bytes', 'value': '0x1234'}, {'type': 'bool', 'value': True}
+        ]
+
+        is_equal = sorted(test_function_output, key=lambda k: k['type']) == sorted(function_output, key=lambda k: k['type'])
+        self.assertTrue(is_equal)
+
+        # test 3: plusInt(int inputInt)
+        function_name = 'plusInt'
+        out = '0x00000000000000000000000000000000000000000000000000000000000030b4'
+        function_output = contract_func._decode_evm_output(interface, function_name, out)
+
+        # input: {"type": "int", "value": 123}, output should be 12345 + 123 = 12468
+        item = {"value": 12468, "type": "int256"}
+
+        is_equal = function_output[0] == item
+        self.assertTrue(is_equal)
+
+        # test 4: getArray()
+        function_name = 'getArray'
+        out = '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000070000000000000000000000000000000000000000000000000000000000000008'
+        function_output = contract_func._decode_evm_output(interface, function_name, out)
+        # should output 12345 + 123 = 12468
+        item = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+
+        self.assertEqual(function_output[0]['value'], item)
+        self.assertEqual(function_output[0]['type'], 'uint8[3][3]')
