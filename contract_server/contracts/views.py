@@ -626,12 +626,12 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
 
         serializer = SubContractSerializer(subcontract)
 
-        addrs = serializer.data['deploy_address']
         source_code = serializer.data['source_code']
 
         response['function_list'] = function_list
         response['events'] = event_list
-        response['deploy_address'] = addrs
+        response['multisig_address'] = multisig_address
+        response['deploy_address'] = deploy_address
         response['source_code'] = source_code
 
         return JsonResponse(response, status=httplib.OK)
