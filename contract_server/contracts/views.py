@@ -158,8 +158,9 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         interface = json.dumps(interface)
         return byte_code, interface
 
-    def post(self, request):
-        return super().post(request)
+    def post(self, request, multisig_address):
+        self.multisig_address = multisig_address
+        return super().post(request, multisig_address)
 
     @handle_uncaught_exception
     def form_valid(self, form):
@@ -172,8 +173,8 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         inputs: from_address, to_address, amount, color, function_inputs, function_id
         `function_inputs` is a list
         '''
-        multisig_address = form.cleaned_data['multisig_address']
         from_address = form.cleaned_data['from_address']
+        multisig_address = self.multisig_address
         to_address = form.cleaned_data['deploy_address']
         source_code = form.cleaned_data['source_code']
         data = json.loads(form.cleaned_data['data'])
