@@ -161,7 +161,7 @@ class Events(APIView):
                 receiver_address=receiver_address
             )
             watch.save()
-            # print('saving watch: receiver_address={}'.format(watch.receiver_address))
+            # print('saving watch: receiver_address={}, subscription_id={}'.format(watch.receiver_address, watch.subscription_id))
 
             # Store contract state in contract server
             contract_path = Commander().getContractPath(subscription_id)
@@ -196,6 +196,7 @@ class Events(APIView):
             key: event name
             callback_url: callback_url of OSS Address Notification
             oracle_url: the oracle_url for querying last state
+            receiver_address: the receiver address for subcontract
         Return:
             event: the new action result in event.args and event.name
             subscription_id: The subscription_id from OSS
@@ -219,7 +220,7 @@ class Events(APIView):
                 callback_url = request.build_absolute_uri('/') + 'events/notify/' + multisig_address + '/' + receiver_address
                 callback_url = ''.join(callback_url.split())
 
-            print('callback_url:{}'.format(callback_url ))
+            # print('callback_url:{}'.format(callback_url ))
             return self._process_watch_event(
                 multisig_address=multisig_address,
                 key=key,
@@ -298,8 +299,7 @@ class Notify(APIView):
         logger.debug(
             '[Contract Info] sender_addr:{}, multisig_address:{}, bytecode:{}'.format(
                 sender_address, multisig_address, bytecode))
-        # print('[Contract Info] sender_addr:{}, multisig_address:{}, bytecode:{}'.format(
-        #     sender_address, multisig_address, bytecode))
+        # print('[Contract Info] sender_addr:{}, multisig_address:{}, bytecode:{}, to_addr:{}'.format(sender_address, multisig_address, bytecode, to_addr))
         commander = Commander()
         command_string = commander.buildCommand(
             sender_address=sender_address,
@@ -307,7 +307,7 @@ class Notify(APIView):
             bytecode=bytecode, value=value,
             blocktime=blocktime, is_deploy=is_deploy,
             subscription_id=subscription_id,
-            receiver_address=to_addr)
+            to_addr=to_addr)
 
         # print('command_string:' + command_string)
         commander.execute(command_string)
@@ -334,8 +334,10 @@ class Notify(APIView):
         # Get corresponding logs
         current_log = None
         for log in logs:
-            # print("log['address']:{}".format(log['address']))
-            if log['address'] == receiver_address and log['topics'][0] == '0x' + event_hex:
+            is_matched_address = (receiver_address != '' and log['address'] == receiver_address) or log['address'] == evm_address
+
+            # print('is_matched_address:{}'.format(is_matched_address))
+            if is_matched_address and log['topics'][0] == '0x' + event_hex:
                 current_log = log
                 break
 
@@ -449,6 +451,7 @@ class Notify(APIView):
                 logger.debug('[Log content]:{}'.format(content_str))
                 content = json.loads(content_str)
                 logs = content['logs']
+                # print('logs:{}'.format(logs))
 
             event = self._decode_event_from_logs(
                 logs=logs,
@@ -497,6 +500,8 @@ class Notify(APIView):
         """ Receive Address Notification from OSS Server
         The Address Notification related to [:multisig_address] was subscribed from [events/watches/] API.
         Args:
+            multisig_address: The address that deployed contract, or main contract
+            receiver_address: The receiver address. If it's empty, then set receiver_address = multisig_address.
             tx_hash: A new transaction hash related to [:multisig_address]
             subscription_id: The subscription_id from OSS
             notification_id: The notification_id from OSS
@@ -515,10 +520,11 @@ class Notify(APIView):
             if receiver_address == '': receiver_address = multisig_address
             # print('[Received notification]: multisig_address:{}, tx_hash:{}, subscription_id:{}, notification_id:{}, receiver_address:{}'.format(multisig_address, tx_hash, subscription_id, notification_id, receiver_address))
 
+            # Use thread to callback to events/watches
             t = threading.Thread(target=self._process_accept_notification, args=(tx_hash, subscription_id, multisig_address, receiver_address))
             t.setDaemon(False)
             t.start()
-            
+
             # Unsubscribe the subscription_id
             self._unsubscribe_address_notification(subscription_id)
 

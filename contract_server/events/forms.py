@@ -14,4 +14,4 @@ class WatchForm(forms.Form):
     key = forms.CharField(max_length=300)
     callback_url = forms.CharField(max_length=300, required=False)
     oracle_url = forms.CharField(max_length=300)
-    receiver_address = forms.CharField(max_length=100)
+    receiver_address = forms.CharField(max_length=100, required=False)

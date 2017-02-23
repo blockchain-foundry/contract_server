@@ -22,13 +22,17 @@ class Commander:
         contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
         return contract_path
 
-    def buildCommand(self, is_deploy, sender_address, multisig_address, bytecode, value, blocktime, subscription_id='', receiver_address=''):
+    def buildCommand(self, is_deploy, sender_address, multisig_address, bytecode, value, blocktime, subscription_id='', to_addr=''):
         '''
         Build EVM command for deployment or calling function
         '''
-        multisig_hex = prefixed_wallet_address_to_evm_address(multisig_address)
         sender_hex = prefixed_wallet_address_to_evm_address(sender_address)
         contract_path = ''
+
+        if multisig_address == to_addr:
+            multisig_hex = prefixed_wallet_address_to_evm_address(multisig_address)
+        else:
+            multisig_hex = to_addr
 
         if subscription_id != '':
             contract_path = self.getContractPath(subscription_id)
@@ -46,7 +50,7 @@ class Commander:
         command.addParam('--value', value)
         command.addParam('--write', contract_path)
         command.addParam('--code', bytecode) if is_deploy else command.addParam('--input', bytecode)
-        command.addParam('--receiver', multisig_address) if receiver_address == '' else command.addParam('--receiver', receiver_address)
+        command.addParam('--receiver', multisig_hex)
         command.addParam('--time', str(blocktime))
         # command.addParam('--dump', '')
         command.addParam('--writelog', contract_path + '_log')
