@@ -520,6 +520,10 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
             # For JSON string
             if item['type'] == 'bool':
                 item['value'] = item['value']
+            elif item['type'] == 'address':
+                item['value'] = item['value']
+            elif item['type'] == 'string':
+                item['value'] = item['value'].decode("utf-8").replace("\x00", "")
             elif 'int' not in item['type']:
                 item['value'] = item['value'].decode("utf-8")
 
