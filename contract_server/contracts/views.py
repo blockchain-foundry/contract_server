@@ -295,7 +295,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             }
             r = requests.post(url + "/multisigaddress/", data=data)
 
-    # @handle_uncaught_exception
+    @handle_uncaught_exception
     def form_valid(self, form):
         # required parameters
         source_code = form.cleaned_data['source_code']
