@@ -66,7 +66,12 @@ def get_contracts_info(tx):
             # 'OP_RETURN 3636......'
             bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
             data = json.loads(bytecode.decode('utf-8'))
+            # multisig_address is the filename and to_address is the receiver address
             multisig_addr = data.get('multisig_addr')
+            if data.get('to_addr'):
+                to_addr = data.get('to_addr')
+            else:
+                to_addr = multisig_addr
             if data.get('source_code'):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
@@ -95,7 +100,7 @@ def get_contracts_info(tx):
         )
     for v in value:
         value[v] = str(value[v]/100000000)
-    return sender_addr, multisig_addr, bytecode, json.dumps(value), is_deploy
+    return sender_addr, multisig_addr, to_addr, bytecode, json.dumps(value), is_deploy
 
 def get_oraclize_info(link, tx, sender_addr):
     contract = link.oraclize_contract
@@ -114,25 +119,31 @@ def get_oraclize_info(link, tx, sender_addr):
         balance = get_address_balance(link.receiver, link.color)
         return balance[link.color]
     elif contract.name == 'issuance_of_asset_transfer':
-        license_info = get_license_info(link.color) 
+        license_info = get_license_info(link.color)
         if license_info['owner'] == link.receiver:
             return '1'
         else:
             return '0'
     else:
         print('Exception OC')
-        
-def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, tx_hash):
+
+def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, tx_hash, to_addr):
     '''
     sender_addr : who deploy the contract
     multisig_addr : the address to be deploy the contract
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
+    is_sub_contract = False
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    multisig_hex = base58.b58decode(multisig_addr)
-    multisig_hex = hexlify(multisig_hex)
-    multisig_hex = "0x" + hash160(multisig_hex)
+    if multisig_addr == to_addr:
+        multisig_hex = base58.b58decode(multisig_addr)
+        multisig_hex = hexlify(multisig_hex)
+        multisig_hex = "0x" + hash160(multisig_hex)
+    else:
+        multisig_hex = to_addr
+        is_sub_contract = True
+
     sender_hex = base58.b58decode(sender_addr)
     sender_hex = hexlify(sender_hex)
     sender_hex = "0x" + hash160(sender_hex)
@@ -147,6 +158,9 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, tx_ha
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+        if is_sub_contract:
+            command += " --read " + contract_path
+
         check_call(command, shell=True)
 
         for link in links:
@@ -172,8 +186,8 @@ def deploy_contracts(tx_hash):
 
     if tx['type'] == 'CONTRACT':
         try:
-            sender_addr, multisig_addr, bytecode, value, is_deploy = get_contracts_info(tx)
+            sender_addr, multisig_addr, to_addr, bytecode, value, is_deploy = get_contracts_info(tx)
         except:
             print("Not fount tx: " + tx_hash)
             return False
-        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, tx_hash)
+        deploy_to_evm(sender_addr, multisig_addr, bytecode, value, is_deploy, tx_hash, to_addr)

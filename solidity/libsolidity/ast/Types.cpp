@@ -392,10 +392,12 @@ MemberList::MemberMap IntegerType::nativeMembers(ContractDefinition const*) cons
 {
 	if (isAddress())
 		return {
+			{"balance", make_shared<IntegerType >(256)},
 			{"balance", make_shared<FunctionType >(strings{"uint"},strings{"uint"},FunctionType::Location::GetBalance,true)},
 			{"call", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::Bare, true, false, true)},
 			{"callcode", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareCallCode, true, false, true)},
 			{"delegatecall", make_shared<FunctionType>(strings(), strings{"bool"}, FunctionType::Location::BareDelegateCall, true)},
+			{"send", make_shared<FunctionType>(strings{"uint"}, strings{"bool"}, FunctionType::Location::Send)},
 			{"send", make_shared<FunctionType>(strings{"uint", "uint"}, strings{"bool"}, FunctionType::Location::Send)}
 		};
 	else
@@ -2526,7 +2528,8 @@ MemberList::MemberMap MagicType::nativeMembers(ContractDefinition const*) const
 		return MemberList::MemberMap({
 			{"sender", make_shared<IntegerType>(0, IntegerType::Modifier::Address)},
 			{"gas", make_shared<IntegerType>(256)},
-			{"value", make_shared<FunctionType>(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue,true)},
+			{"value", make_shared<IntegerType>(256)},
+			//{"value", make_shared<FunctionType>(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue,true)},
 			{"data", make_shared<ArrayType>(DataLocation::CallData)},
 			{"sig", make_shared<FixedBytesType>(4)}
 		});

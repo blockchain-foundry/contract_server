@@ -1,3 +1,4 @@
+import ast
 import json
 import time
 from binascii import hexlify
@@ -6,17 +7,27 @@ from gcoin import *
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
-from django.views.generic.edit import BaseFormView
+from django.views.generic.edit import BaseFormView, ProcessFormView
 
 import base58
 from rest_framework import status
 from rest_framework.views import APIView
 import gcoinrpc
-from app.models import Proposal, Registration, Keystore, OraclizeContract, ProposalOraclizeLink
-from app.serializers import ProposalSerializer, RegistrationSerializer
+from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
+from app.serializers import ProposalSerializer
 from .deploy_contract_utils import *
-from .forms import SignForm
+from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
+from gcoinbackend import core as gcoincore
+import binascii
+import hashlib
+import re
+
+from django.contrib.sites.shortcuts import get_current_site
+
+pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
+pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
+script_hash_re = re.compile(r'^a914[a-f0-9]{40}87$')
 
 try:
     import http.client as httplib
@@ -25,6 +36,28 @@ except ImportError:
 
 EVM_PATH = '../oracle/states/{multisig_address}'
 
+def addressFromScriptPubKey(script_pub_key):
+    script_pub_key = script_pub_key.lower()
+    version_prefix = b'\x00'
+    # pay to pubkey hash
+    if pubkey_hash_re.match(script_pub_key):
+        pubkey_hash = binascii.unhexlify(script_pub_key[6:-4])
+    # pay to pubkey
+    elif pubkey_re.match(script_pub_key):
+        hash1 = hashlib.sha256(binascii.unhexlify(script_pub_key[2:-2]))
+        pubkey_hash = ripemd.RIPEMD160(hash1.digest()).digest()
+    # pay to script hash
+    elif script_hash_re.match(script_pub_key):
+        pubkey_hash = binascii.unhexlify(script_pub_key[4:-2])
+        version_prefix = b'\x05'
+    else:
+        return ''
+
+    padded = version_prefix + pubkey_hash
+    hash2 = hashlib.sha256(padded)
+    hash3 = hashlib.sha256(hash2.digest())
+    padded += hash3.digest()[:4]
+    return base58.b58encode(padded)
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
@@ -33,21 +66,17 @@ def wallet_address_to_evm(address):
     return address
 
 
-class Proposes(APIView):
+class Proposes(CsrfExemptMixin, BaseFormView):
     """
     Give the publicKey when invoked.
     """
-    def post(self, request):
-        # Return public key to Contract-Server
-        body_unicode = request.body.decode('utf-8')
+    http_method_name = ['post']
+    form_class = ProposeForm
 
-        json_data = json.loads(body_unicode)
-        try:
-            source_code = json_data['source_code']
-            conditions = json_data['conditions']
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+    def form_valid(self, form):
+        # Return public key to Contract-Server
+        source_code = form.cleaned_data.get('source_code')
+        conditions_string = form.cleaned_data.get('conditions')
 
         private_key = sha256(get_random_string(64, '0123456789abcdef'))
         public_key = privtopub(private_key)
@@ -57,61 +86,52 @@ class Proposes(APIView):
         p.save()
         k.save()
 
-        for condition in conditions:
-            if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
-                o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
-                p.links.add(l)
-            else:
-                o = OraclizeContract.objects.get(name=condition['condition_type'])
-                l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
-                p.links.add(l)
+        if conditions_string:
+            conditions = ast.literal_eval(conditions_string)
+            for condition in conditions:
+                if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
+                    o = OraclizeContract.objects.get(name=condition['condition_type'])
+                    l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
+                    p.links.add(l)
+                else:
+                    o = OraclizeContract.objects.get(name=condition['condition_type'])
+                    l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
+                    p.links.add(l)
 
         response = {'public_key': public_key}
         return JsonResponse(response, status=httplib.OK)
 
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-class Multisig_addr(APIView):
 
-    def post(self, request):
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
+class Multisig_addr(CsrfExemptMixin, BaseFormView):
+    http_method_name = ['post']
+    form_class = MultisigAddrFrom
+
+    def form_valid(self, form):
+        pubkey = form.cleaned_data.get('pubkey')
+        multisig_addr = form.cleaned_data.get('multisig_addr')
+
         try:
-            pubkey = json_data['pubkey']
-            multisig_addr = json_data['multisig_addr']
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
+            p = Proposal.objects.get(public_key=pubkey)
+        except Proposal.DoesNotExist:
+            response = {
+                'error': 'Cannot find proposal with this pubkey.'
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-        p = Proposal.objects.get(public_key=pubkey)
         p.multisig_addr = multisig_addr
         p.save()
         response = {
-            "status": "success"
+            'status': 'success'
         }
         return JsonResponse(response)
 
-
-class Registrate(APIView):
-
-    def post(self, request):
-        body_unicode = request.body.decode('utf-8')
-        json_data = json.loads(body_unicode)
-
-        try:
-            public_key = json_data['public_key']
-            p = Proposal.objects.get(public_key=json_data['public_key'])
-            multisig_address = json_data['multisig_address']
-            redeem_script = json_data['redeem_script']
-            r = Registration(proposal=p, multisig_address=multisig_address,
-                             redeem_script=redeem_script)
-            r.save()
-        except:
-            response = {'status': 'worng argument'}
-            return HttpResponse(json.dumps(response), status=status.HTTP_400_BAD_REQUEST, content_type="application/json")
-
-        response = {'status': 'success'}
-        return HttpResponse(json.dumps(response), content_type="aplication/json")
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
 class Sign(CsrfExemptMixin, BaseFormView):
@@ -135,12 +155,12 @@ class Sign(CsrfExemptMixin, BaseFormView):
                 account = content['accounts'][user_evm_address]
                 if not account:
                     response = {'error': 'Address not found'}
-                    return JsonResponse(response, status=httplib.NOT_FOUND)
+                    return JsonResponse(response, status=httplib.BAD_REQUEST)
                 account_amount = account['balance'][color_id]
         except IOError:
             # Log
             response = {'error': 'contract not found'}
-            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
         if int(account_amount) < int(amount):
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
@@ -161,6 +181,94 @@ class Sign(CsrfExemptMixin, BaseFormView):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
+class SignNew(CsrfExemptMixin, BaseFormView):
+    http_method_name = ['post']
+    form_class = SignForm
+
+    def form_valid(self, form):
+        tx = form.cleaned_data['tx']
+        script = form.cleaned_data['script']
+        input_index = form.cleaned_data['input_index']
+        user_address = form.cleaned_data['user_address']
+        multisig_address = form.cleaned_data['multisig_address']
+
+        decoded_tx = deserialize(tx)
+        try:
+            old_utxo = self.get_oldest_utxo(multisig_address)
+        except:
+            response = {'error': 'Do not contain oldest tx'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        contained_old = False
+        for vin in decoded_tx['ins']:
+            if old_utxo['txid'] == vin['outpoint']['hash']:
+                contained_old = True
+        if not contained_old:
+            response = {'error': 'Do not contain oldest tx'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        # need to check contract result before sign Tx
+        try:
+            with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
+                content = json.load(f)
+                for vout in decoded_tx['outs']:
+                    output_address = addressFromScriptPubKey(vout['script'])
+                    output_color = vout['color']
+                    #convert to diqi
+                    output_value = vout['value']/100000000
+                    if output_address == multisig_address:
+                        continue
+                    output_evm_address = wallet_address_to_evm(output_address)
+                    account = content['accounts'][output_evm_address]
+                    if not account:
+                        response = {'error': 'Address not found'}
+                        return JsonResponse(response, status=httplib.NOT_FOUND)
+                    amount = account['balance'].get(str(output_color))
+                    if not amount:
+                        response = {'error': 'insufficient funds'}
+                        return JsonResponse(response, status=httplib.BAD_REQUEST)
+                    if int(amount) < int(output_value):
+                        response = {'error': 'insufficient funds'}
+                        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        except IOError:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+ 
+        #signature = connection.signrawtransaction(tx)
+        p = Proposal.objects.get(multisig_addr=multisig_address)
+        private_key = Keystore.objects.get(public_key=p.public_key).private_key
+
+        signature = multisign(tx, input_index, script, private_key)
+        # return only signature hex
+        response = {'signature': signature}
+
+        return JsonResponse(response, status=httplib.OK)
+ 
+   
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
+    def get_oldest_utxo(self, multisig_address):
+        utxos = gcoincore.get_address_utxos(multisig_address)
+        block_time = None
+        old_utxo = None
+        for utxo in utxos:
+            raw_tx  = gcoincore.get_tx(utxo['txid'])
+            try:
+                block = gcoincore.get_block_by_hash(raw_tx['blockhash'])
+                if block_time == None or int(block['time']) < block_time:
+                    old_utxo = utxo
+                    block_time = int(block['time'])
+            except:
+                print('unconfirmed')
+
+        return old_utxo
+
+
+
 class ProposalList(APIView):
 
     def get(self, request):
@@ -170,16 +278,8 @@ class ProposalList(APIView):
         return HttpResponse(json.dumps(response), content_type="application/json")
 
 
-class RegistrationList(APIView):
-
-    def get(self, request):
-        registrations = Registration.objects.all()
-        serializer = RegistrationSerializer(registrations, many=True)
-        response = {'registration': serializer.data}
-        return HttpResponse(json.dumps(response), content_type="application/json")
-
-
-class GetBalance(APIView):
+class GetBalance(ProcessFormView):
+    http_method_name = ['get']
 
     def get(self, request, multisig_address, address):
         user_evm_address = wallet_address_to_evm(address)
@@ -210,10 +310,12 @@ class GetStorage(APIView):
             response = {}
             return JsonResponse(response, status=httplib.OK)
 
+
 class DumpContractState(APIView):
     """
     Get contract state file
     """
+
     def get(self, request, multisig_address):
         contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
@@ -225,7 +327,9 @@ class DumpContractState(APIView):
             response = {}
             return JsonResponse(response, status=httplib.OK)
 
+
 class CheckContractCode(APIView):
+    http_method_name = ['get']
 
     def get(self, request, multisig_address):
         contract_evm_address = wallet_address_to_evm(multisig_address)
@@ -241,15 +345,18 @@ class CheckContractCode(APIView):
             return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
 
 
-class NewTxNotified(APIView):
+class NewTxNotified(CsrfExemptMixin, ProcessFormView):
+    http_method_name = ['post']
 
-    def post(self, request, tx_hash):
+    def post(self, request, *args, **kwargs):
+        tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
         deploy_contracts(tx_hash)
 
         response['data'] = 'ok, received notify with tx_hash ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
+
 
 class OraclizeContractInterface(APIView):
 

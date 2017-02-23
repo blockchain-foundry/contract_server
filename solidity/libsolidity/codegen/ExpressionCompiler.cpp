@@ -451,7 +451,7 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 	TypePointers parameterTypes = functionType->parameterTypes();
 	vector<ASTPointer<Expression const>> const& callArguments = _functionCall.arguments();
 	vector<ASTPointer<ASTString>> const& callArgumentNames = _functionCall.names();
-	if (!functionType->takesArbitraryParameters())
+	if (!functionType->takesArbitraryParameters() && (functionType->location() != functionType->Location::SetValue || parameterTypes.size() != callArguments.size() + 1))
 		solAssert(callArguments.size() == parameterTypes.size(), "");
 
 	vector<ASTPointer<Expression const>> arguments;
@@ -611,7 +611,17 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 			if (function.valueSet())
 				m_context << Instruction::POP << Instruction::POP;
 			arguments.front()->accept(*this);
-			arguments[1]->accept(*this);
+            if (arguments.size() > 1)
+            {
+			    arguments[1]->accept(*this);
+			    utils().convertType(
+				    *arguments[1]->annotation().type,
+				    *function.parameterTypes()[1], true
+			    );
+            }
+            else
+                m_context<<u256(1);
+
 			break;
 		case Location::Send:
 			_functionCall.expression().accept(*this);
@@ -623,14 +633,20 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 				*arguments.front()->annotation().type,
 				*function.parameterTypes().front(), true
 			);
-			arguments[1]->accept(*this);
-			utils().convertType(
-				*arguments[1]->annotation().type,
-				*function.parameterTypes()[1], true
-			);
+            if (arguments.size() > 1)
+            {
+			    arguments[1]->accept(*this);
+			    utils().convertType(
+				    *arguments[1]->annotation().type,
+				    *function.parameterTypes()[1], true
+			    );
+            }
+            else
+                m_context<<u256(1);
 			// gas <- gas * !value
 			m_context << Instruction::SWAP2 << Instruction::DUP2;
 			m_context << Instruction::ISZERO << Instruction::MUL << Instruction::SWAP2;
+
 			appendExternalFunctionCall(
 				FunctionType(
 					TypePointers{},
@@ -819,16 +835,27 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 		case Location::GetValue:
 		{
 			_functionCall.expression().accept(*this);
+
+            if (arguments.size() != 0)
+            {
 			arguments[0]->accept(*this);
 			utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
+            }
+            else
+                m_context<<u256(1);
 			m_context << Instruction::CALLCVALUE;
 			break;
 		}
         case Location::GetBalance:
         {
             _functionCall.expression().accept(*this);
-            arguments[0]->accept(*this);
-            utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
+            if (arguments.size() != 0)
+            {
+                arguments[0]->accept(*this);
+                utils().convertType(*arguments[0]->annotation().type,     *function.parameterTypes()[0]);
+            }
+            else
+                m_context<<u256(1);
             m_context << Instruction::COLORBALANCE;
             break;
         }
@@ -1045,7 +1072,7 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 		else if (member == "sender")
 			m_context << Instruction::CALLER;
 		else if (member == "value")
-			;//m_context << Instruction::CALLVALUE;
+			m_context << Instruction::CALLVALUE;
 		else if (member == "origin")
 			m_context << Instruction::ORIGIN;
 		else if (member == "gas")

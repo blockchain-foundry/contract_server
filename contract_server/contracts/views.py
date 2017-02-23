@@ -21,11 +21,11 @@ from eth_abi.abi import *
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import *
 from gcoin import *
-from oracles.models import Oracle, Contract
+from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import *
 
 from .config import *
-from .forms import GenContractRawTxForm, ContractFunctionCallFrom, WithdrawFromContractForm
+from .forms import GenContractRawTxForm, GenSubContractRawTxForm, ContractFunctionCallFrom, SubContractFunctionCallForm, WithdrawFromContractForm
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -146,6 +146,78 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
+class SubContracts(BaseFormView, CsrfExemptMixin):
+
+    http_method_names = ['post']
+    form_class = GenSubContractRawTxForm
+
+    def _compile_code_and_interface(self, source_code, contract_name):        
+        output = compile_source(source_code)
+        byte_code = output[contract_name]['bin']
+        interface = output[contract_name]['abi'] 
+        interface = json.dumps(interface)
+        return byte_code, interface
+
+    def post(self, request, multisig_address):
+        self.multisig_address = multisig_address
+        return super().post(request, multisig_address)
+
+    @handle_uncaught_exception
+    def form_valid(self, form):
+        '''
+        This function will make a tx (user transfer money to multisig address)
+        of contract type and op_return=function_inputs and function_id
+        The oracle monitor will notice the created tx
+        and then tunrs it to evn state
+
+        inputs: from_address, to_address, amount, color, function_inputs, function_id
+        `function_inputs` is a list
+        '''
+        from_address = form.cleaned_data['from_address']
+        multisig_address = self.multisig_address
+        to_address = form.cleaned_data['deploy_address']
+        source_code = form.cleaned_data['source_code']
+        data = json.loads(form.cleaned_data['data'])
+
+        try:
+            contract = Contract.objects.get(multisig_address=multisig_address)
+        except Contract.DoesNotExist:
+            response = {'error': 'contract not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+        
+        try:
+            
+            contract_name = data['name']
+            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+            code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
+            subcontract = SubContract(
+                parent_contract=contract,
+                deploy_address=to_address,
+                source_code=source_code,
+                color_id=1,
+                amount=0,
+                interface=interface)
+            subcontract.save()
+
+        except Compiled_error as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+        tx_hex = OSSclient.deploy_contract_raw_tx(
+            from_address, multisig_address, code, CONTRACT_FEE)
+        response = {'raw_tx': tx_hex}
+
+        return JsonResponse(response)
+
+    @handle_uncaught_exception
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
 class Contracts(BaseFormView, CsrfExemptMixin):
     '''
     BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
@@ -164,9 +236,9 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         '''
         data = {
             'source_code': source_code,
-            'conditions': conditions
+            'conditions': str(conditions)
         }
-        r = requests.post(url + '/proposals/', data=json.dumps(data))
+        r = requests.post(url + '/proposals/', data=data)
         pubkey = json.loads(r.text)['public_key']
         url_map_pubkey = {
             "url": url,
@@ -222,7 +294,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 "pubkey": url_map_pubkey["pubkey"],
                 "multisig_addr": multisig_addr
             }
-            r = requests.post(url + "/multisigaddress/", data=json.dumps(data))
+            r = requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
     def form_valid(self, form):
@@ -505,6 +577,170 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
             out = response['out']
             function_outputs = self._decode_evm_output(contract.interface, function_name, out)
             response['function_outputs'] = function_outputs
+        return JsonResponse(response)
+
+    @handle_uncaught_exception
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
+class SubContractFunc(BaseFormView, CsrfExemptMixin):
+
+    CONTRACTS_PATH = '../oracle/'  # collect contracts genertaed by evm under oracle directory
+    HARDCODE_ADDRESS = '0x3510ce1b33081dc972ae0854f44728a74da9f291'
+    EVM_COMMAND_PATH = '../go-ethereum/build/bin/evm'
+
+    http_method_names = ['get', 'post']
+    form_class = SubContractFunctionCallForm
+
+    def _get_abi_list(self, interface):
+        if not interface:
+            return [], []
+
+        # The outermost quote must be ', otherwise json.loads will fail
+        interface = json.loads(interface.replace("'", '"'))
+        function_list = []
+        event_list = []
+        for i in interface:
+            if i['type'] == 'function':
+                function_list.append({
+                    'name': i['name'],
+                    'inputs': i['inputs']
+                })
+            elif i['type'] == 'event':
+                event_list.append({
+                    'name': i['name'],
+                    'inputs': i['inputs']
+                })
+        return function_list, event_list
+
+    def _get_event_by_name(self, interface, event_name):
+        '''
+        interface is string of a list of dictionary containing id, name, type, inputs and outputs
+        '''
+        if not interface:
+            return {}
+
+        interface = json.loads(interface.replace("'", '"'))
+        for i in interface:
+            name = i.get('name')
+            if name == event_name and i['type'] == 'event':
+                return i
+        return {}
+
+    def _get_function_by_name(self, interface, function_name):
+        '''
+        interface is string of a list of dictionary containing id, name, type, inputs and outputs
+        '''
+        if not interface:
+            return {}
+
+        interface = json.loads(interface.replace("'", '"'))
+        for i in interface:
+            name = i.get('name')
+            if name == function_name and i['type'] == 'function':
+                return i
+        return {}
+
+    def _evm_input_code(self, function, args):
+        types = [self._process_type(i['type']) for i in function['inputs']]
+        func = function['name'] + '(' + ','.join(types) + ')'
+        func = func.encode()
+        k = sha3.keccak_256()
+        k.update(func)
+        evm_func = k.hexdigest()[:8]
+
+        # evm_args = bytes_evm_args.hex() in python 3.5
+        bytes_evm_args = encode_abi(types, args)
+        evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
+        return evm_func + evm_args
+
+    def _process_type(self, typ):
+        if(len(typ) == 3 and typ[:3] == "int"):
+            return "int256"
+        if(len(typ) == 4 and typ[:4] == "uint"):
+            return "uint256"
+        if(len(typ) > 4 and typ[:4] == "int["):
+            return "int256[" + typ[4:]
+        if(len(typ) > 5 and typ[:5] == "uint["):
+            return "uint256[" + typ[5:]
+        return typ
+
+    @handle_uncaught_exception
+    def get(self, request, multisig_address, deploy_address):
+        # Get contract details.
+        response = {}
+        try:
+            contract = Contract.objects.get(multisig_address=multisig_address)
+            subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
+        except:
+            response['error'] = 'contract or subcontract not found'
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+        function_list, event_list = self._get_abi_list(subcontract.interface)
+
+        serializer = SubContractSerializer(subcontract)
+
+        source_code = serializer.data['source_code']
+
+        response['function_list'] = function_list
+        response['events'] = event_list
+        response['multisig_address'] = multisig_address
+        response['deploy_address'] = deploy_address
+        response['source_code'] = source_code
+
+        return JsonResponse(response, status=httplib.OK)
+
+    def post(self, request, multisig_address, deploy_address):
+        self.multisig_address = multisig_address
+        self.deploy_address = deploy_address
+        return super().post(request, multisig_address, deploy_address)
+
+    @handle_uncaught_exception
+    def form_valid(self, form):
+        '''
+        This function will make a tx (user transfer money to multisig address)
+        of contract type and op_return=function_inputs and function_id
+        The oracle monitor will notice the created tx
+        and then tunrs it to evn state
+
+        inputs: from_address, to_address, amount, color, function_inputs, function_id
+        `function_inputs` is a list
+        '''
+        from_address = form.cleaned_data['from_address']
+        deploy_address = self.deploy_address
+        multisig_address = self.multisig_address
+        amount = form.cleaned_data['amount']
+        color = form.cleaned_data['color']
+        function_name = form.cleaned_data['function_name']
+        function_inputs = form.cleaned_data['function_inputs']
+
+        try:
+            contract = Contract.objects.get(multisig_address=multisig_address)
+            subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
+        except:
+            response = {'error': 'contract or subcontract not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        function = self._get_function_by_name(subcontract.interface, function_name)
+        if not function:
+            response = {'error': 'function not found'}
+            return JsonResponse(response, status=httplib.NOT_FOUND)
+
+        input_value = []
+        for i in function_inputs:
+            input_value.append(i['value'])
+        evm_input_code = self._evm_input_code(function, input_value)
+
+        code = json.dumps({
+            "function_inputs_hash": evm_input_code,
+            "multisig_addr": multisig_address,
+            "to_addr": deploy_address
+        })
+        tx_hex = OSSclient.operate_contract_raw_tx(
+            from_address, multisig_address, amount, color, code, CONTRACT_FEE)
+        response = {'raw_tx': tx_hex}
+
         return JsonResponse(response)
 
     @handle_uncaught_exception

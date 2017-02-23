@@ -1,3 +1,4 @@
+
 """
 Functions for interacting with Gcoin
 """
@@ -19,6 +20,10 @@ def get_gcoin_backend():
 def get_address_balance(address, color_id=None, min_conf=0):
     backend = get_gcoin_backend()
     return backend.get_address_balance(address, color_id, min_conf)
+
+def get_address_utxos(address):
+    backend = get_gcoin_backend()
+    return backend.get_address_utxos(address)
 
 def get_license_info(color_id):
     backend = get_gcoin_backend()
@@ -63,3 +68,7 @@ def send_contract_tx(from_address, tx):
 def subscribe_tx_notification(tx_hash, confirmation_count, callback_url):
     backend = get_gcoin_backend()
     return backend.subscribe_tx_notification(tx_hash, confirmation_count, callback_url)
+
+def subscribe_address_notification(address, callback_url):
+    backend = get_gcoin_backend()
+    return backend.subscribe_address_notification(address, callback_url)
