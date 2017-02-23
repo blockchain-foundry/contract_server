@@ -2529,7 +2529,7 @@ MemberList::MemberMap MagicType::nativeMembers(ContractDefinition const*) const
 			{"sender", make_shared<IntegerType>(0, IntegerType::Modifier::Address)},
 			{"gas", make_shared<IntegerType>(256)},
 			{"value", make_shared<IntegerType>(256)},
-			{"value", make_shared<FunctionType>(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue,true)},
+			//{"value", make_shared<FunctionType>(strings{"uint"},strings{"uint"},FunctionType::Location::GetValue,true)},
 			{"data", make_shared<ArrayType>(DataLocation::CallData)},
 			{"sig", make_shared<FixedBytesType>(4)}
 		});
