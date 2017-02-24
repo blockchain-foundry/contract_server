@@ -11,6 +11,11 @@ class GenContractRawTxForm(forms.Form):
     # have to change to dict
     oracles = forms.CharField(required=True)
     data = forms.CharField(required=True)
+    function_inputs = forms.CharField(required=False)
+
+    def clean_function_inputs(self):
+        function_inputs = self.cleaned_data['function_inputs']
+        return ast.literal_eval(function_inputs)
 
 
 class SubContractFunctionCallForm(forms.Form):
@@ -23,6 +28,7 @@ class SubContractFunctionCallForm(forms.Form):
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
         return ast.literal_eval(function_inputs)
+
 
 class ContractFunctionCallFrom(forms.Form):
     from_address = forms.CharField(required=True)
@@ -41,6 +47,11 @@ class GenSubContractRawTxForm(forms.Form):
     deploy_address = forms.CharField(required=True)
     from_address = forms.CharField(required=True)
     data = forms.CharField(required=True)
+    function_inputs = forms.CharField(required=False)
+
+    def clean_function_inputs(self):
+        function_inputs = self.cleaned_data['function_inputs']
+        return ast.literal_eval(function_inputs)
 
 
 class WithdrawFromContractForm(forms.Form):
