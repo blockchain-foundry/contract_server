@@ -14,7 +14,7 @@ class Watch(models.Model):
     subscription_id = models.CharField(max_length=100, blank=False)
     args = models.CharField(max_length=1000, blank=True, default="")
     is_closed = models.BooleanField(default=False)
-    receiver_address = models.CharField(max_length=100)
+    receiver_address = models.CharField(max_length=100, blank=True)
 
     @property
     def hashed_key(self):
