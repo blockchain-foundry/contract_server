@@ -64,7 +64,7 @@ class Watches(APIView):
 class Events(APIView):
     """  Events Restful API
     """
-    def _get_contract_from_oracle(self, multisig_address, oracle_url):
+    def _get_contract_state_from_oracle(self, multisig_address, oracle_url):
         """
         Get contract state from specific Oracle
         """
@@ -140,15 +140,43 @@ class Events(APIView):
                 lock.release()
         return response
 
+    def _key_exists(self, multisig_address, receiver_address, key):
+        """ Check if key exists in multisig_address/receiver_address
+        """
+        try:
+            contract = Contract.objects.get(multisig_address=multisig_address)
+        except:
+            raise ContractNotFound_error('Contract does not exsit')
+
+        if receiver_address != '' and receiver_address != multisig_address:
+            try:
+                sub_contract =  contract.subcontract.all().filter(deploy_address=receiver_address)[0]
+                interface = sub_contract.interface
+            except:
+                raise SubContractNotFound_error('SubContract does not exsit')
+        else:
+            interface = contract.interface
+        try:
+            contract_func = ContractFunc()
+            event_json = contract_func._get_event_by_name(interface, key)
+            return True if event_json != {} else False
+        except:
+            return False
+
+
     def _process_watch_event(self, multisig_address, key, callback_url, oracle_url, receiver_address):
         response = {'message': 'error'}
         http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         try:
+            # Check if key exsits
+            if not self._key_exists(multisig_address, receiver_address, key):
+                raise WatchKeyNotFound_error("key:[{}] of contract  {}/{} doesn't exsit".format(key, multisig_address, receiver_address))
+
             # Subscribe address notification by sending request to OSS
             subscription_id, created_time = self._subscribe_address_notification(multisig_address, callback_url)
 
             # Get contract state from oracle
-            contract = self._get_contract_from_oracle(
+            contract_state = self._get_contract_state_from_oracle(
                 multisig_address=multisig_address,
                 oracle_url=oracle_url
             )
@@ -166,13 +194,22 @@ class Events(APIView):
             # Store contract state in contract server
             contract_path = Commander().getContractPath(subscription_id)
             with open(contract_path, 'w') as f:
-                f.write(json.dumps(contract))
+                f.write(json.dumps(contract_state))
 
             # Wait for OSS notification....
             response = self._wait_for_notification(subscription_id)
 
             http_status = status.HTTP_200_OK
 
+        except ContractNotFound_error as e:
+            http_status = status.HTTP_400_BAD_REQUEST
+            response = { 'message': str(e) }
+        except SubContractNotFound_error as e:
+            http_status = status.HTTP_400_BAD_REQUEST
+            response = { 'message': str(e) }
+        except WatchKeyNotFound_error as e:
+            http_status = status.HTTP_400_BAD_REQUEST
+            response = { 'message': str(e) }
         except SubscribeAddrsssNotification_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
             response = { 'message': str(e) }
@@ -182,9 +219,13 @@ class Events(APIView):
         except WatchCallbackTimeout_error as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
             response = { 'message': str(e) }
+        except (Contract.DoesNotExist, SubContract.DoesNotExist):
+            response = {'message': 'contract not found'}
+            http_status = status.HTTP_404_NOT_FOUND
+            return JsonResponse(response, status=http_status)
         except Exception as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = { 'message': str(e) }
+            response = { 'messagea': str(e) }
         finally:
             return JsonResponse(response, status=http_status)
 
