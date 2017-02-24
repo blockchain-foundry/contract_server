@@ -1330,17 +1330,30 @@ bool TypeChecker::visit(MemberAccess const& _memberAccess)
 	// Retrieve the types of the arguments if this is used to call a function.
 	auto const& argumentTypes = _memberAccess.annotation().argumentTypes;
 	MemberList::MemberMap possibleMembers = exprType->members(m_scope).membersByName(memberName);
-	if (possibleMembers.size() > 1 && argumentTypes)
+	if (possibleMembers.size() > 1)
 	{
-		// do overload resolution
-		for (auto it = possibleMembers.begin(); it != possibleMembers.end();)
-			if (
-				it->type->category() == Type::Category::Function &&
-				!dynamic_cast<FunctionType const&>(*it->type).canTakeArguments(*argumentTypes, exprType)
-			)
-				it = possibleMembers.erase(it);
-			else
-				++it;
+        if (argumentTypes)
+        {
+            // do overload resolution
+            for (auto it = possibleMembers.begin(); it != possibleMembers.end();)
+                if (
+                    it->type->category() == Type::Category::Function &&
+                    !dynamic_cast<FunctionType const&>(*it->type).canTakeArguments(*argumentTypes, exprType)
+                   )
+                    it = possibleMembers.erase(it);
+                else if (it->type->category() == Type::Category::Integer)
+                    it = possibleMembers.erase(it);
+                else
+                    ++it;
+        } else
+        {
+            // do overload resolution
+            for (auto it = possibleMembers.begin(); it != possibleMembers.end();)
+                if (it->type->category() == Type::Category::Function)
+                    it = possibleMembers.erase(it);
+                else
+                    ++it;
+        }
 	}
 	if (possibleMembers.size() == 0)
 	{

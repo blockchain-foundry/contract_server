@@ -835,14 +835,8 @@ bool ExpressionCompiler::visit(FunctionCall const& _functionCall)
 		case Location::GetValue:
 		{
 			_functionCall.expression().accept(*this);
-
-            if (arguments.size() != 0)
-            {
 			arguments[0]->accept(*this);
 			utils().convertType(*arguments[0]->annotation().type, *function.parameterTypes()[0]);
-            }
-            else
-                m_context<<u256(1);
 			m_context << Instruction::CALLCVALUE;
 			break;
 		}
@@ -1071,8 +1065,11 @@ bool ExpressionCompiler::visit(MemberAccess const& _memberAccess)
 			m_context << Instruction::GASLIMIT;
 		else if (member == "sender")
 			m_context << Instruction::CALLER;
-		else if (member == "value")
-			m_context << Instruction::CALLVALUE;
+		else if (member == "value") {
+	        auto const& argumentTypes = _memberAccess.annotation().argumentTypes;
+            if (!argumentTypes)
+			    m_context << Instruction::CALLVALUE;
+        }
 		else if (member == "origin")
 			m_context << Instruction::ORIGIN;
 		else if (member == "gas")
