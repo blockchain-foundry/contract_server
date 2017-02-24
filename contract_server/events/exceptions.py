@@ -14,3 +14,9 @@ class LogDecodeFailed_error(Exception):
     pass
 class GlobalSubscriptionIdNotFound_error(Exception):
     pass
+class WatchKeyNotFound_error (Exception):
+    pass
+class ContractNotFound_error (Exception):
+    pass
+class SubContractNotFound_error (Exception):
+    pass
