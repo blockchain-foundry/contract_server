@@ -22,7 +22,7 @@ from app.oraclize import deployOraclizeContract, set_var_oraclize_contract
 
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
-LOCK_POOL_SIZE = 10
+LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 
 def get_lock(filename)
@@ -119,7 +119,7 @@ def get_contracts_info(tx):
             if data.get('to_addr'):
                 to_addr = data.get('to_addr')
             else:
-                 to_addr = multisig_addr
+                to_addr = multisig_addr
             if data.get('source_code'):
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
@@ -183,8 +183,8 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-
-    multisig_hex = "0x" + wallet_address_to_evm(multisig_addr) if multisig_addr == to_addr else to_addr
+    
+    (multisig_hex, is_sub_contract) = ("0x" + wallet_address_to_evm(multisig_addr), False) if multisig_addr == to_addr else (to_addr, True)
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
@@ -197,10 +197,10 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+        if is_sub_contract:
+            command += " --read " + contract_path
 
-        for link in links:
-            contract = link.oraclize_contract
-            deployOraclizeContract(multisig_addr, contract.address, contract.byte_code)
+
 
         lock = get_lock(multisig_addr)
         with lock:
@@ -208,6 +208,9 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
              if state.latest_tx_hash == ex_tx_hash:
                  try:
                      check_call(command, shell=True)
+                     for link in links:
+                         contract = link.oraclize_contract
+                         deployOraclizeContract(multisig_addr, contract.address, contract.byte_code)
                      state.latest_tx_hash = tx_hash
                      state.latest_tx_time = _time
                      state.save()
