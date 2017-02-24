@@ -155,3 +155,10 @@ class GcoinAPIClient(object):
         subscription_id = response.json()['id']
         created_time = response.json()['created_time']
         return subscription_id, created_time
+
+    def unsubscribe_address_notification(self, subscription_id):
+        end_point = '/notification/v1/address/subscription/' + subscription_id + '/delete'
+        response = self.request(end_point, 'POST')
+        deleted = response.json()['deleted']
+        deleted_id = response.json()['id']
+        return deleted, deleted_id

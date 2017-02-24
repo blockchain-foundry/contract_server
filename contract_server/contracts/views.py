@@ -151,10 +151,10 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
     http_method_names = ['post']
     form_class = GenSubContractRawTxForm
 
-    def _compile_code_and_interface(self, source_code, contract_name):        
+    def _compile_code_and_interface(self, source_code, contract_name):
         output = compile_source(source_code)
         byte_code = output[contract_name]['bin']
-        interface = output[contract_name]['abi'] 
+        interface = output[contract_name]['abi']
         interface = json.dumps(interface)
         return byte_code, interface
 
@@ -184,9 +184,8 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         except Contract.DoesNotExist:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
-        
+
         try:
-            
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
             code = json.dumps({'source_code': compiled_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
@@ -354,7 +353,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             }
         except Exception as e:
             response = {'status': 'Bad request. ' + str(e)}
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         response = {
             'multisig_address': multisig_addr,

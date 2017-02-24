@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from django.utils import timezone
 import json
 from django.test import TestCase
