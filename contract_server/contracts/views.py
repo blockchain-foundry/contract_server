@@ -20,7 +20,7 @@ from gcoinapi.client import GcoinAPIClient
 from eth_abi.abi import *
 from .evm_abi_utils import *
 from contract_server.decorators import handle_uncaught_exception
-from contract_server.utils import (wallet_address_to_evm_address, prefixed_wallet_address_to_evm_address, decode_evm_output)
+from contract_server.utils import (wallet_address_to_evm_address, prefixed_wallet_address_to_evm_address)
 from gcoin import *
 from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import *
