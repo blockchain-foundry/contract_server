@@ -20,7 +20,7 @@ from gcoinapi.client import GcoinAPIClient
 from eth_abi.abi import *
 from .evm_abi_utils import *
 from contract_server.decorators import handle_uncaught_exception
-from contract_server.utils import *
+from contract_server.utils import (wallet_address_to_evm_address, prefixed_wallet_address_to_evm_address, decode_evm_output)
 from gcoin import *
 from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import *
@@ -193,9 +193,9 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             input_value = []
             for i in function_inputs:
                 input_value.append(i['value'])
-            function = get_constructor_function(interface) 
+            function = get_constructor_function(interface)
             evm_input_code = make_evm_constructor_code(function, input_value)
-            code = json.dumps({'source_code': compiled_code+evm_input_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
+            code = json.dumps({'source_code': compiled_code + evm_input_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
             subcontract = SubContract(
                 parent_contract=contract,
                 deploy_address=to_address,
@@ -323,7 +323,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             input_value = []
             for i in function_inputs:
                 input_value.append(i['value'])
-            function = get_constructor_function(interface) 
+            function = get_constructor_function(interface)
             evm_input_code = make_evm_constructor_code(function, input_value)
             code = json.dumps({'source_code': compiled_code + evm_input_code, 'multisig_addr': multisig_addr})
         except Compiled_error as e:
@@ -431,51 +431,6 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         self.multisig_address = multisig_address
         return super().post(request, multisig_address)
 
-    def _decode_evm_output(self, interface, function_name, out):
-        ''' Decode EVM outputs
-        interface is string of a list of dictionary containing id, name, type, inputs and outputs
-        '''
-        if not interface:
-            return {}
-
-        # get output_type_list
-        interface = json.loads(interface.replace("'", '"'))
-        output_type_list = []
-        for i in interface:
-            name = i.get('name')
-            if name == function_name and i['type'] == 'function':
-                # only one return value for now
-                for item in i['outputs']:
-                    output_type_list.append(item['type'])
-                break
-
-        # decode
-        decoded_data = decode_abi(output_type_list, out)
-
-        # wrap to json args
-        function_outputs = []
-        count = 0
-        for output_type in output_type_list:
-            item = {
-                'type': output_type,
-                'value': decoded_data[count]
-            }
-
-            # For JSON string
-            if item['type'] == 'bool':
-                item['value'] = item['value']
-            elif item['type'] == 'address':
-                item['value'] = item['value']
-            elif item['type'] == 'string':
-                item['value'] = item['value'].decode("utf-8").replace("\x00", "")
-            elif 'int' not in item['type']:
-                item['value'] = item['value'].decode("utf-8")
-
-            count += 1
-            function_outputs.append(item)
-
-        return function_outputs
-
     @handle_uncaught_exception
     def form_valid(self, form):
         '''
@@ -509,7 +464,7 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         for i in function_inputs:
             input_value.append(i['value'])
         evm_input_code = make_evm_input_code(function, input_value)
-        
+
         code = json.dumps({
             "function_inputs_hash": evm_input_code,
             "multisig_addr": to_address
@@ -522,7 +477,7 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         else:
             response = _call_constant_function(from_address, to_address, evm_input_code, amount, to_address)
             out = response['out']
-            function_outputs = self._decode_evm_output(contract.interface, function_name, out)
+            function_outputs = decode_evm_output(contract.interface, function_name, out)
             response['function_outputs'] = function_outputs
         return JsonResponse(response)
 
@@ -540,47 +495,6 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
 
     http_method_names = ['get', 'post']
     form_class = SubContractFunctionCallForm
-
-    def _decode_evm_output(self, interface, function_name, out):
-        ''' Decode EVM outputs
-        interface is string of a list of dictionary containing id, name, type, inputs and outputs
-        '''
-        if not interface:
-            return {}
-
-        # get output_type_list
-        interface = json.loads(interface.replace("'", '"'))
-        output_type_list = []
-        for i in interface:
-            name = i.get('name')
-            if name == function_name and i['type'] == 'function':
-                # only one return value for now
-                for item in i['outputs']:
-                    output_type_list.append(item['type'])
-                break
-
-        # decode
-        decoded_data = decode_abi(output_type_list, out)
-
-        # wrap to json args
-        function_outputs = []
-        count = 0
-        for output_type in output_type_list:
-            item = {
-                'type': output_type,
-                'value': decoded_data[count]
-            }
-
-            # For JSON string
-            if item['type'] == 'bool':
-                item['value'] = item['value']
-            elif 'int' not in item['type']:
-                item['value'] = item['value'].decode("utf-8")
-
-            count += 1
-            function_outputs.append(item)
-
-        return function_outputs
 
     @handle_uncaught_exception
     def get(self, request, multisig_address, deploy_address):
@@ -651,7 +565,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             "multisig_addr": multisig_address,
             "to_addr": deploy_address
         })
-        
+
         if not isConstant:
             tx_hex = OSSclient.operate_contract_raw_tx(
                 from_address, multisig_address, amount, color, code, CONTRACT_FEE)
@@ -659,7 +573,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         else:
             response = _call_constant_function(from_address, multisig_address, evm_input_code, amount, deploy_address)
             out = response['out']
-            function_outputs = self._decode_evm_output(contract.interface, function_name, out)
+            function_outputs = decode_evm_output(subcontract.interface, function_name, out)
             response['function_outputs'] = function_outputs
         return JsonResponse(response)
 
