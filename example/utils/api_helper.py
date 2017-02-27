@@ -123,7 +123,7 @@ def prefixed_wallet_address_to_evm_address(address):
     return address
 
 
-def prepareRawContract(source_code, owner_address, min_successes, oracle_list, oraclize_data):
+def prepareRawContract(source_code, owner_address, min_successes, oracle_list, oraclize_data, function_inputs):
     """Prepare raw contract transaction
     """
     url = CONTRACT_URL + '/contracts/'
@@ -134,6 +134,7 @@ def prepareRawContract(source_code, owner_address, min_successes, oracle_list, o
         "m": str(min_successes),
         "oracles": str(oracle_list),
         "data": str(oraclize_data),
+        "function_inputs": function_inputs
     }
     print('data:{}'.format(data))
 
@@ -146,7 +147,7 @@ def prepareRawContract(source_code, owner_address, min_successes, oracle_list, o
         print(sys.exc_info())
         sys.exit(1)
 
-def prepareRawSubContract(multisig_addr, source_code, owner_address, deploy_address, oraclize_data):
+def prepareRawSubContract(multisig_addr, source_code, owner_address, deploy_address, oraclize_data, function_inputs):
     """Prepare raw contract transaction
     """
     url = CONTRACT_URL + '/subcontracts/'+ multisig_addr + '/'
@@ -156,6 +157,7 @@ def prepareRawSubContract(multisig_addr, source_code, owner_address, deploy_addr
         "from_address": owner_address,
         "deploy_address": deploy_address,
         "data": str(oraclize_data),
+        "function_inputs": function_inputs
     }
 
     data = MultipartEncoder(data)
@@ -280,6 +282,17 @@ def getCurrentStatus(contract_address):
     print('Get storage')
     pprint(get_storage(contract_address))
     print()
+
+def get_states(contract_address):
+    """Get ABI by contract address
+    """
+    url = ORACLE_URL + '/states/' + contract_address
+    r =  get_helper(url)
+    if r['code'] == 200:
+        return r['data']
+    else:
+        print(r['data'])
+        # [TODO] raise?
 
 def callSubContractFunction(contract_address, deploy_address, data):
     """Call contract function
