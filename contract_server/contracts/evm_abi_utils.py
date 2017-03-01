@@ -1,5 +1,6 @@
 import json
 import sha3  # keccak_256
+import binascii
 from eth_abi.abi import *
 
 def get_abi_list(interface):
@@ -61,6 +62,20 @@ def get_function_by_name(interface, function_name):
             return i, i['constant']
     return {}
 
+def wrap_decoded_data(item):
+    """
+    Wrap eth_abi decoded data for JSON format output
+    """
+    if  item['type'] == 'bytes':
+        item['value'] = binascii.b2a_hex(item['value']).decode()
+    elif 'byte' in item['type']:
+        # bytes2, bytes32....
+        item['value'] = item['value'].decode('utf-8')
+    elif item['type'] == 'string':
+        item['value'] = item['value'].decode("utf-8")
+
+    return item
+
 def decode_evm_output(interface, function_name, out):
     ''' Decode EVM outputs
     interface is string of a list of dictionary containing id, name, type, inputs and outputs
@@ -91,15 +106,7 @@ def decode_evm_output(interface, function_name, out):
             'value': decoded_data[count]
         }
 
-        # For JSON string
-        if item['type'] == 'bool':
-            item['value'] = item['value']
-        elif item['type'] == 'address':
-            item['value'] = item['value']
-        elif item['type'] == 'string':
-            item['value'] = item['value'].decode("utf-8").replace("\x00", "")
-        elif 'int' not in item['type']:
-            item['value'] = item['value'].decode("utf-8")
+        item = wrap_decoded_data(item)
 
         count += 1
         function_outputs.append(item)

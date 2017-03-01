@@ -19,6 +19,7 @@ from events.models import Watch
 from events.serializers import WatchSerializer
 from contracts.views import ContractFunc
 from oracles.models import Contract
+from contracts.evm_abi_utils import wrap_decoded_data
 
 from contract_server.mixins import CsrfExemptMixin
 from .exceptions import *
@@ -121,9 +122,10 @@ class Events(APIView):
                     break
                 if subscription_id not in subscription_id_list:
                     # The notification is callbacked
-                    # print('watch.args:{}'.format(watch.args.replace("'", '"')))
+                    # print('watch.args:{}'.format(json.loads(watch.args)))
+
                     event = {
-                        "args": json.loads(watch.args.replace("'", '"')),
+                        "args": json.loads(watch.args),
                         "name": watch.key
                     }
                     watch.is_closed = True
@@ -381,6 +383,7 @@ class Notify(APIView):
             if is_matched_address and log['topics'][0] == '0x' + event_hex:
                 current_log = log
                 break
+        # print('logs:{} \ncurrent_log: {}'.format(logs, current_log))
 
         if current_log is not None:
             array = []
@@ -405,19 +408,10 @@ class Notify(APIView):
                     value = decoded_data[non_indexed_count]
                     non_indexed_count += 1
 
-                # For JSON string
-                if arg['type'] == 'bool':
-                    value = value
-                elif arg['type'] == 'address':
-                    value = value
-                elif arg['type'] == 'string':
-                    value = value.decode("utf-8").replace("\x00", "")
-                elif 'int' not in arg['type']:
-                    value = value.decode("utf-8")
-
                 item['value'] = value
+                item = wrap_decoded_data(item)
                 array.append(item)
-            event["args"] = array
+            event = array
 
         return event
 
@@ -506,7 +500,7 @@ class Notify(APIView):
             if event is None:
                 raise LogDecodeFailed_error('Log decoding failed')
             else:
-                watch.args = event["args"]
+                watch.args = json.dumps(event)
                 # print('watch.args after decoding:{}'.format(watch.args))
                 watch.save()
 
