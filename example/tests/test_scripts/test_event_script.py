@@ -18,7 +18,7 @@ def test_event_script():
     function_inputs = '[]'
 
     # 2. Deploy contract
-    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs)
+    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
     apply_get_contract_status(contract_address=contract_address)
 
     '''
@@ -46,7 +46,7 @@ def test_event_script():
     from_address = owner_address
 
 
-    t2 = Thread(target=apply_transaction_call_contract, args=(contract_address, function_name, function_inputs, from_address, ))
+    t2 = Thread(target=apply_transaction_call_contract, args=(contract_address, function_name, function_inputs, from_address, owner_privkey))
     t2.start()
 
     t1.join()
