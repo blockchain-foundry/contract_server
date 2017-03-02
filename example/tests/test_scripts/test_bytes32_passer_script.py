@@ -17,7 +17,7 @@ def test_bytes32_passer_script():
     contract_name = 'Descriptor'
     function_inputs = '[]'
 
-    contract_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs)
+    contract_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
     print('>>> Descriptor contract_addr:{}'.format(contract_address_descriptor))
     # Applyed contract_address_bytes32passer: '3DubYuqy3ja2UziDoGC6376ZyV67JzyMse'
 
@@ -39,7 +39,9 @@ def test_bytes32_passer_script():
         multisig_address = contract_address_descriptor,
         deploy_address = second_contract_receiver,
         source_code=source_code,
-        function_inputs=function_inputs)
+        function_inputs=function_inputs,
+        from_address=owner_address,
+        privkey=owner_privkey)
 
     print('>>> Wait 60s.....')
     time.sleep(60)
@@ -70,7 +72,7 @@ def test_bytes32_passer_script():
     function_name = 'getDescription'
     function_inputs = '[]'
 
-    t2 = Thread(target=apply_call_sub_contract, args=(contract_address, deploy_address, function_name, function_inputs, ))
+    t2 = Thread(target=apply_transaction_call_sub_contract, args=(contract_address, deploy_address, function_name, function_inputs, owner_address, owner_privkey))
     t2.start()
 
     t1.join()

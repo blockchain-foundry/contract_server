@@ -90,27 +90,31 @@ $ python tests/test_scripts/test_bytes32_passer_script.py
 - input: contract_file, contract_name
 - output: contract_address
 
+### apply_deploy_sub_contract
+- input: contract_file, contract_name, multisig_address, deploy_address, source_code, from_address, privkey
+- no output
+
 ### apply_get_contract_status:
 - print multisig contract address
 - input: contract_address
 - no output
 
-### apply_deploy_sub_contract
-- input: contract_file, contract_name, multisig_address, deploy_address, source_code
+### apply_transaction_call_contract
+- input: contract_address, function_name, function_inputs, from_address, privkey
 - no output
 
-### apply_transaction_call_contract
-- input: contract_address, function_name, function_inputs, from_address
+## For SubContract
+### apply_transaction_call_sub_contract
+- input: contract_address, deploy_address, function_name, function_inputs, from_address, privkey
 - no output
 
 ### apply_call_constant_contract
 - input: contract_address, function_name, function_inputs, from_address
 - output: function_outputs
 
-## For SubContract
-### apply_call_sub_contract
-- input: contract_address, deploy_address, function_name, function_inputs
-- no output
+### apply_call_constant_sub_contract
+- input: contract_address, function_name, function_inputs, from_address
+- output: function_outputs
 
 ## For Event
 ### apply_watch_event

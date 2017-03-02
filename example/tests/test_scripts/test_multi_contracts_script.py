@@ -8,6 +8,7 @@ from example.conf import (owner_address, owner_privkey, owner_pubkey,
 
 
 def test_deploy_multi_contracts_script():
+    print('[START] test_multi_contracts')
     """
     Deploy First Contract
     """
@@ -19,7 +20,7 @@ def test_deploy_multi_contracts_script():
             "type": "int256",
             "value": "1234"
         }])
-    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs)
+    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
     apply_get_contract_status(contract_address=contract_address)
 
     getCurrentStatus(contract_address)
@@ -46,7 +47,7 @@ def test_deploy_multi_contracts_script():
             "value": "0000000000000000000000000000000000005566"
         }])
     from_address = owner_address
-    apply_transaction_call_contract(contract_address, function_name, function_inputs, from_address)
+    apply_transaction_call_contract(contract_address, function_name, function_inputs, from_address, owner_privkey)
     print('>>> Wait 60s.....')
     time.sleep(60)
 
@@ -70,7 +71,9 @@ def test_deploy_multi_contracts_script():
         multisig_address = contract_address,
         deploy_address = second_contract_address,
         source_code=source_code,
-        function_inputs=function_inputs)
+        function_inputs=function_inputs,
+        from_address=owner_address,
+        privkey=owner_privkey)
     print('>>> Wait 60s.....')
     time.sleep(60)
 
@@ -93,14 +96,16 @@ def test_deploy_multi_contracts_script():
     print('>>> function_outputs:{}'.format(function_outputs))
 
     # Transaciton Call
-    apply_call_sub_contract(
+    apply_transaction_call_sub_contract(
         contract_address = contract_address,
         deploy_address = second_contract_address,
         function_name = 'setgreeter',
-        function_inputs = '[{"name": "_greeting", "type": "string", "value":"Hello World"}]')
+        function_inputs = '[{"name": "_greeting", "type": "string", "value":"Hello World"}]',
+        from_address=owner_address,
+        privkey=owner_privkey)
     print('>>> Wait 60s.....')
     time.sleep(60)
 
-
+    print('[END] test_multi_contracts')
 if __name__ == '__main__':
     test_deploy_multi_contracts_script()
