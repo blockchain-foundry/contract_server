@@ -149,4 +149,5 @@ def _process_type(typ):
 def _process_arg(arg, typ):
     if (arg[:2] == "0x" and typ[:4] == "byte"):
         return bytes.fromhex(arg[2:])
-
+    else:
+        return arg
