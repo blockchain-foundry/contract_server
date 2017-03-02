@@ -194,10 +194,10 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         decoded_tx = deserialize(tx)
         try:
             old_utxo, all_utxos = self.get_oldest_utxo(multisig_address)
+            deploy_contracts(old_utxo[0])
         except:
             response = {'error': 'Do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
-
         contained_old = False
 
         for vin in decoded_tx['ins']:
