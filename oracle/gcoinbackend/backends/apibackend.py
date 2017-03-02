@@ -113,8 +113,8 @@ class GcoinAPIBackend(BaseGcoinBackend):
     def get_tx(self, tx_hash):
         return self.client.get_tx(tx_hash)
 
-    def get_txs_by_address(self, address, starting_after=None, tx_type=None):
-        page, txs = self.client.get_txs_by_address(address, starting_after, tx_type)
+    def get_txs_by_address(self, address, starting_after=None, since=None, tx_type=None):
+        page, txs = self.client.get_txs_by_address(address, starting_after, since, tx_type)
         response = {
             'page': page,
             'txs': txs

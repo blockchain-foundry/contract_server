@@ -15,14 +15,15 @@ from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm
 from .models import StateInfo
 from gcoin import *
-import logging
 
+
+from app.models import OraclizeContract, ProposalOraclizeLink, Proposal
+from app.oraclize import deployOraclizeContract, set_var_oraclize_contract
 
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
-logger = logging.getLogger(__name__)
 
 def get_lock(filename):
     index = abs(hash(str(filename))) % LOCK_POOL_SIZE
@@ -113,6 +114,7 @@ def get_contracts_info(tx):
             # 'OP_RETURN 3636......'
             bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
             data = json.loads(bytecode.decode('utf-8'))
+            # multisig_address is the filename and to_address is the receiver address
             multisig_addr = data.get('multisig_addr')
             if data.get('to_addr'):
                 to_addr = data.get('to_addr')
@@ -148,6 +150,30 @@ def get_contracts_info(tx):
         value[v] = str(value[v]/100000000)
     return sender_addr, multisig_addr, to_addr, bytecode, json.dumps(value), is_deploy, blocktime
 
+def get_oraclize_info(link, tx, sender_addr):
+    contract = link.oraclize_contract
+    blockhash = tx['blockhash']
+    block = get_block_info(blockhash)
+    if contract.name == 'start_of_block' or contract.name == 'end_of_block':
+        return block['height']
+    elif contract.name == 'block_confirm_number':
+        blocks = get_latest_blocks()
+        latest_block_number = blocks[0]['height']
+        block_confirmation_count = str(int(latest_block_number) - int(block['height']))
+        return block_confirmation_count
+    elif contract.name == 'trand_confirm_number':
+        return str(tx['confirmations'])
+    elif contract.name == 'specifies_balance':
+        balance = get_address_balance(link.receiver, link.color)
+        return balance[link.color]
+    elif contract.name == 'issuance_of_asset_transfer':
+        license_info = get_license_info(link.color)
+        if license_info['owner'] == link.receiver:
+            return '1'
+        else:
+            return '0'
+    else:
+        print('Exception OC')
 
 def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_addr, tx_hash, ex_tx_hash):
     '''
@@ -156,46 +182,72 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
-    is_sub_contract = False
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    if multisig_addr == to_addr:
-        multisig_hex = "0x" + wallet_address_to_evm(multisig_addr)
-    else:
-        multisig_hex = to_addr
-        is_sub_contract = True
-
+    
+    (multisig_hex, is_sub_contract) = ("0x" + wallet_address_to_evm(multisig_addr), False) if multisig_addr == to_addr else (to_addr, True)
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
     print("Contract path: ", contract_path)
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
+
+    p = Proposal.objects.get(multisig_addr=multisig_addr)
+    links = p.links.all()
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
             byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
         if is_sub_contract:
             command += " --read " + contract_path
+
+
+
+        lock = get_lock(multisig_addr)
+        with lock:
+             state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
+             if state.latest_tx_hash == ex_tx_hash:
+                 try:
+                     check_call(command, shell=True)
+                     for link in links:
+                         contract = link.oraclize_contract
+                         deployOraclizeContract(multisig_addr, contract.address, contract.byte_code)
+                     state.latest_tx_hash = tx_hash
+                     state.latest_tx_time = _time
+                     state.save()
+                     completed, status, message = True, 'Success', ''
+                     return completed, status , message 
+                 except Exception as e:
+                     completed, status, message = False, 'Failed', 'Unpredicted exception: ' + str(e)
+                     return completed, status , message 
+             else:
+                 completed, status, message = True, 'Ignored', 'Wrong sequential order'
+                 return completed, status , message 
     else:
+        for link in links:
+            info = get_oraclize_info(link, tx, sender_addr)
+            set_var_oraclize_contract(multisig_addr, link.oraclize_contract.address, info)
+
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
             multisig_hex + " --read " + contract_path + " --time " + str(_time)
-    lock = get_lock(multisig_addr)
-    with lock:
-        state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
-        if state.latest_tx_hash == ex_tx_hash:
-            try:
-                check_call(command, shell=True)
-                state.latest_tx_hash = tx_hash
-                state.latest_tx_time = _time
-                state.save()
-                completed, status, message = True, 'Success', ''
-                return completed, status , message 
-            except Exception as e:
-                completed, status, message = False, 'Failed', 'Unpredicted exception: ' + str(e)
-                return completed, status , message 
-        else:
-            completed, status, message = True, 'Ignored', 'Wrong sequential order'
-            return completed, status , message 
+   
+        lock = get_lock(multisig_addr)
+        with lock:
+             state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
+             if state.latest_tx_hash == ex_tx_hash:
+                 try:
+                     check_call(command, shell=True)
+                     state.latest_tx_hash = tx_hash
+                     state.latest_tx_time = _time
+                     state.save()
+                     completed, status, message = True, 'Success', ''
+                     return completed, status , message 
+                 except Exception as e:
+                     completed, status, message = False, 'Failed', 'Unpredicted exception: ' + str(e)
+                     return completed, status , message 
+             else:
+                 completed, status, message = True, 'Ignored', 'Wrong sequential order'
+                 return completed, status , message 
         
 
 def deploy_contracts(tx_hash):
@@ -309,7 +361,7 @@ def update_state_after_payment(vouts, multisig_addr, tx_hash, ex_tx_hash, _time)
         
         amount = str(int(amount) - int(output_value))
         content['accounts'][output_evm_address]['balance'][str(output_color)] = amount
-  
+ 
     lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)

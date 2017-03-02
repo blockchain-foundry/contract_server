@@ -44,6 +44,10 @@ def send_tx(tx):
     backend = get_gcoin_backend()
     return backend.send_tx(tx)
 
+def send_cashout_tx(sign_tx, oracles=None):
+    backend = get_gcoin_backend()
+    return backend.send_cashout_tx(sign_tx, oracles)
+
 def send_contract_tx(from_address, tx):
     backend = get_gcoin_backend()
     return backend.send_contract_tx(from_address, tx)
@@ -64,9 +68,9 @@ def get_tx(tx_hash):
     backend = get_gcoin_backend()
     return backend.get_tx(tx_hash)
 
-def get_txs_by_address(address, starting_after=None, tx_type=None):
+def get_txs_by_address(address, starting_after=None, since=None, tx_type=None):
     backend = get_gcoin_backend()
-    return backend.get_txs_by_address(address, starting_after, tx_type)
+    return backend.get_txs_by_address(address, starting_after, since, tx_type)
 
 def get_block_by_hash(block_hash):
     backend = get_gcoin_backend()

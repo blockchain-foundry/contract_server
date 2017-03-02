@@ -24,15 +24,16 @@ def clear_evm_accouts(multisig_address):
         addresses = get_participants(multisig_address)
         accounts = [get_evm_balance(multisig_address, addr) for addr in addresses]
         payouts = get_payouts_from_accounts(multisig_address, contract_balance, accounts, addresses)
+        if payouts == []:
+            return {'payouts': payouts}
         raw_tx = gcoincore.prepare_general_raw_tx(payouts)
         '''
         before cashout.
         '''
         addresses.append(multisig_address)
         balances = [gcoincore.get_address_balance(addr) for addr in addresses]
-
         signed_tx = sign(raw_tx, multisig_address)
-        tx_id = gcoincore.send_tx(signed_tx)
+        tx_id = send_cashout_tx(signed_tx, multisig_address)
         '''
         after cashout.
         '''
@@ -55,6 +56,8 @@ def get_surplus(contract_balance, accounts):
 def get_payouts_from_accounts(multisig_address, contract_balance, accounts, addresses):
     surplus = get_surplus(contract_balance, accounts)
     payouts = []
+    if output_is_zero(contract_balance, surplus):
+        return payouts
     for i, acc in enumerate(accounts):
         payouts.extend(get_payouts_from_single_account(acc, multisig_address, addresses[i]))
     payouts.extend(get_payouts_from_single_account(surplus, multisig_address, multisig_address))
@@ -76,6 +79,17 @@ def get_payouts_from_single_account(account, from_address, to_address):
     return payouts
  
 
+def output_is_zero(balance, surplus):
+    fee_color, fee_amount = process_key_value_type(TX_FEE_COLOR, TX_FEE)
+    for key, value in balance.items():
+        key, value = process_key_value_type(key, value)
+        if surplus[key] != value and key != fee_color:
+            return False
+        elif surplus[key] != value - fee_amount and key == fee_color:
+            return False
+    return True
+
+
 def process_value_type(value):
     decimal.getcontext().prec = MAX_DIGITS
     return decimal.Decimal(str(value))
@@ -92,6 +106,15 @@ def process_dict_type(dic):
         ret[key] = value
     return ret
 
+def send_cashout_tx(signed_tx, multisig_address):
+    try:
+        contract = Contract.objects.get(multisig_address=multisig_address)
+    except Contract.DoesNotExist as e:
+        raise e
+    oracles = contract.oracles.all()
+    urls = [ora.url for ora in oracles]
+    tx_id = gcoincore.send_cashout_tx(signed_tx, urls)
+    return tx_id
 
 def sign(raw_tx, multisig_address):
     try:

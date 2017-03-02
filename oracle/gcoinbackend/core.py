@@ -49,9 +49,9 @@ def get_tx(tx_hash):
     backend = get_gcoin_backend()
     return backend.get_tx(tx_hash)
 
-def get_txs_by_address(address, starting_after=None, tx_type=None):
+def get_txs_by_address(address, starting_after=None, since=None, tx_type=None):
     backend = get_gcoin_backend()
-    return backend.get_txs_by_address(address, starting_after, tx_type)
+    return backend.get_txs_by_address(address, starting_after, since, tx_type)
 
 def get_block_by_hash(block_hash):
     backend = get_gcoin_backend()

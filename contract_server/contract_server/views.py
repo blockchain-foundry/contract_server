@@ -10,8 +10,9 @@ from rest_framework.views import APIView, status
 
 from gcoinbackend import core as gcoincore
 from oracles.models import Oracle, Contract
+from evm_manager.models import StateInfo
 from evm_manager.utils import get_evm_balance
-from evm_manager.deploy_contract_utils import deploy_contracts, get_contracts_info, get_tx_info
+from evm_manager.deploy_contract_utils import deploy_contracts, get_multisig_addr
 from .cashout import clear_evm_accouts
 from .decorators import handle_uncaught_exception
 
@@ -22,29 +23,14 @@ class NewTxNotified(APIView):
     def get(self, request, tx_id):
         response = {}
         print('ok, received notify with tx_id ' + tx_id)
-        try:
-            tx = get_tx_info(tx_id)
-            if tx.get('type') != 'CONTRACT':
-                response['data'] = 'tx_id ' + tx_id + ' is not CONTRACT type' 
-                return JsonResponse(response, status=httplib.OK)
-           
-            sender_address, multisig_address, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
-        except Exception as e:
-            print (e)
-            response['data'] = 'Not found: tx_id =' + tx_id 
+        
+        completed = deploy_contracts(tx_id)
+        if completed == False:
+            response['status'] = "State-Update failed: tx_id = " + tx_id 
             return JsonResponse(response, status=httplib.OK)
 
-        try:
-            txs = gcoincore.get_txs_by_address(multisig_address).get('txs')
-            for tx in reversed(txs):
-                deploy_contracts(tx.get('hash'))
- 
-        except Exception as e:
-            print (e)
-            response['data'] = "State-Update failed: tx_id = " + tx_id + " multisig_address = " + multisig_address
-            return JsonResponse(response, status=httplib.OK)
-
-        response['data'] = "State-Update completed: tx_id = " + tx_id + " multisig_address = " + multisig_address
+        multisig_address = get_multisig_addr(tx_id)
         response = clear_evm_accouts(multisig_address)
-        return JsonResponse(response, status=httplib.OK)
+        response['status'] = 'State-Update completed: tx_id = ' + tx_id
 
+        return JsonResponse(response, status=httplib.OK)

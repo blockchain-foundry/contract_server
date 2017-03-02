@@ -15,14 +15,14 @@ from rest_framework.views import APIView
 import gcoinrpc
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
-from .deploy_contract_utils import *
+from evm_manager.deploy_contract_utils import deploy_contracts
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
 import binascii
 import hashlib
 import re
-
+import time
 from django.contrib.sites.shortcuts import get_current_site
 
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
@@ -184,7 +184,6 @@ class Sign(CsrfExemptMixin, BaseFormView):
 class SignNew(CsrfExemptMixin, BaseFormView):
     http_method_name = ['post']
     form_class = SignForm
-
     def form_valid(self, form):
         tx = form.cleaned_data['tx']
         script = form.cleaned_data['script']
@@ -194,17 +193,23 @@ class SignNew(CsrfExemptMixin, BaseFormView):
 
         decoded_tx = deserialize(tx)
         try:
-            old_utxo = self.get_oldest_utxo(multisig_address)
+            old_utxo, all_utxos = self.get_oldest_utxo(multisig_address)
+            deploy_contracts(old_utxo[0])
         except:
             response = {'error': 'Do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
-
         contained_old = False
+
         for vin in decoded_tx['ins']:
-            if old_utxo['txid'] == vin['outpoint']['hash']:
+            vin = (vin['outpoint']['hash'], vin['outpoint']['index'])
+            if vin not in all_utxos:
+                response = {'error': 'vins contains wrong utxo'}
+                return JsonResponse(response, status=httplib.NOT_FOUND)
+                
+            if vin == old_utxo:
                 contained_old = True
         if not contained_old:
-            response = {'error': 'Do not contain oldest tx'}
+            response = {'error': 'vins do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         # need to check contract result before sign Tx
@@ -244,7 +249,6 @@ class SignNew(CsrfExemptMixin, BaseFormView):
 
         return JsonResponse(response, status=httplib.OK)
  
-   
     def form_invalid(self, form):
         response = {'error': form.errors}
 
@@ -255,7 +259,9 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         utxos = gcoincore.get_address_utxos(multisig_address)
         block_time = None
         old_utxo = None
+        all_utxos = []
         for utxo in utxos:
+            all_utxos.append ((utxo['txid'], utxo['vout']))
             raw_tx  = gcoincore.get_tx(utxo['txid'])
             try:
                 block = gcoincore.get_block_by_hash(raw_tx['blockhash'])
@@ -265,8 +271,8 @@ class SignNew(CsrfExemptMixin, BaseFormView):
             except:
                 print('unconfirmed')
 
-        return old_utxo
-
+        old_utxo = (old_utxo['txid'], old_utxo['vout'])
+        return old_utxo, all_utxos
 
 
 class ProposalList(APIView):
@@ -352,11 +358,14 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-        deploy_contracts(tx_hash)
+        completed = deploy_contracts(tx_hash)
+        if completed == False:
+            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
+            return JsonResponse(response, status=httplib.OK)
 
-        response['data'] = 'ok, received notify with tx_hash ' + tx_hash
+        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
-
+      
 
 class OraclizeContractInterface(APIView):
 
