@@ -24,7 +24,7 @@ LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 logger = logging.getLogger(__name__)
 
-def get_lock(filename)
+def get_lock(filename):
     index = abs(hash(str(filename))) % LOCK_POOL_SIZE
     return LOCKS[index]
 
