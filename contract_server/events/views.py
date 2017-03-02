@@ -412,6 +412,8 @@ class Notify(APIView):
                 item = wrap_decoded_data(item)
                 array.append(item)
             event = array
+        else:
+            event = None
 
         return event
 
@@ -495,7 +497,6 @@ class Notify(APIView):
                 event_args=event_args,
                 receiver_address=receiver_address
             )
-            logger.debug("event:{}".format(event))
 
             if event is None:
                 raise LogDecodeFailed_error('Log decoding failed')
