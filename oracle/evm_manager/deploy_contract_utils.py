@@ -78,12 +78,20 @@ def get_multisig_addr(tx_hash):
     except:
         return None
 
-def get_unexecuted_txs(multisig_addr):
+def get_unexecuted_txs(multisig_addr, tx_hash, _time):
     state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
     latest_tx_time = '0' if state.latest_tx_time == '' else state.latest_tx_time
     latest_tx_hash = state.latest_tx_hash
+    if int(_time) < int(latest_tx_time):
+        return [], latest_tx_hash
     try:
-        txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
+        tx_found = False
+        while tx_found == False:
+            txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
+            for tx in txs:
+                if tx.get('hash') == tx_hash:
+                     tx_found = True
+        
         txs = txs[::-1]
         if latest_tx_time == '0':
             return txs, latest_tx_hash
@@ -262,9 +270,12 @@ def deploy_contracts(tx_hash):
     if multisig_addr == None:
         print ("Non-contract tx & Non-cashout tx: " + tx_hash)
         return False
+
+    tx = get_tx_info(tx_hash)
+    _time = tx['blocktime']
    
     try:
-        txs, latest_tx_hash = get_unexecuted_txs(multisig_addr)
+        txs, latest_tx_hash = get_unexecuted_txs(multisig_addr, tx_hash, _time)
     except Exception as e:
         print (e)
         return False
