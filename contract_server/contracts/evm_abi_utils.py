@@ -130,6 +130,7 @@ def make_evm_input_code(function, args):
     evm_func = k.hexdigest()[:8]
 
     # evm_args = bytes_evm_args.hex() in python 3.5
+    args = [_process_arg(arg, typ) for arg, typ in zip(args, types)]
     bytes_evm_args = encode_abi(types, args)
     evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
     return evm_func + evm_args
@@ -144,3 +145,9 @@ def _process_type(typ):
     if(len(typ) > 5 and typ[:5] == "uint["):
         return "uint256[" + typ[5:]
     return typ
+
+def _process_arg(arg, typ):
+    if (arg[:2] == "0x" and typ[:4] == "byte"):
+        return bytes.fromhex(arg[2:])
+    else:
+        return arg
