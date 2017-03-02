@@ -340,7 +340,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             return JsonResponse(response, status=httplib.BAD_REQUEST)
         except Exception as e:
             response = {'status': 'Bad request. ' + str(e)}
-            return JsonResponse(response, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         try:
             tx_hex = OSSclient.deploy_contract_raw_tx(address, multisig_addr, code, CONTRACT_FEE)
