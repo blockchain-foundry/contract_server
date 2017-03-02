@@ -292,10 +292,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         return oracle_list
 
     def _compile_code_and_interface(self, source_code, contract_name):
-        try:
-            output = compile_source(source_code)
-        except Exception as e:
-            print(str(e))
+        output = compile_source(source_code)
         byte_code = output[contract_name]['bin']
         interface = output[contract_name]['abi']
         interface = json.dumps(interface)
@@ -326,8 +323,8 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
                 oracle_list, source_code, conditions, m)
             contract_name = data['name']
-
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+            
             input_value = []
             if function_inputs:
                 for i in function_inputs:

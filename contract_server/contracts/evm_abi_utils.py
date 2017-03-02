@@ -82,13 +82,11 @@ def wrap_decoded_data(item):
 
 
 def decode_evm_output(interface, function_name, out):
-    print("test")
     ''' Decode EVM outputs
     interface is string of a list of dictionary containing id, name, type, inputs and outputs
     '''
     if not interface:
         return {}
-
     # get output_type_list
     interface = json.loads(interface.replace("'", '"'))
     output_type_list = []
