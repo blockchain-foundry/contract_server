@@ -41,7 +41,7 @@ def test_event_script():
         {
             "name": "_id",
             "type": "bytes32",
-            "value": "00000000000000000000000000001234"
+            "value": "0x00000000000000000000000000001234"
         }])
     from_address = owner_address
 
