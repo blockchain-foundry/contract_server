@@ -15,9 +15,10 @@ def test_event_script():
     # 1. Set contract config
     contract_file = 'tests/test_scripts/test_contracts/event.sol'
     contract_name = 'ClientReceipt'
+    function_inputs = '[]'
 
     # 2. Deploy contract
-    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name)
+    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs)
     apply_get_contract_status(contract_address=contract_address)
 
     '''

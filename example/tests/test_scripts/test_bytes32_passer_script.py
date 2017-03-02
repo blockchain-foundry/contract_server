@@ -15,8 +15,9 @@ def test_bytes32_passer_script():
     """
     contract_file = 'tests/test_scripts/test_contracts/bytes32_passer_Descriptor.sol'
     contract_name = 'Descriptor'
+    function_inputs = '[]'
 
-    contract_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name)
+    contract_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs)
     print('>>> Descriptor contract_addr:{}'.format(contract_address_descriptor))
     # Applyed contract_address_bytes32passer: '3DubYuqy3ja2UziDoGC6376ZyV67JzyMse'
 
@@ -30,19 +31,18 @@ def test_bytes32_passer_script():
     source_code = source_code.replace('DESCRIPTOR_ADDRESS', prefixed_wallet_address_to_evm_address(contract_address_descriptor))
     print('source_code:{}'.format(source_code))
     second_contract_receiver = '0000000000000000000000000000000000000111'
+    function_inputs = '[]'
 
     apply_deploy_sub_contract(
         contract_file=contract_file,
         contract_name=contract_name,
         multisig_address = contract_address_descriptor,
         deploy_address = second_contract_receiver,
-        source_code=source_code)
+        source_code=source_code,
+        function_inputs=function_inputs)
 
     print('>>> Wait 60s.....')
     time.sleep(60)
-
-    # contract_address_descriptor = '35kauh7khwEuPy5msBqsgB31uatYs3EkeA'
-    # second_contract_receiver = '0000000000000000000000000000000000000111'
 
     """
     Watch Event and Call Function
