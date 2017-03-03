@@ -87,6 +87,7 @@ def decode_evm_output(interface, function_name, out):
     '''
     if not interface:
         return {}
+
     # get output_type_list
     interface = json.loads(interface.replace("'", '"'))
     output_type_list = []
