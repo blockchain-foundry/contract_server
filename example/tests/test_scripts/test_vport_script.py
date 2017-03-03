@@ -347,9 +347,6 @@ def call_forward(destination, value, data):
             data = item['value']
     print('>>> data:{}'.format(data))
 
-    print('\n[End] test_forward_to_test_registry')
-
-
 def test_deploy_registry_v3():
     global multisig_address
     global registry_address
@@ -386,16 +383,6 @@ def test_forwardToRegistry_v3(registrationIdentifier, subject, value):
     print('\n===============================================')
     print('[Start] test_forwardToRegistry_v3')
     print('===============================================')
-    """
-    Watch Proxy's Forwarded event
-    """
-    contract_address = multisig_address
-    receiver_address = registry_address
-    key = 'Set'
-    oracle_url = ORACLE_URL
-    callback_url = CONTRACT_URL +  '/events/notify/' + contract_address + '/' + receiver_address + '/'
-    t1 = Thread(target=watch_ForwardedEvent, args=(contract_address, key, oracle_url, callback_url, receiver_address, ))
-    t1.start()
 
     """
     Call forward
@@ -413,7 +400,6 @@ def test_forwardToRegistry_v3(registrationIdentifier, subject, value):
 
     call_forward(destination=registry_address, value=0, data=data)
 
-    t1.join()
 
     print('\n[End] test_forwardToRegistry_v3')
 
@@ -422,8 +408,8 @@ def test_getRegistryAttribute_v3(registrationIdentifier, subject):
     global registry_address
     global proxy_address
 
-    print('>>> Wait 30s.....')
-    time.sleep(30)
+    print('>>> Wait 60s.....')
+    time.sleep(60)
 
     print('\n===============================================')
     print('[Start] test_getRegistryAttribute_v3')
@@ -464,16 +450,17 @@ if __name__ == '__main__':
 
     global multisig_address
 
+    # Deploy Controller, Proxy and RecoveryQuorum contract
     multisig_address = deployContract()
 
+    # Test Recovery functions
     test_fromProxyToFindDelegates(multisig_address)
     test_changeUserKeyByYourself(multisig_address)
     test_recoveryByDelegate(multisig_address)
 
+    # Deploy Registry contract
     test_deploy_registry_v3()
+
+    # Test Forward functions
     test_forwardToRegistry_v3(registrationIdentifier="0x516d5a6e7a7641564c4e51484c785a7844534d514a72694751663752666d4b78", subject="0x" + proxy_address, value="0x55555a6e7a7641564c4e51484c785a7844534d514a72694751663752666d4b78")
-
-    print('>>> Wait 30s.....')
-    time.sleep(30)
-
     test_getRegistryAttribute_v3(registrationIdentifier="0x516d5a6e7a7641564c4e51484c785a7844534d514a72694751663752666d4b78", subject="0x" + proxy_address)
