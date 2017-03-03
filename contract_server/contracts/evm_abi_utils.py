@@ -3,6 +3,7 @@ import sha3  # keccak_256
 import binascii
 from eth_abi.abi import *
 
+
 def get_abi_list(interface):
     if not interface:
         return [], []
@@ -24,6 +25,7 @@ def get_abi_list(interface):
             })
     return function_list, event_list
 
+
 def get_event_by_name(interface, event_name):
     '''
     interface is string of a list of dictionary containing id, name, type, inputs and outputs
@@ -38,29 +40,31 @@ def get_event_by_name(interface, event_name):
             return i
     return {}
 
+
 def get_constructor_function(interface):
     if not interface:
-        return {}
+        return None
 
     interface = json.loads(interface.replace("'", '"'))
     for i in interface:
-        if  i['type'] == 'constructor':
+        if i['type'] == 'constructor':
             return i
-    return {}
+    return None
+
 
 def get_function_by_name(interface, function_name):
     '''
     interface is string of a list of dictionary containing id, name, type, inputs and outputs
     '''
     if not interface:
-        return {}
-
+        return None, False
     interface = json.loads(interface.replace("'", '"'))
     for i in interface:
         name = i.get('name')
         if name == function_name and i['type'] == 'function':
             return i, i['constant']
-    return {}
+    return None, False
+
 
 def wrap_decoded_data(item):
     """
@@ -75,6 +79,7 @@ def wrap_decoded_data(item):
         item['value'] = item['value'].decode("utf-8")
 
     return item
+
 
 def decode_evm_output(interface, function_name, out):
     ''' Decode EVM outputs
@@ -113,6 +118,7 @@ def decode_evm_output(interface, function_name, out):
 
     return function_outputs
 
+
 def make_evm_constructor_code(function, args):
     if not function:
         return ""
@@ -121,6 +127,7 @@ def make_evm_constructor_code(function, args):
     bytes_evm_args = encode_abi(types, args)
     evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
     return evm_args
+
 
 def make_evm_input_code(function, args):
     types = [_process_type(i['type']) for i in function['inputs']]
@@ -136,6 +143,7 @@ def make_evm_input_code(function, args):
     evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
     return evm_func + evm_args
 
+
 def _process_type(typ):
     if(len(typ) == 3 and typ[:3] == "int"):
         return "int256"
@@ -146,6 +154,7 @@ def _process_type(typ):
     if(len(typ) > 5 and typ[:5] == "uint["):
         return "uint256[" + typ[5:]
     return typ
+
 
 def _process_arg(arg, typ):
     if (typ[:4] == "byte"):

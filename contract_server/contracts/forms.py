@@ -15,7 +15,8 @@ class GenContractRawTxForm(forms.Form):
 
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
-        return ast.literal_eval(function_inputs)
+        if function_inputs:
+            return ast.literal_eval(function_inputs)
 
 
 class SubContractFunctionCallForm(forms.Form):

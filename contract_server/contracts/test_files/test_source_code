@@ -1,40 +1,16 @@
-contract abc {
-    address public owner;
-    address public friend;
-    uint public begin_time;
-    uint public end_time;
-    struct Info {
-        uint amount;
-        uint color;
-        }
-    mapping(address => Info) public accounts;
-    Info send;
-    Info request;
+pragma solidity ^0.4.7;
 
-  	function abc() {
-      	begin_time = 1482422400;
-      	end_time = 1482249599;
-      	owner = 0x2fcba1deb8245763cb8bf9af923b48fd094924bc;
-      	friend = 0x2fcba1deb8245763cb8bf9af923b48fd094924bc;
-      	send = Info(12, 24707996);
-      	request = Info(21, 24707996);
-      	}
+contract abc { 
+    event AttributesSet(address indexed _sender, uint _timestamp); 
+    mapping(int => int) public attributeLookupMap; 
+    
+    function setAttributes(int index, int value) { 
+        attributeLookupMap[index] = value; 
+        AttributesSet(msg.sender, now); 
+    } 
+    
+    function getAttributes(int index) constant returns(int) { 
+        return attributeLookupMap[index]; 
+    } 
 
-    function sendMoneyToAccount(uint _color) {
-    	if (now < begin_time || now > end_time) throw;
-    	if (msg.value(_color) == 0 || (msg.sender != owner && msg.sender != friend)) throw;
-    	if (msg.sender == owner && _color != send.color) throw;
-    	if (msg.sender == friend && _color != request.color) throw;
-    	accounts[msg.sender].amount += msg.value(_color);
-    }
-
-    function exchange() {
-    	if (now < begin_time || now > end_time) throw;
-    	if (msg.sender != owner && msg.sender != friend) throw;
-    	if (accounts[owner].amount < send.amount || accounts[friend].amount < request.amount) throw;
-    	accounts[owner].amount -= send.amount;
-    	accounts[friend].amount -= request.amount;
-    	friend.send(send.amount, send.color);
-    	owner.send(request.amount, request.color);
-    }
 }

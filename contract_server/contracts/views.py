@@ -18,15 +18,19 @@ from django.views.generic.edit import BaseFormView
 
 from gcoinapi.client import GcoinAPIClient
 from eth_abi.abi import *
-from .evm_abi_utils import *
+from .evm_abi_utils import (decode_evm_output, get_function_by_name, get_constructor_function,
+                            get_event_by_name, get_abi_list, make_evm_input_code)
 from contract_server.decorators import handle_uncaught_exception
-from contract_server.utils import (wallet_address_to_evm_address, prefixed_wallet_address_to_evm_address)
+from contract_server.utils import (wallet_address_to_evm_address,
+                                   prefixed_wallet_address_to_evm_address)
 from gcoin import *
 from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import *
 
 from .config import *
-from .forms import GenContractRawTxForm, GenSubContractRawTxForm, ContractFunctionCallFrom, SubContractFunctionCallForm, WithdrawFromContractForm
+from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
+                    ContractFunctionCallFrom, SubContractFunctionCallForm,
+                    WithdrawFromContractForm)
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -195,7 +199,8 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
                 input_value.append(i['value'])
             function = get_constructor_function(interface)
             evm_input_code = make_evm_constructor_code(function, input_value)
-            code = json.dumps({'source_code': compiled_code + evm_input_code, 'multisig_addr': multisig_address, 'to_addr': to_address})
+            code = json.dumps({'source_code': compiled_code + evm_input_code,
+                               'multisig_addr': multisig_address, 'to_addr': to_address})
             subcontract = SubContract(
                 parent_contract=contract,
                 deploy_address=to_address,
@@ -319,13 +324,19 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 oracle_list, source_code, conditions, m)
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-
+            
             input_value = []
-            for i in function_inputs:
-                input_value.append(i['value'])
+            if function_inputs:
+                for i in function_inputs:
+                    input_value.append(i['value'])
             function = get_constructor_function(interface)
-            evm_input_code = make_evm_constructor_code(function, input_value)
-            code = json.dumps({'source_code': compiled_code + evm_input_code, 'multisig_addr': multisig_addr})
+            if function:
+                evm_input_code = make_evm_constructor_code(function, input_value)
+            else:
+                evm_input_code = ''
+            code = json.dumps({'source_code': compiled_code + evm_input_code,
+                              'multisig_addr': multisig_addr})
+
         except Compiled_error as e:
             response = {
                 'code:': ERROR_CODE['compiled_error'],
@@ -455,14 +466,15 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        function, isConstant = get_function_by_name(contract.interface, function_name)
+        function, is_constant = get_function_by_name(contract.interface, function_name)
         if not function:
             response = {'error': 'function not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         input_value = []
-        for i in function_inputs:
-            input_value.append(i['value'])
+        if function_inputs:
+            for i in function_inputs:
+                input_value.append(i['value'])
         evm_input_code = make_evm_input_code(function, input_value)
 
         code = json.dumps({
@@ -470,12 +482,13 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
             "multisig_addr": to_address
         })
 
-        if not isConstant:
+        if not is_constant:
             tx_hex = OSSclient.operate_contract_raw_tx(
                 from_address, to_address, amount, color, code, CONTRACT_FEE)
             response = {'raw_tx': tx_hex}
         else:
-            response = _call_constant_function(from_address, to_address, evm_input_code, amount, to_address)
+            response = _call_constant_function(
+                from_address, to_address, evm_input_code, amount, to_address)
             out = response['out']
             function_outputs = decode_evm_output(contract.interface, function_name, out)
             response['function_outputs'] = function_outputs
@@ -550,7 +563,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             response = {'error': 'contract or subcontract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
-        function, isConstant = get_function_by_name(subcontract.interface, function_name)
+        function, is_constant = get_function_by_name(subcontract.interface, function_name)
         if not function:
             response = {'error': 'function not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
@@ -566,12 +579,13 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             "to_addr": deploy_address
         })
 
-        if not isConstant:
+        if not is_constant:
             tx_hex = OSSclient.operate_contract_raw_tx(
                 from_address, multisig_address, amount, color, code, CONTRACT_FEE)
             response = {'raw_tx': tx_hex}
         else:
-            response = _call_constant_function(from_address, multisig_address, evm_input_code, amount, deploy_address)
+            response = _call_constant_function(
+                from_address, multisig_address, evm_input_code, amount, deploy_address)
             out = response['out']
             function_outputs = decode_evm_output(subcontract.interface, function_name, out)
             response['function_outputs'] = function_outputs
@@ -616,15 +630,21 @@ def _call_constant_function(sender_addr, multisig_addr, byte_code, value, to_add
     sender_hex = base58.b58decode(sender_addr)
     sender_hex = hexlify(sender_hex)
     sender_hex = "0x" + hash160(sender_hex)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../../oracle/states/' + multisig_addr
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + \
+        '/../../oracle/states/' + multisig_addr
     print("Contract path: ", contract_path)
 
-    command = '{EVM_PATH} --sender {sender_hex} --fund {value} --value {value} --write {contract_path} --input {byte_code} --receiver {multisig_hex} --read {contract_path}'.format(EVM_PATH=EVM_PATH, sender_hex=sender_hex, value=value, contract_path=contract_path, byte_code=byte_code, multisig_hex=multisig_hex)
+    command = '{EVM_PATH} --sender {sender_hex} --fund {value} --value {value} \
+        --write {contract_path} --input {byte_code} --receiver {multisig_hex} --read {contract_path}'.format(
+        EVM_PATH=EVM_PATH, sender_hex=sender_hex, value=value, contract_path=contract_path, byte_code=byte_code, multisig_hex=multisig_hex)
     p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     stdout, stderr = p.communicate()
+    print("stdout: ", stdout)
+    print("stderr: ", stderr)
 
     if p.returncode != 0:
-        err_msg = "{}. Code: {}".format(stderr.strip(), p.returncode)
+        print(stderr)
+        err_msg = "{}. Code: {}".format(stderr, p.returncode)
         raise Exception(err_msg)
 
     return {'out': stdout.decode().split()[-1]}
