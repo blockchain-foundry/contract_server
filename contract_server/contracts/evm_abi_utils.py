@@ -67,10 +67,10 @@ def wrap_decoded_data(item):
     Wrap eth_abi decoded data for JSON format output
     """
     if  item['type'] == 'bytes':
-        item['value'] = binascii.b2a_hex(item['value']).decode()
+        item['value'] = "0x" + str(binascii.b2a_hex(item['value']).decode())
     elif 'byte' in item['type']:
         # bytes2, bytes32....
-        item['value'] = item['value'].decode('utf-8')
+        item['value'] = "0x" + str(binascii.b2a_hex(item['value']).decode())
     elif item['type'] == 'string':
         item['value'] = item['value'].decode("utf-8")
 
@@ -117,6 +117,7 @@ def make_evm_constructor_code(function, args):
     if not function:
         return ""
     types = [_process_type(i['type']) for i in function['inputs']]
+    args = [_process_arg(arg, typ) for arg, typ in zip(args, types)]
     bytes_evm_args = encode_abi(types, args)
     evm_args = ''.join(format(x, '02x') for x in bytes_evm_args)
     return evm_args
