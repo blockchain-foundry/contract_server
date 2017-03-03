@@ -1,8 +1,7 @@
-from binascii import hexlify
 import base58
+
+from binascii import hexlify
 from gcoin import hash160
-import json
-from eth_abi.abi import *
 
 
 def wallet_address_to_evm_address(address):

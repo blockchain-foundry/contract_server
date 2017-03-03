@@ -1,40 +1,35 @@
 import ast
-import json
-import logging
-from binascii import hexlify
-from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
-from threading import Thread
-
 import base58
+import json
+import os
+import logging
 import requests
-import sha3  # keccak_256
+
+from binascii import hexlify
+from subprocess import PIPE, STDOUT, Popen
+
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
-from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from django.views.generic import View
 from django.views.generic.edit import BaseFormView
 
+from gcoin import hash160, scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
-from eth_abi.abi import *
-from .evm_abi_utils import (decode_evm_output, get_function_by_name, get_constructor_function,
-                            get_event_by_name, get_abi_list, make_evm_input_code)
+from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
+                            get_constructor_function, get_abi_list, make_evm_input_code)
 from contract_server.decorators import handle_uncaught_exception
-from contract_server.utils import (wallet_address_to_evm_address,
-                                   prefixed_wallet_address_to_evm_address)
-from gcoin import *
-from oracles.models import Oracle, Contract, SubContract
-from oracles.serializers import *
 
-from .config import *
+from oracles.models import Oracle, Contract, SubContract
+from oracles.serializers import ContractSerializer, SubContractSerializer
+
+from .config import CONTRACT_FEE
+from .exceptions import Compiled_error, Multisig_error
 from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     ContractFunctionCallFrom, SubContractFunctionCallForm,
                     WithdrawFromContractForm)
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
-from .exceptions import *
 
 from solc import compile_source
 
@@ -114,8 +109,6 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         user_address = form.cleaned_data['user_address']
         colors = form.cleaned_data['colors']
         amounts = form.cleaned_data['amounts']
-
-        user_evm_address = wallet_address_to_evm(user_address)
 
         # create payment for each color and store the results
         # in tx list or error list
@@ -266,7 +259,6 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             raise Multisig_error("The m in 'm of n' is bigger than n.")
         url_map_pubkeys = []
         pubkeys = []
-        threads = []
 
         for oracle in oracle_list:
             self._get_pubkey_from_oracle(oracle['url'], source_code, conditions, url_map_pubkeys)
@@ -305,7 +297,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 "pubkey": url_map_pubkey["pubkey"],
                 "multisig_addr": multisig_addr
             }
-            r = requests.post(url + "/multisigaddress/", data=data)
+            requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
     def form_valid(self, form):

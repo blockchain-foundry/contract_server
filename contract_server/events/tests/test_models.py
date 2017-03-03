@@ -1,9 +1,8 @@
-from django.utils import timezone
-import json
-from django.test import TestCase
-from events.models import Watch
 import sha3
-import binascii
+
+from events.models import Watch
+from django.test import TestCase
+from django.utils import timezone
 
 TEST_KEY = "TEST_KEY"
 

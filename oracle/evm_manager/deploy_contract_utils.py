@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from binascii import unhexlify, hexlify
-from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
+from binascii import unhexlify
+from subprocess import check_call
 import json
 import os
-import sys
-import requests
-import base58
-from threading import Thread, Lock
+from threading import Lock
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 from gcoinbackend import core as gcoincore
 
 from .utils import wallet_address_to_evm
 from .models import StateInfo
-from gcoin import *
 
-
-from app.models import OraclizeContract, ProposalOraclizeLink, Proposal
+from app.models import Proposal
 from app.oraclize import deployOraclizeContract, set_var_oraclize_contract
 
 CONTRACT_FEE_COLOR = 1

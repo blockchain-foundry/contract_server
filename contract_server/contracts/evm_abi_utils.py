@@ -1,7 +1,7 @@
 import json
 import sha3  # keccak_256
 import binascii
-from eth_abi.abi import *
+from eth_abi.abi import decode_abi, encode_abi
 
 
 def get_abi_list(interface):

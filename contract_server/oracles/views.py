@@ -1,16 +1,12 @@
-import json
 import os
 import platform
 
-from django.http import HttpResponse, JsonResponse
-from rest_framework.response import Response
+from django.http import JsonResponse
 from rest_framework.views import APIView
 
 from oracles.models import Oracle
-from oracles.serializers import OracleSerializer
 from .forms import RegisterOracleForm
 import logging
-from contract_server.decorators import handle_uncaught_exception
 
 try:
     import http.client as httplib
@@ -74,7 +70,7 @@ class RegistereOracle(APIView):
         response = {}
 
         # May use latter
-        remote_ip = request.META["REMOTE_ADDR"]
+        request.META["REMOTE_ADDR"]
         # TODO: may have to check remote ip?
 
         form = RegisterOracleForm(request.POST)

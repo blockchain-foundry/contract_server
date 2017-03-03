@@ -51,10 +51,10 @@ class SignTest(TestCase):
         Keystore.objects.create(public_key='048cfd6643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052',
                                 private_key='6572cb0d4f04391b2fb0d23778e4d8b9eb5512759aa62f0c03ac2d1b4d5e1d05')
 
-    def fake_open_test_state(self, multisig_address, option):
-        return open('./test_files/test_' + multisig_address, option)
+    def fake_open_test_state(multisig_address, option):
+        return open('./app/test_files/test_state_file', option)
 
-    @mock.patch("__main__.open", fake_open_test_state)
+    @mock.patch("app.views.open", fake_open_test_state)
     def test_sign(self):
         # test gcoin multisign, the test above is a real case.
         response = self.client.post(self.url, self.sample_form)
@@ -65,7 +65,6 @@ class SignTest(TestCase):
     def test_invalid_form(self):
         self.sample_form['tx'] = ''
         response = self.client.post(self.url, self.sample_form)
-        data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
     def test_invalid_multisig_address(self):
@@ -91,13 +90,11 @@ class MultisigAddrTest(TestCase):
 
     def test_set_multisig_addr(self):
         response = self.client.post(self.url, self.sample_form)
-        data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(response.status_code, httplib.OK)
 
     def test_invalid_form(self):
         self.sample_form['multisig_addr'] = ''
         response = self.client.post(self.url, self.sample_form)
-        data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
     def test_invalid_pubkey(self):

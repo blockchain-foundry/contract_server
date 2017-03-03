@@ -7,4 +7,5 @@ from .models import Oracle
 class OracleAdmin(admin.ModelAdmin):
     list_display = ('name', 'url', 'created')
 
+
 admin.site.register(Oracle, OracleAdmin)

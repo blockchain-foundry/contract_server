@@ -1,8 +1,6 @@
 import os
 import locale
 
-from app.models import OraclizeContract
-
 from subprocess import check_call
 
 

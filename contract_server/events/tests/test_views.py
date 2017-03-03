@@ -1,9 +1,10 @@
 from django.utils import timezone
 from django.test import TestCase
-from events.views import Events, Notify
-from oracles.models import Contract
+
+from events.exceptions import WatchIsClosedError, WatchIsExpiredError
 from events.models import Watch
-from events.exceptions import *
+from events.views import Notify
+from oracles.models import Contract
 
 TEST_MULTISIG_ADDRESS = '3NEga9GGxi4hPYqryL1pUsDicwnDsCNYyF'
 TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
@@ -77,7 +78,7 @@ class NotifyTestCase(TestCase):
              "transactionIndex":0, "blockHash":"0000000000000000000000000000000000000000000000000000000000000000",
              "logIndex":0}]
         evm_address = '1503be2df26f867d62481d93c1d55ab1ea11ad23'
-        key = 'TestEvent(string,uint256,int256,address,bytes)'
+        # key = 'TestEvent(string,uint256,int256,address,bytes)'
         event_hex = 'f2b599259a3c14af4a4b44075e64f5d5535176716ce26402e6c5e0904ea1925d'
         event_args = [
             {'type': 'string', 'name': '_message', 'order': 0, 'indexed': False},
@@ -124,7 +125,7 @@ class NotifyTestCase(TestCase):
         )
         watch.save()
 
-        self.assertRaises(WatchIsClosed_error, self.run_get_alive_watch,
+        self.assertRaises(WatchIsClosedError, self.run_get_alive_watch,
                           TEST_SUBSCRIPTION_ID_CLOSED)
 
     def test_get_alive_watch_is_expired(self):
@@ -137,5 +138,5 @@ class NotifyTestCase(TestCase):
         )
         watch.save()
 
-        self.assertRaises(WatchIsExpired_error, self.run_get_alive_watch,
+        self.assertRaises(WatchIsExpiredError, self.run_get_alive_watch,
                           TEST_SUBSCRIPTION_ID_EXPIRED)

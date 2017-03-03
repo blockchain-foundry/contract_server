@@ -1,29 +1,26 @@
 import ast
+import base58
+import binascii
+import hashlib
 import json
-import time
+import re
+
 from binascii import hexlify
-from subprocess import check_call
-from gcoin import *
+from gcoin import (multisign, deserialize, pubtoaddr,
+                   privtopub, sha256, hash160, ripemd)
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.views.generic.edit import BaseFormView, ProcessFormView
 
-import base58
 from rest_framework import status
 from rest_framework.views import APIView
-import gcoinrpc
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
 from evm_manager.deploy_contract_utils import deploy_contracts
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
-import binascii
-import hashlib
-import re
-import time
-from django.contrib.sites.shortcuts import get_current_site
 
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
 pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
@@ -193,7 +190,6 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         tx = form.cleaned_data['tx']
         script = form.cleaned_data['script']
         input_index = form.cleaned_data['input_index']
-        user_address = form.cleaned_data['user_address']
         multisig_address = form.cleaned_data['multisig_address']
 
         decoded_tx = deserialize(tx)
@@ -327,7 +323,6 @@ class DumpContractState(APIView):
     """
 
     def get(self, request, multisig_address):
-        contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
                 content = json.load(f)

@@ -168,7 +168,6 @@ class GcoinAPIClient(object):
     def subscribe_address_notification(self, address, callback_url):
         end_point = '/notification/v1/address/subscription'
         data = {
-            'tx_hash': tx_hash,
             'callback_url': callback_url
         }
         response = self.request(end_point, 'POST', data=data)

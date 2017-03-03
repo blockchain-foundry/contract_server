@@ -1,7 +1,5 @@
 from django import forms
 
-import json
-
 
 class NotifyForm(forms.Form):
     tx_hash = forms.CharField(max_length=100)

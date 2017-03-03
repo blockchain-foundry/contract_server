@@ -6,7 +6,6 @@ try:
 except ImportError:
     import httplib
 
-from django.http import HttpRequest
 from django.http import JsonResponse
 from functools import wraps
 

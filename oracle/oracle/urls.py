@@ -16,7 +16,9 @@ from django.conf.urls import url
 from django.contrib import admin
 from rest_framework.urlpatterns import format_suffix_patterns
 
-from app.views import *
+from app.views import (CheckContractCode, DumpContractState, GetBalance,
+                       GetStorage, NewTxNotified, Proposes, ProposalList,
+                       Multisig_addr, Sign, SignNew)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),

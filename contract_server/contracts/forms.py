@@ -1,5 +1,4 @@
 import ast
-import json
 
 from django import forms
 

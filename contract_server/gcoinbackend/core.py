@@ -63,19 +63,9 @@ def send_contract_tx(from_address, tx):
     return backend.send_contract_tx(from_address, tx)
 
 
-def prepare_raw_tx(from_address, to_address, amount, color_id):
-    backend = get_gcoin_backend()
-    return backend.prepare_raw_tx(from_address, tx)
-
-
 def prepare_general_raw_tx(data):
     backend = get_gcoin_backend()
     return backend.prepare_general_raw_tx(data)
-
-
-def prepare_smartcontract_raw_tx(from_address, to_address, non_diqi_amount, color_id, code, diqi_amount):
-    backend = get_gcoin_backend()
-    return backend.prepare_smartcontract_raw_tx(from_address, tx)
 
 
 def get_tx(tx_hash):

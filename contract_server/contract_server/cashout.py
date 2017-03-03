@@ -1,12 +1,10 @@
-import json
 import decimal
 import requests
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
 
 from gcoinapi.client import GcoinAPIClient
 from gcoinbackend import core as gcoincore
-from oracles.models import Oracle, Contract
+from oracles.models import Contract
 from evm_manager.utils import get_evm_balance
 from gcoin import apply_multisignatures, deserialize
 
@@ -33,7 +31,7 @@ def clear_evm_accouts(multisig_address):
         addresses.append(multisig_address)
         balances = [gcoincore.get_address_balance(addr) for addr in addresses]
         signed_tx = sign(raw_tx, multisig_address)
-        tx_id = send_cashout_tx(signed_tx, multisig_address)
+        send_cashout_tx(signed_tx, multisig_address)
         '''
         after cashout.
         '''
@@ -152,7 +150,6 @@ def sign(raw_tx, multisig_address):
 
 
 def get_participants(multisig_address):
-    contract = Contract.objects.get(multisig_address=multisig_address)
     txs = gcoincore.get_txs_by_address(multisig_address).get('txs')
     address = []
     for tx in txs:

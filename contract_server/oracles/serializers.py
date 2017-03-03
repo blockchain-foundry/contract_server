@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from oracles.models import *
+from oracles.models import Oracle, Contract, SubContract
 
 
 class OracleSerializer(serializers.ModelSerializer):

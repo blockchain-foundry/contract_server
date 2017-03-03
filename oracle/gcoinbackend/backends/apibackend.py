@@ -1,7 +1,6 @@
 import decimal
 
 from django.conf import settings
-from django.utils.module_loading import import_string
 
 from gcoin import signall
 from gcoinapi.client import GcoinAPIClient

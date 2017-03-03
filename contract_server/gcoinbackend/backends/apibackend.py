@@ -1,7 +1,6 @@
 import decimal
 
 from django.conf import settings
-from django.utils.module_loading import import_string
 
 from gcoin import signall
 from gcoinapi.client import GcoinAPIClient
@@ -165,5 +164,5 @@ class GcoinAPIBackend(BaseGcoinBackend):
         if oracles is not None:
             for oracle in oracles:
                 callback_url = oracle + "/notify/" + tx_hash
-                result = self.subscribe_tx_notification(tx_hash, 1, callback_url)
+                self.subscribe_tx_notification(tx_hash, 1, callback_url)
         return tx_hash

@@ -1,10 +1,9 @@
 import json
 import mock
 
-from django.conf import settings
 from django.test import TestCase
 
-from contracts.exceptions import *
+from contracts.exceptions import Multisig_error
 from contracts.views import ContractFunc
 from contract_server import ERROR_CODE
 from oracles.models import Contract, Oracle
@@ -169,9 +168,17 @@ class ContractViewTest(TestCase):
     def fake_save_multisig_addr(self, multisig_addr, url_map_pubkeys):
         pass
 
+    def fake_compile_code_and_interface(self, source_code, contract_name):
+        with open('./contracts/test_files/test_binary', 'r') as test_binary_code_file:
+            test_binary_code = test_binary_code_file.read().replace('\n', '')
+        with open('./contracts/test_files/test_interface', 'r') as test_abi_file:
+            test_interface = test_abi_file.read().replace('\n', '')
+        return test_binary_code, test_interface
+
     @mock.patch("contracts.views.Contracts._get_multisig_addr", fake_get_multisig_addr)
     @mock.patch("gcoinapi.client.GcoinAPIClient.deploy_contract_raw_tx", fake_deploy_contract_raw_tx)
     @mock.patch("contracts.views.Contracts._save_multisig_addr", fake_save_multisig_addr)
+    @mock.patch("contracts.views.Contracts._compile_code_and_interface", fake_compile_code_and_interface)
     def test_create_contract(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)

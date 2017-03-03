@@ -1,42 +1,42 @@
-class SubscribeAddrsssNotification_error(Exception):
+class SubscribeAddrsssNotificationError(Exception):
     pass
 
 
-class UnsubscribeAddrsssNotification_error(Exception):
+class UnsubscribeAddrsssNotificationError(Exception):
     pass
 
 
-class GetStateFromOracle_error(Exception):
+class GetStateFromOracleError(Exception):
     pass
 
 
-class WatchCallbackTimeout_error(Exception):
+class WatchCallbackTimeoutError(Exception):
     pass
 
 
-class WatchIsClosed_error(Exception):
+class WatchIsClosedError(Exception):
     pass
 
 
-class WatchIsExpired_error(Exception):
+class WatchIsExpiredError(Exception):
     pass
 
 
-class LogDecodeFailed_error(Exception):
+class LogDecodeFailedError(Exception):
     pass
 
 
-class GlobalSubscriptionIdNotFound_error(Exception):
+class GlobalSubscriptionIdNotFoundError(Exception):
     pass
 
 
-class WatchKeyNotFound_error (Exception):
+class WatchKeyNotFoundError (Exception):
     pass
 
 
-class ContractNotFound_error (Exception):
+class ContractNotFoundError (Exception):
     pass
 
 
-class SubContractNotFound_error (Exception):
+class SubContractNotFoundError (Exception):
     pass
