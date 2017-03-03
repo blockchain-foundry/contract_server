@@ -2,8 +2,10 @@
 class ConnectionError(Exception):
     pass
 
+
 class TimeoutError(Exception):
     pass
+
 
 class GcoinAPIError(Exception):
     pass

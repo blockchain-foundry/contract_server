@@ -23,5 +23,5 @@ urlpatterns = [
     url(r'^', include('contracts.urls')),
 ]
 urlpatterns += patterns('',
-    url(r'^notify/(?P<tx_id>[a-zA-Z0-9]+)/', NewTxNotified.as_view()),
-)
+                        url(r'^notify/(?P<tx_id>[a-zA-Z0-9]+)/', NewTxNotified.as_view()),
+                        )

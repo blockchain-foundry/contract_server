@@ -14,14 +14,14 @@ class GcoinAPIClient(object):
         url = self.base_url + end_point
         try:
             response = requests.request(
-                           method=method,
-                           url=url,
-                           params=params,
-                           data=data,
-                           headers=headers,
-                           verify=self.verify,
-                           timeout=self.timeout,
-                       )
+                method=method,
+                url=url,
+                params=params,
+                data=data,
+                headers=headers,
+                verify=self.verify,
+                timeout=self.timeout,
+            )
         except requests.exceptions.Timeout as e:
             raise error.TimeoutError
         except requests.exceptions.ConnectionError as e:
@@ -63,7 +63,7 @@ class GcoinAPIClient(object):
 
     def prepare_license_tx(self, alliance_member_address, to_address, color_id, license_info):
         end_point = '/base/v1/license/prepare'
-        params= {
+        params = {
             'alliance_member_address': alliance_member_address,
             'to_address': to_address,
             'color_id': color_id,
@@ -165,11 +165,11 @@ class GcoinAPIClient(object):
         subscription = response.json()
         return subscription
 
-    def subscribe_address_notification(self,address, callback_url):
+    def subscribe_address_notification(self, address, callback_url):
         end_point = '/notification/v1/address/subscription'
         data = {
             'tx_hash': tx_hash,
-             'callback_url': callback_url
+            'callback_url': callback_url
         }
         response = self.request(end_point, 'POST', data=data)
         subscription = response.json()

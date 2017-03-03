@@ -113,12 +113,12 @@ class EvmAbiUtilsTest(TestCase):
         function_output = decode_evm_output(interface, function_name, out)
 
         test_function_output = [
-            {'type': 'string', 'value': 'hello'}, 
-            {'type': 'uint256', 'value': 12345}, 
-            {'type': 'int256', 'value': 12345}, 
-            {'type': 'bytes1', 'value': '0x12'}, 
-            {'type': 'bytes2', 'value': '0x1234'}, 
-            {'type': 'bytes', 'value': '0x307831323334'}, 
+            {'type': 'string', 'value': 'hello'},
+            {'type': 'uint256', 'value': 12345},
+            {'type': 'int256', 'value': 12345},
+            {'type': 'bytes1', 'value': '0x12'},
+            {'type': 'bytes2', 'value': '0x1234'},
+            {'type': 'bytes', 'value': '0x307831323334'},
             {'type': 'bool', 'value': True}
         ]
 

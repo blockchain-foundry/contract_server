@@ -101,11 +101,9 @@ class MultisigAddrTest(TestCase):
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
     def test_invalid_pubkey(self):
-        self.sample_form['pubkey'] = '048cfdd643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052'
+        self.sample_form[
+            'pubkey'] = '048cfdd643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052'
         response = self.client.post(self.url, self.sample_form)
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data['error'], 'Cannot find proposal with this pubkey.')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
-
-
-

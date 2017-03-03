@@ -23,10 +23,10 @@ class NewTxNotified(APIView):
     def get(self, request, tx_id):
         response = {}
         print('ok, received notify with tx_id ' + tx_id)
-        
+
         completed = deploy_contracts(tx_id)
-        if completed == False:
-            response['status'] = "State-Update failed: tx_id = " + tx_id 
+        if completed is False:
+            response['status'] = "State-Update failed: tx_id = " + tx_id
             return JsonResponse(response, status=httplib.OK)
 
         multisig_address = get_multisig_addr(tx_id)

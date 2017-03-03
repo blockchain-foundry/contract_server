@@ -11,10 +11,10 @@ from django.http import JsonResponse
 from functools import wraps
 
 
-
 logger = logging.getLogger(__name__)
 
 __all__ = ['handle_uncaught_exception']
+
 
 def handle_uncaught_exception(view_func):
     """
@@ -28,13 +28,8 @@ def handle_uncaught_exception(view_func):
         except Exception as e:
             logger.error(traceback.format_exc())
             response = {"errors": [{
-                    "message": 'internal server error',
-                }]
+                "message": 'internal server error',
+            }]
             }
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
     return wrapper
-                                                                        
-
-
-
-

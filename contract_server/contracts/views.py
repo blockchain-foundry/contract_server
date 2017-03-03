@@ -324,7 +324,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                 oracle_list, source_code, conditions, m)
             contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-            
+
             input_value = []
             if function_inputs:
                 for i in function_inputs:
@@ -335,7 +335,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             else:
                 evm_input_code = ''
             code = json.dumps({'source_code': compiled_code + evm_input_code,
-                              'multisig_addr': multisig_addr})
+                               'multisig_addr': multisig_addr})
 
         except Compiled_error as e:
             response = {

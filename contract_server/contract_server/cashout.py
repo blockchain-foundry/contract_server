@@ -12,7 +12,7 @@ from gcoin import apply_multisignatures, deserialize
 
 OSS = GcoinAPIClient(settings.OSS_API_URL)
 MAX_DIGITS = 20
-SCALE = 8	
+SCALE = 8
 TX_FEE_COLOR = 1
 TX_FEE = 1
 RETRY = 1
@@ -38,7 +38,7 @@ def clear_evm_accouts(multisig_address):
         after cashout.
         '''
         balances1 = [gcoincore.get_address_balance(addr) for addr in addresses]
-     
+
         return {"addresses": addresses, "evm_accounts_of_addresses": accounts, "payouts": payouts, "before_balance": balances, "after_balance": balances1}
 
 
@@ -70,14 +70,14 @@ def get_payouts_from_single_account(account, from_address, to_address):
         key, value = process_key_value_type(key, value)
         if (value != process_value_type(0)):
             pay = {
-                "from_address" : from_address,
-                "to_address" : to_address,
-                "color_id" : str(key),
-                "amount" : str(round(value, SCALE))
+                "from_address": from_address,
+                "to_address": to_address,
+                "color_id": str(key),
+                "amount": str(round(value, SCALE))
             }
-            payouts.append(pay) 
+            payouts.append(pay)
     return payouts
- 
+
 
 def output_is_zero(balance, surplus):
     fee_color, fee_amount = process_key_value_type(TX_FEE_COLOR, TX_FEE)
@@ -106,6 +106,7 @@ def process_dict_type(dic):
         ret[key] = value
     return ret
 
+
 def send_cashout_tx(signed_tx, multisig_address):
     try:
         contract = Contract.objects.get(multisig_address=multisig_address)
@@ -115,6 +116,7 @@ def send_cashout_tx(signed_tx, multisig_address):
     urls = [ora.url for ora in oracles]
     tx_id = gcoincore.send_cashout_tx(signed_tx, urls)
     return tx_id
+
 
 def sign(raw_tx, multisig_address):
     try:
@@ -157,9 +159,9 @@ def get_participants(multisig_address):
         vins = tx.get('vins')
         vouts = tx.get('vouts')
         for data in vins:
-            if(data.get('address') != multisig_address and data.get('address')!=''):
+            if(data.get('address') != multisig_address and data.get('address') != ''):
                 address.append(data.get('address'))
         for data in vouts:
-            if(data.get('address') != multisig_address and data.get('address')!=''):
+            if(data.get('address') != multisig_address and data.get('address') != ''):
                 address.append(data.get('address'))
     return list(set(address))

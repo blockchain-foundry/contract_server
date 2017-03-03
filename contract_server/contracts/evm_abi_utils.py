@@ -70,7 +70,7 @@ def wrap_decoded_data(item):
     """
     Wrap eth_abi decoded data for JSON format output
     """
-    if  item['type'] == 'bytes':
+    if item['type'] == 'bytes':
         item['value'] = "0x" + str(binascii.b2a_hex(item['value']).decode())
     elif 'byte' in item['type']:
         # bytes2, bytes32....

@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 
 class Watches(APIView):
+
     @handle_uncaught_exception
     def get(self, request, subscription_id):
         """
@@ -65,6 +66,7 @@ class Watches(APIView):
 class Events(APIView):
     """  Events Restful API
     """
+
     def _get_contract_state_from_oracle(self, multisig_address, oracle_url):
         """
         Get contract state from specific Oracle
@@ -152,7 +154,7 @@ class Events(APIView):
 
         if receiver_address != '' and receiver_address != multisig_address:
             try:
-                sub_contract =  contract.subcontract.all().filter(deploy_address=receiver_address)[0]
+                sub_contract = contract.subcontract.all().filter(deploy_address=receiver_address)[0]
                 interface = sub_contract.interface
             except:
                 raise SubContractNotFound_error('SubContract does not exsit')
@@ -165,17 +167,18 @@ class Events(APIView):
         except:
             return False
 
-
     def _process_watch_event(self, multisig_address, key, callback_url, oracle_url, receiver_address):
         response = {'message': 'error'}
         http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         try:
             # Check if key exsits
             if not self._key_exists(multisig_address, receiver_address, key):
-                raise WatchKeyNotFound_error("key:[{}] of contract  {}/{} doesn't exsit".format(key, multisig_address, receiver_address))
+                raise WatchKeyNotFound_error(
+                    "key:[{}] of contract  {}/{} doesn't exsit".format(key, multisig_address, receiver_address))
 
             # Subscribe address notification by sending request to OSS
-            subscription_id, created_time = self._subscribe_address_notification(multisig_address, callback_url)
+            subscription_id, created_time = self._subscribe_address_notification(
+                multisig_address, callback_url)
 
             # Get contract state from oracle
             contract_state = self._get_contract_state_from_oracle(
@@ -205,29 +208,29 @@ class Events(APIView):
 
         except ContractNotFound_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except SubContractNotFound_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except WatchKeyNotFound_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except SubscribeAddrsssNotification_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except GetStateFromOracle_error as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except WatchCallbackTimeout_error as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except (Contract.DoesNotExist, SubContract.DoesNotExist):
             response = {'message': 'contract not found'}
             http_status = status.HTTP_404_NOT_FOUND
             return JsonResponse(response, status=http_status)
         except Exception as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = { 'messagea': str(e) }
+            response = {'messagea': str(e)}
         finally:
             return JsonResponse(response, status=http_status)
 
@@ -260,7 +263,8 @@ class Events(APIView):
             # optional callback_url
             callback_url = form.cleaned_data['callback_url']
             if callback_url == '':
-                callback_url = request.build_absolute_uri('/') + 'events/notify/' + multisig_address + '/' + receiver_address
+                callback_url = request.build_absolute_uri(
+                    '/') + 'events/notify/' + multisig_address + '/' + receiver_address
                 callback_url = ''.join(callback_url.split())
 
             # print('callback_url:{}'.format(callback_url ))
@@ -276,7 +280,9 @@ class Events(APIView):
             http_status = status.HTTP_406_NOT_ACCEPTABLE
             return JsonResponse(response, status=http_status)
 
+
 class Notify(APIView):
+
     def _hash_key(self, key):
         """
         Hash key by Keccak-256
@@ -297,7 +303,7 @@ class Notify(APIView):
             if receiver_address == multisig_address:
                 interface = contract.interface
             else:
-                sub_contract =  contract.subcontract.all().filter(deploy_address=receiver_address)[0]
+                sub_contract = contract.subcontract.all().filter(deploy_address=receiver_address)[0]
                 interface = sub_contract.interface
         except (Contract.DoesNotExist, SubContract.DoesNotExist):
             return 'contract not found'
@@ -334,7 +340,8 @@ class Notify(APIView):
 
         tx = get_tx_info(tx_hash)
 
-        sender_address, multisig_address, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
+        sender_address, multisig_address, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(
+            tx)
         value = "\'" + str(value) + "\'"
         blocktime = "\'" + str(blocktime) + "\'"
         logger.debug('[Transaction Info] tx_hash:{}, blocktime:{}'.format(tx_hash, blocktime))
@@ -377,7 +384,8 @@ class Notify(APIView):
         # Get corresponding logs
         current_log = None
         for log in logs:
-            is_matched_address = (receiver_address != '' and log['address'] == receiver_address) or log['address'] == evm_address
+            is_matched_address = (receiver_address != '' and log['address'] == receiver_address) or log[
+                'address'] == evm_address
 
             # print('is_matched_address:{}'.format(is_matched_address))
             if is_matched_address and log['topics'][0] == '0x' + event_hex:
@@ -553,11 +561,13 @@ class Notify(APIView):
             tx_hash = form.cleaned_data['tx_hash']
             subscription_id = form.cleaned_data['subscription_id']
             notification_id = form.cleaned_data['notification_id']
-            if receiver_address == '': receiver_address = multisig_address
+            if receiver_address == '':
+                receiver_address = multisig_address
             # print('[Received notification]: multisig_address:{}, tx_hash:{}, subscription_id:{}, notification_id:{}, receiver_address:{}'.format(multisig_address, tx_hash, subscription_id, notification_id, receiver_address))
 
             # Use thread to callback to events/watches
-            t = threading.Thread(target=self._process_accept_notification, args=(tx_hash, subscription_id, multisig_address, receiver_address))
+            t = threading.Thread(target=self._process_accept_notification, args=(
+                tx_hash, subscription_id, multisig_address, receiver_address))
             t.setDaemon(False)
             t.start()
 

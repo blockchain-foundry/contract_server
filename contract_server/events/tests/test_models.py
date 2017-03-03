@@ -5,7 +5,7 @@ from events.models import Watch
 import sha3
 import binascii
 
-TEST_KEY= "TEST_KEY"
+TEST_KEY = "TEST_KEY"
 
 
 class ModelWatchTestCase(TestCase):
