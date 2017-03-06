@@ -1,8 +1,72 @@
 from django.test import TestCase
-from contracts.evm_abi_utils import decode_evm_output, wrap_decoded_data
+from contracts.evm_abi_utils import (
+    decode_evm_output, wrap_decoded_data,
+    get_event_by_name, get_abi_list, get_constructor_function,
+    get_function_by_name, make_evm_constructor_code, make_evm_input_code)
 
 
 class EvmAbiUtilsTest(TestCase):
+    def setUp(self):
+        # monk interface
+        self.interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
+            "inputs": [{"name": "index", "type": "int256"}], \
+            "constant": true, "payable": false, "name": "getAttributes", \
+            "type": "function"}, {"outputs": [], "id": 2, \
+            "inputs": [{"name": "index", "type": "int256"}, \
+            {"name": "value", "type": "int256"}], \
+            "constant": false, "payable": false, "name": "setAttributes", \
+            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
+            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
+            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
+            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
+            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
+            "name": "AttributesSet", "type": "event", "anonymous": false}]'
+
+        self.interface_mortal = '[ \
+            {"inputs": [{"name": "_address", "type": "address"}],  \
+            "outputs": [], "name": "setOwner", "type": "function", \
+            "payable": false, "constant": false}, \
+            {"inputs": [], "outputs": [{"name": "", "type": "address"}, \
+            {"name": "", "type": "int256"}], "name": "getStorage", "type": \
+            "function", "payable": false, "constant": true}, \
+            {"inputs": [], "outputs": [], "name": "kill", "type": \
+            "function", "payable": false, "constant": false}, \
+            {"inputs": [{"name": "_test_constractor", "type": "int256"}], \
+            "payable": false, "type": "constructor"}]'
+
+    def test_get_abi_list(self):
+        function_list, event_list = get_abi_list(self.interface)
+        event = list(filter(
+            lambda item: item["name"] == "AttributesSet", event_list))[0]
+        input_sender = list(filter(
+            lambda item: item["name"] == "_sender", event["inputs"]))[0]
+        self.assertEqual(input_sender["type"], "address")
+
+        function = list(filter(
+            lambda item: item["name"] == "setAttributes", function_list))[0]
+        input_value = list(filter(
+            lambda item: item["name"] == "value", function["inputs"]))[0]
+        self.assertEqual(input_value["type"], "int256")
+
+    def test_get_event_by_name(self):
+        event = get_event_by_name(
+            self.interface,
+            'AttributesSet')
+
+        self.assertEqual(event['anonymous'], False)
+        self.assertEqual(event['name'], 'AttributesSet')
+
+    def test_get_constructor_function(self):
+        constructor = get_constructor_function(self.interface_mortal)
+        self.assertEqual(constructor["inputs"][0]["name"], "_test_constractor")
+
+    def test_get_function_by_name(self):
+        function, is_constant = get_function_by_name(
+            self.interface,
+            'setAttributes')
+
+        self.assertEqual(function['name'], 'setAttributes')
+        self.assertEqual(is_constant, False)
 
     def test_wrap_decoded_data(self):
         # string
@@ -23,15 +87,12 @@ class EvmAbiUtilsTest(TestCase):
             item['value'], "0x5566000000000000000000000000001255660000000000000000000000000012")
 
         # bytes2
-        """
         item = {
             "type": "bytes2",
-            "value": b'12'
+            "value": b'\x12\x34'
         }
         item = wrap_decoded_data(item)
-        print(item['value'])
-        self.assertEqual(item['value'], "12")
-        """
+        self.assertEqual(item['value'], "0x1234")
 
         # int
         item = {
@@ -154,3 +215,82 @@ class EvmAbiUtilsTest(TestCase):
 
         self.assertEqual(function_output[0]['value'], item)
         self.assertEqual(function_output[0]['type'], 'uint8[3][3]')
+
+    def test_make_evm_constructor_code(self):
+        function = {
+            'inputs': [
+                {'name': '_string', 'type': 'string'},
+                {'name': '_bytes', 'type': 'bytes'},
+                {'name': '_bytes2', 'type': 'bytes2'},
+                {'name': '_bytes32', 'type': 'bytes32'},
+                {'name': '_uint', 'type': 'uint256'},
+                {'name': '_int', 'type': 'int256'},
+                {'name': '_bool', 'type': 'bool'},
+                {'name': '_address', 'type': 'address'}
+            ],
+            'payable': False, 'type': 'constructor'
+        }
+        function_inputs = [
+            'hello world',
+            '0x5566000000000000000000000000001255660000000000000000000000000012452544',
+            '0x1134',
+            '0x5566000000000000000000000000001255660000000000000000000000000012',
+            12345, -123, True, '0000000000000000000000000000000000000171'
+        ]
+
+        evm_input_code = make_evm_constructor_code(function, function_inputs)
+        expect_value = '' + \
+            '0000000000000000000000000000000000000000000000000000000000000100' + \
+            '0000000000000000000000000000000000000000000000000000000000000140' + \
+            '1134000000000000000000000000000000000000000000000000000000000000' + \
+            '5566000000000000000000000000001255660000000000000000000000000012' + \
+            '0000000000000000000000000000000000000000000000000000000000003039' + \
+            'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff85' + \
+            '0000000000000000000000000000000000000000000000000000000000000001' + \
+            '0000000000000000000000000000000000000000000000000000000000000171' + \
+            '000000000000000000000000000000000000000000000000000000000000000b' + \
+            '68656c6c6f20776f726c64000000000000000000000000000000000000000000' + \
+            '0000000000000000000000000000000000000000000000000000000000000023' + \
+            '5566000000000000000000000000001255660000000000000000000000000012' + \
+            '4525440000000000000000000000000000000000000000000000000000000000'
+        self.assertEqual(evm_input_code, expect_value)
+
+    def test_make_evm_input_code(self):
+        function = {
+            'payable': False, 'outputs': [], 'type': 'function',
+            'inputs': [
+                {'name': '_string', 'type': 'string'},
+                {'name': '_bytes', 'type': 'bytes'},
+                {'name': '_bytes2', 'type': 'bytes2'},
+                {'name': '_bytes32', 'type': 'bytes32'},
+                {'name': '_uint', 'type': 'uint256'},
+                {'name': '_int', 'type': 'int256'},
+                {'name': '_bool', 'type': 'bool'},
+                {'name': '_address', 'type': 'address'}
+            ],
+            'name': 'testEvent', 'constant': False}
+
+        function_inputs = [
+            'hello world',
+            '0x5566000000000000000000000000001255660000000000000000000000000012452544',
+            '0x1134',
+            '0x5566000000000000000000000000001255660000000000000000000000000012',
+            12345, -123, True, '0000000000000000000000000000000000000171'
+        ]
+
+        evm_input_code = make_evm_input_code(function, function_inputs)
+        expect_value = '3d3456d1' + \
+            '0000000000000000000000000000000000000000000000000000000000000100' + \
+            '0000000000000000000000000000000000000000000000000000000000000140' + \
+            '1134000000000000000000000000000000000000000000000000000000000000' + \
+            '5566000000000000000000000000001255660000000000000000000000000012' + \
+            '0000000000000000000000000000000000000000000000000000000000003039' + \
+            'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff85' + \
+            '0000000000000000000000000000000000000000000000000000000000000001' + \
+            '0000000000000000000000000000000000000000000000000000000000000171' + \
+            '000000000000000000000000000000000000000000000000000000000000000b' + \
+            '68656c6c6f20776f726c64000000000000000000000000000000000000000000' + \
+            '0000000000000000000000000000000000000000000000000000000000000023' + \
+            '5566000000000000000000000000001255660000000000000000000000000012' + \
+            '4525440000000000000000000000000000000000000000000000000000000000'
+        self.assertEqual(evm_input_code, expect_value)
