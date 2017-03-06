@@ -1,7 +1,6 @@
 import decimal
 
 from django.conf import settings
-from django.utils.module_loading import import_string
 
 from gcoin import signall
 from gcoinapi.client import GcoinAPIClient
@@ -17,7 +16,7 @@ class KeyStore(object):
 
     # TODO: provide private key here
     def get_privkey(self, address):
-        return None;
+        return None
 
 
 class GcoinAPIBackend(BaseGcoinBackend):
@@ -158,14 +157,12 @@ class GcoinAPIBackend(BaseGcoinBackend):
         tx_hash = self.client.send_tx(signed_tx)
         return tx_hash
 
-
     def send_cashout_tx(self, signed_tx, oracles=None):
         tx_hash = self.client.send_tx(signed_tx)
 
         # subscribe tx notifiaction
-        if oracles != None:
+        if oracles is not None:
             for oracle in oracles:
                 callback_url = oracle + "/notify/" + tx_hash
-                result = self.subscribe_tx_notification(tx_hash, 1, callback_url)
+                self.subscribe_tx_notification(tx_hash, 1, callback_url)
         return tx_hash
-

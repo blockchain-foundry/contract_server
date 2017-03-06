@@ -1,31 +1,33 @@
 import json
 import logging
-import sha3
 import requests
-from rest_framework.response import Response
+import sha3
+import threading
+import time
+
 from rest_framework.views import APIView, status
 from django.conf import settings
 from django.http import JsonResponse
 
 from contract_server.decorators import handle_uncaught_exception
+from contract_server.utils import wallet_address_to_evm_address
+from contracts.evm_abi_utils import wrap_decoded_data
+from contracts.views import ContractFunc
 from eth_abi.abi import decode_abi, decode_single
-from gcoinapi.client import GcoinAPIClient
-from gcoinbackend import core as gcoincore
-from evm_manager.deploy_contract_utils import *
-from evm_manager.commander import Commander
-from .forms import NotifyForm, WatchForm
-from contract_server.utils import *
 from events.models import Watch
 from events.serializers import WatchSerializer
-from contracts.views import ContractFunc
-from oracles.models import Contract
-from contracts.evm_abi_utils import wrap_decoded_data
+from evm_manager.commander import Commander
+from evm_manager.deploy_contract_utils import get_tx_info, get_contracts_info
+from gcoinapi.client import GcoinAPIClient
+from gcoinbackend import core as gcoincore
+from oracles.models import Contract, SubContract
 
-from contract_server.mixins import CsrfExemptMixin
-from .exceptions import *
+from .exceptions import (SubscribeAddrsssNotificationError, UnsubscribeAddrsssNotificationError,
+                         GetStateFromOracleError, WatchCallbackTimeoutError, WatchIsClosedError,
+                         WatchIsExpiredError, LogDecodeFailedError, GlobalSubscriptionIdNotFoundError,
+                         WatchKeyNotFoundError, ContractNotFoundError, SubContractNotFoundError)
 
-import threading
-import time
+from .forms import NotifyForm, WatchForm
 
 # Declare a global list for registering the subscription id
 global subscription_id_list
@@ -35,15 +37,12 @@ lock = threading.Lock()
 
 OSSclient = GcoinAPIClient(settings.OSS_API_URL)
 
-try:
-    import http.client as httplib
-except ImportError:
-    import httplib
 
 logger = logging.getLogger(__name__)
 
 
 class Watches(APIView):
+
     @handle_uncaught_exception
     def get(self, request, subscription_id):
         """
@@ -65,6 +64,7 @@ class Watches(APIView):
 class Events(APIView):
     """  Events Restful API
     """
+
     def _get_contract_state_from_oracle(self, multisig_address, oracle_url):
         """
         Get contract state from specific Oracle
@@ -76,7 +76,7 @@ class Events(APIView):
             else:
                 response.raise_for_status()
         except:
-            raise GetStateFromOracle_error
+            raise GetStateFromOracleError
 
         return contract
 
@@ -91,7 +91,7 @@ class Events(APIView):
                 callback_url)
             return subscription_id, created_time
         except:
-            raise SubscribeAddrsssNotification_error
+            raise SubscribeAddrsssNotificationError
 
     def _wait_for_notification(self, subscription_id):
         """
@@ -118,7 +118,7 @@ class Events(APIView):
 
                     watch.is_closed = True
                     watch.save()
-                    raise WatchCallbackTimeout_error("Watch callback is timeout")
+                    raise WatchCallbackTimeoutError("Watch callback is timeout")
                     break
                 if subscription_id not in subscription_id_list:
                     # The notification is callbacked
@@ -148,14 +148,14 @@ class Events(APIView):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
         except:
-            raise ContractNotFound_error('Contract does not exsit')
+            raise ContractNotFoundError('Contract does not exsit')
 
         if receiver_address != '' and receiver_address != multisig_address:
             try:
-                sub_contract =  contract.subcontract.all().filter(deploy_address=receiver_address)[0]
+                sub_contract = contract.subcontract.all().filter(deploy_address=receiver_address)[0]
                 interface = sub_contract.interface
             except:
-                raise SubContractNotFound_error('SubContract does not exsit')
+                raise SubContractNotFoundError('SubContract does not exsit')
         else:
             interface = contract.interface
         try:
@@ -165,17 +165,18 @@ class Events(APIView):
         except:
             return False
 
-
     def _process_watch_event(self, multisig_address, key, callback_url, oracle_url, receiver_address):
         response = {'message': 'error'}
         http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         try:
             # Check if key exsits
             if not self._key_exists(multisig_address, receiver_address, key):
-                raise WatchKeyNotFound_error("key:[{}] of contract  {}/{} doesn't exsit".format(key, multisig_address, receiver_address))
+                raise WatchKeyNotFoundError(
+                    "key:[{}] of contract  {}/{} doesn't exsit".format(key, multisig_address, receiver_address))
 
             # Subscribe address notification by sending request to OSS
-            subscription_id, created_time = self._subscribe_address_notification(multisig_address, callback_url)
+            subscription_id, created_time = self._subscribe_address_notification(
+                multisig_address, callback_url)
 
             # Get contract state from oracle
             contract_state = self._get_contract_state_from_oracle(
@@ -203,31 +204,31 @@ class Events(APIView):
 
             http_status = status.HTTP_200_OK
 
-        except ContractNotFound_error as e:
+        except ContractNotFoundError as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
-        except SubContractNotFound_error as e:
+            response = {'message': str(e)}
+        except SubContractNotFoundError as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
-        except WatchKeyNotFound_error as e:
+            response = {'message': str(e)}
+        except WatchKeyNotFoundError as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
-        except SubscribeAddrsssNotification_error as e:
+            response = {'message': str(e)}
+        except SubscribeAddrsssNotificationError as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
-        except GetStateFromOracle_error as e:
+            response = {'message': str(e)}
+        except GetStateFromOracleError as e:
             http_status = status.HTTP_400_BAD_REQUEST
-            response = { 'message': str(e) }
-        except WatchCallbackTimeout_error as e:
+            response = {'message': str(e)}
+        except WatchCallbackTimeoutError as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = { 'message': str(e) }
+            response = {'message': str(e)}
         except (Contract.DoesNotExist, SubContract.DoesNotExist):
             response = {'message': 'contract not found'}
             http_status = status.HTTP_404_NOT_FOUND
             return JsonResponse(response, status=http_status)
         except Exception as e:
             http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = { 'messagea': str(e) }
+            response = {'messagea': str(e)}
         finally:
             return JsonResponse(response, status=http_status)
 
@@ -260,7 +261,8 @@ class Events(APIView):
             # optional callback_url
             callback_url = form.cleaned_data['callback_url']
             if callback_url == '':
-                callback_url = request.build_absolute_uri('/') + 'events/notify/' + multisig_address + '/' + receiver_address
+                callback_url = request.build_absolute_uri(
+                    '/') + 'events/notify/' + multisig_address + '/' + receiver_address
                 callback_url = ''.join(callback_url.split())
 
             # print('callback_url:{}'.format(callback_url ))
@@ -276,7 +278,9 @@ class Events(APIView):
             http_status = status.HTTP_406_NOT_ACCEPTABLE
             return JsonResponse(response, status=http_status)
 
+
 class Notify(APIView):
+
     def _hash_key(self, key):
         """
         Hash key by Keccak-256
@@ -297,7 +301,7 @@ class Notify(APIView):
             if receiver_address == multisig_address:
                 interface = contract.interface
             else:
-                sub_contract =  contract.subcontract.all().filter(deploy_address=receiver_address)[0]
+                sub_contract = contract.subcontract.all().filter(deploy_address=receiver_address)[0]
                 interface = sub_contract.interface
         except (Contract.DoesNotExist, SubContract.DoesNotExist):
             return 'contract not found'
@@ -334,7 +338,8 @@ class Notify(APIView):
 
         tx = get_tx_info(tx_hash)
 
-        sender_address, multisig_address, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(tx)
+        sender_address, multisig_address, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(
+            tx)
         value = "\'" + str(value) + "\'"
         blocktime = "\'" + str(blocktime) + "\'"
         logger.debug('[Transaction Info] tx_hash:{}, blocktime:{}'.format(tx_hash, blocktime))
@@ -377,7 +382,8 @@ class Notify(APIView):
         # Get corresponding logs
         current_log = None
         for log in logs:
-            is_matched_address = (receiver_address != '' and log['address'] == receiver_address) or log['address'] == evm_address
+            is_matched_address = (receiver_address != '' and log['address'] == receiver_address) or log[
+                'address'] == evm_address
 
             # print('is_matched_address:{}'.format(is_matched_address))
             if is_matched_address and log['topics'][0] == '0x' + event_hex:
@@ -424,9 +430,9 @@ class Notify(APIView):
         watch = Watch.objects.get(subscription_id=subscription_id)
         if watch.is_closed or watch.is_expired:
             if watch.is_closed:
-                raise WatchIsClosed_error('watch is closed')
+                raise WatchIsClosedError('watch is closed')
             elif watch.is_expired:
-                raise WatchIsExpired_error('watch is expired')
+                raise WatchIsExpiredError('watch is expired')
         return watch
 
     def _callback_to_watch(self, subscription_id):
@@ -438,7 +444,7 @@ class Notify(APIView):
             if subscription_id in subscription_id_list:
                 subscription_id_list.remove(subscription_id)
             else:
-                raise GlobalSubscriptionIdNotFound_error
+                raise GlobalSubscriptionIdNotFoundError
         except Exception as e:
             raise e
         finally:
@@ -452,7 +458,7 @@ class Notify(APIView):
             deleted, deleted_id = OSSclient.unsubscribe_address_notification(subscription_id)
             return deleted, deleted_id
         except:
-            raise UnsubscribeAddrsssNotification_error
+            raise UnsubscribeAddrsssNotificationError
 
     def _process_accept_notification(self, tx_hash, subscription_id, multisig_address, receiver_address):
         """ Process accepting notification
@@ -499,7 +505,7 @@ class Notify(APIView):
             )
 
             if event is None:
-                raise LogDecodeFailed_error('Log decoding failed')
+                raise LogDecodeFailedError('Log decoding failed')
             else:
                 watch.args = json.dumps(event)
                 # print('watch.args after decoding:{}'.format(watch.args))
@@ -511,22 +517,22 @@ class Notify(APIView):
             http_status = status.HTTP_200_OK
             response = {'message': 'Notified:' + subscription_id}
 
-        except WatchIsClosed_error as e:
+        except WatchIsClosedError as e:
             response = {'message': str(e)}
             http_status = status.HTTP_200_OK
-        except WatchIsExpired_error as e:
+        except WatchIsExpiredError as e:
             response = {'message': str(e)}
             http_status = status.HTTP_200_OK
         except IOError:
             response = {'message': 'contract log not found'}
-            http_status = HTTP_500_INTERNAL_SERVER_ERROR
-        except LogDecodeFailed_error as e:
+            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
+        except LogDecodeFailedError as e:
             response = {'message': str(e)}
-            http_status = HTTP_500_INTERNAL_SERVER_ERROR
+            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         except Exception as e:
             response = {'message': str(e)}
             print(str(e))
-            http_status = HTTP_500_INTERNAL_SERVER_ERROR
+            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         finally:
             logger.debug("[Event]/[Notify]/:[response:{}]".format(response))
             return JsonResponse(response, status=http_status)
@@ -552,12 +558,14 @@ class Notify(APIView):
         if form.is_valid():
             tx_hash = form.cleaned_data['tx_hash']
             subscription_id = form.cleaned_data['subscription_id']
-            notification_id = form.cleaned_data['notification_id']
-            if receiver_address == '': receiver_address = multisig_address
+            # notification_id = form.cleaned_data['notification_id']
+            if receiver_address == '':
+                receiver_address = multisig_address
             # print('[Received notification]: multisig_address:{}, tx_hash:{}, subscription_id:{}, notification_id:{}, receiver_address:{}'.format(multisig_address, tx_hash, subscription_id, notification_id, receiver_address))
 
             # Use thread to callback to events/watches
-            t = threading.Thread(target=self._process_accept_notification, args=(tx_hash, subscription_id, multisig_address, receiver_address))
+            t = threading.Thread(target=self._process_accept_notification, args=(
+                tx_hash, subscription_id, multisig_address, receiver_address))
             t.setDaemon(False)
             t.start()
 

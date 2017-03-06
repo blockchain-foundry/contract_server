@@ -139,12 +139,6 @@ class GcoinAPIClient(object):
             non_diqi_amount = amount
         return self.prepare_smartcontract_raw_tx(from_address, to_address, non_diqi_amount, color_id, compiled_code, diqi_amount)
 
-    def get_tx(self, tx_hash):
-        end_point = '/base/v1/transaction/{tx_hash}'.format(tx_hash=tx_hash)
-        response = self.request(end_point, 'GET')
-        tx = response.json()
-        return tx
-
     def get_block_by_hash(self, block_hash):
         end_point = '/explorer/v1/blocks/{block_hash}'.format(block_hash=block_hash)
         response = self.request(end_point, 'GET')

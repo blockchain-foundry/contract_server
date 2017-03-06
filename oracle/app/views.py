@@ -1,29 +1,26 @@
 import ast
+import base58
+import binascii
+import hashlib
 import json
-import time
+import re
+
 from binascii import hexlify
-from subprocess import check_call
-from gcoin import *
+from gcoin import (multisign, deserialize, pubtoaddr,
+                   privtopub, sha256, hash160, ripemd)
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.views.generic.edit import BaseFormView, ProcessFormView
 
-import base58
 from rest_framework import status
 from rest_framework.views import APIView
-import gcoinrpc
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
 from evm_manager.deploy_contract_utils import deploy_contracts
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
-import binascii
-import hashlib
-import re
-import time
-from django.contrib.sites.shortcuts import get_current_site
 
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
 pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
@@ -35,6 +32,7 @@ except ImportError:
     import httplib
 
 EVM_PATH = '../oracle/states/{multisig_address}'
+
 
 def addressFromScriptPubKey(script_pub_key):
     script_pub_key = script_pub_key.lower()
@@ -58,6 +56,7 @@ def addressFromScriptPubKey(script_pub_key):
     hash3 = hashlib.sha256(hash2.digest())
     padded += hash3.digest()[:4]
     return base58.b58encode(padded)
+
 
 def wallet_address_to_evm(address):
     address = base58.b58decode(address)
@@ -91,11 +90,13 @@ class Proposes(CsrfExemptMixin, BaseFormView):
             for condition in conditions:
                 if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
                     o = OraclizeContract.objects.get(name=condition['condition_type'])
-                    l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition['color_id'], oraclize_contract=o)
+                    l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition[
+                                                            'color_id'], oraclize_contract=o)
                     p.links.add(l)
                 else:
                     o = OraclizeContract.objects.get(name=condition['condition_type'])
-                    l = ProposalOraclizeLink.objects.create(receiver='0', color='0', oraclize_contract=o)
+                    l = ProposalOraclizeLink.objects.create(
+                        receiver='0', color='0', oraclize_contract=o)
                     p.links.add(l)
 
         response = {'public_key': public_key}
@@ -165,7 +166,7 @@ class Sign(CsrfExemptMixin, BaseFormView):
             response = {'error': 'insufficient funds'}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-        #signature = connection.signrawtransaction(tx)
+        # signature = connection.signrawtransaction(tx)
         p = Proposal.objects.get(multisig_addr=multisig_address)
         private_key = Keystore.objects.get(public_key=p.public_key).private_key
 
@@ -184,11 +185,11 @@ class Sign(CsrfExemptMixin, BaseFormView):
 class SignNew(CsrfExemptMixin, BaseFormView):
     http_method_name = ['post']
     form_class = SignForm
+
     def form_valid(self, form):
         tx = form.cleaned_data['tx']
         script = form.cleaned_data['script']
         input_index = form.cleaned_data['input_index']
-        user_address = form.cleaned_data['user_address']
         multisig_address = form.cleaned_data['multisig_address']
 
         decoded_tx = deserialize(tx)
@@ -205,7 +206,7 @@ class SignNew(CsrfExemptMixin, BaseFormView):
             if vin not in all_utxos:
                 response = {'error': 'vins contains wrong utxo'}
                 return JsonResponse(response, status=httplib.NOT_FOUND)
-                
+
             if vin == old_utxo:
                 contained_old = True
         if not contained_old:
@@ -219,8 +220,8 @@ class SignNew(CsrfExemptMixin, BaseFormView):
                 for vout in decoded_tx['outs']:
                     output_address = addressFromScriptPubKey(vout['script'])
                     output_color = vout['color']
-                    #convert to diqi
-                    output_value = vout['value']/100000000
+                    # convert to diqi
+                    output_value = vout['value'] / 100000000
                     if output_address == multisig_address:
                         continue
                     output_evm_address = wallet_address_to_evm(output_address)
@@ -238,8 +239,8 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         except IOError:
             response = {'error': 'contract not found'}
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
- 
-        #signature = connection.signrawtransaction(tx)
+
+        # signature = connection.signrawtransaction(tx)
         p = Proposal.objects.get(multisig_addr=multisig_address)
         private_key = Keystore.objects.get(public_key=p.public_key).private_key
 
@@ -248,12 +249,11 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         response = {'signature': signature}
 
         return JsonResponse(response, status=httplib.OK)
- 
+
     def form_invalid(self, form):
         response = {'error': form.errors}
 
         return JsonResponse(response, status=httplib.BAD_REQUEST)
-
 
     def get_oldest_utxo(self, multisig_address):
         utxos = gcoincore.get_address_utxos(multisig_address)
@@ -261,11 +261,11 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         old_utxo = None
         all_utxos = []
         for utxo in utxos:
-            all_utxos.append ((utxo['txid'], utxo['vout']))
-            raw_tx  = gcoincore.get_tx(utxo['txid'])
+            all_utxos.append((utxo['txid'], utxo['vout']))
+            raw_tx = gcoincore.get_tx(utxo['txid'])
             try:
                 block = gcoincore.get_block_by_hash(raw_tx['blockhash'])
-                if block_time == None or int(block['time']) < block_time:
+                if block_time is None or int(block['time']) < block_time:
                     old_utxo = utxo
                     block_time = int(block['time'])
             except:
@@ -323,7 +323,6 @@ class DumpContractState(APIView):
     """
 
     def get(self, request, multisig_address):
-        contract_evm_address = wallet_address_to_evm(multisig_address)
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
                 content = json.load(f)
@@ -359,13 +358,13 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
         completed = deploy_contracts(tx_hash)
-        if completed == False:
+        if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)
 
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
-      
+
 
 class OraclizeContractInterface(APIView):
 

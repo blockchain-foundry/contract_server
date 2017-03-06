@@ -1,7 +1,7 @@
 import json
 import sha3  # keccak_256
 import binascii
-from eth_abi.abi import *
+from eth_abi.abi import decode_abi, encode_abi
 
 
 def get_abi_list(interface):
@@ -70,7 +70,7 @@ def wrap_decoded_data(item):
     """
     Wrap eth_abi decoded data for JSON format output
     """
-    if  item['type'] == 'bytes':
+    if item['type'] == 'bytes':
         item['value'] = "0x" + str(binascii.b2a_hex(item['value']).decode())
     elif 'byte' in item['type']:
         # bytes2, bytes32....

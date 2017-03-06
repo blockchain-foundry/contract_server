@@ -1,15 +1,12 @@
-import json
-import os, platform
+import os
+import platform
 
-from django.http import HttpResponse, JsonResponse
-from rest_framework.response import Response
+from django.http import JsonResponse
 from rest_framework.views import APIView
 
 from oracles.models import Oracle
-from oracles.serializers import OracleSerializer
 from .forms import RegisterOracleForm
 import logging
-from contract_server.decorators import handle_uncaught_exception
 
 try:
     import http.client as httplib
@@ -25,9 +22,11 @@ logger = logging.getLogger(__name__)
 
 # modified from stackoverflow
 # Returns True if host responds to a ping request
+
+
 def ping(host, port):
     # Ping parameters as function of OS
-    if platform.system().lower()=="windows":
+    if platform.system().lower() == "windows":
         ping_str = "-n 1 "
     else:
         ping_str = "-c 1 "
@@ -40,6 +39,7 @@ def ping(host, port):
 
 
 class OracleList(APIView):
+
     def get(self, request, format=None):
         response = {}
         oracle_list = []
@@ -58,18 +58,19 @@ class OracleList(APIView):
                     "name": oracle.name,
                     "url": oracle.url}
                 oracle_list.append(reachable_oracles)
-        response['oracles'] = oracle_list;
+        response['oracles'] = oracle_list
 
-        return JsonResponse(response, status=httplib.OK);
+        return JsonResponse(response, status=httplib.OK)
 
 
 class RegistereOracle(APIView):
     # Register a new oracle
+
     def post(self, request):
         response = {}
 
         # May use latter
-        remote_ip = request.META["REMOTE_ADDR"]
+        request.META["REMOTE_ADDR"]
         # TODO: may have to check remote ip?
 
         form = RegisterOracleForm(request.POST)
@@ -79,13 +80,12 @@ class RegistereOracle(APIView):
             # check if exist
             if Oracle.objects.filter(url=url).exists():
                 response = {"message": "This url already exists."}
-                return JsonResponse(response, status=httplib.BAD_REQUEST);
+                return JsonResponse(response, status=httplib.BAD_REQUEST)
             oracle = Oracle.objects.create(name=name, url=url)
-            oracle.save();
+            oracle.save()
 
             response = {"message": "Add oracle successfully"}
-            return JsonResponse(response, status=httplib.OK);
+            return JsonResponse(response, status=httplib.OK)
         else:
             response['errors'] = form.errors
-            return JsonResponse(response, status=httplib.BAD_REQUEST);
-
+            return JsonResponse(response, status=httplib.BAD_REQUEST)

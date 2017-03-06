@@ -264,7 +264,7 @@ def enc(typ, arg):
 
 # Encodes multiple arguments using the head/tail mechanism
 def encode_abi(types, args):
-    if (len(types)==0):
+    if (len(types) == 0):
         return b''
     headsize = 0
     proctypes = [process_type(typ) for typ in types]

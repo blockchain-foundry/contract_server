@@ -1,5 +1,4 @@
 import ast
-import json
 
 from django import forms
 
@@ -25,7 +24,7 @@ class SubContractFunctionCallForm(forms.Form):
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
-    
+
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
         return ast.literal_eval(function_inputs)
@@ -43,7 +42,7 @@ class ContractFunctionCallFrom(forms.Form):
         return ast.literal_eval(function_inputs)
 
 
-class GenSubContractRawTxForm(forms.Form):    
+class GenSubContractRawTxForm(forms.Form):
     source_code = forms.CharField(required=True)
     deploy_address = forms.CharField(required=True)
     from_address = forms.CharField(required=True)

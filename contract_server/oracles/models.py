@@ -15,6 +15,7 @@ class Contract(models.Model):
     class Meta:
         ordering = ('created',)
 
+
 class SubContract(models.Model):
     parent_contract = models.ForeignKey(Contract, related_name='subcontract')
     deploy_address = models.CharField(max_length=100, blank=True, default='')
@@ -28,6 +29,6 @@ class Oracle(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100, blank=True, default='')
     url = models.URLField()
+
     class Meta:
         ordering = ('created',)
-

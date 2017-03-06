@@ -1,7 +1,6 @@
 import decimal
 
 from django.conf import settings
-from django.utils.module_loading import import_string
 
 from gcoin import signall
 from gcoinapi.client import GcoinAPIClient
@@ -17,7 +16,7 @@ class KeyStore(object):
 
     # TODO: provide private key here
     def get_privkey(self, address):
-        return None;
+        return None
 
 
 class GcoinAPIBackend(BaseGcoinBackend):
@@ -86,7 +85,7 @@ class GcoinAPIBackend(BaseGcoinBackend):
             return {color_id: balance.get(color_id, decimal.Decimal('0'))}
         else:
             return balance
-    
+
     def get_address_utxos(self, address):
         utxos = self.client.get_address_utxos(address)
         return utxos

@@ -1,9 +1,6 @@
-import json
 import logging
 from django.test import TestCase
 from evm_manager.commander import Commander
-from evm_manager.command import Command
-from evm_manager.deploy_contract_utils import get_contracts_info
 
 logger = logging.getLogger(__name__)
 

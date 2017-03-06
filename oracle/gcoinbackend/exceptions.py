@@ -37,4 +37,3 @@ class LicenseNotFound(GcoinBackendException):
 
 class SubscribeTxNotificationFail(GcoinBackendException):
     pass
-

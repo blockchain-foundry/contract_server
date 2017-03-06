@@ -8,3 +8,4 @@ mock==2.0.0
 py-solc==1.0.0
 ethereum-abi-utils==0.2.2
 requests-toolbelt==0.7.0
+gcoin
