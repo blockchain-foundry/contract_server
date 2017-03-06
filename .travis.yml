@@ -4,6 +4,15 @@ python:
 env:
   - DJANGO=1.8
 install:
-    pip install -r requirements.txt
+  - pip install pep8
+  - pip install flake8
+  - pip install -r requirements.txt
+before_script:
+  - pep8 --exclude=migrations --ignore=E123,E133,E226,E241,E242,E402,E501,W503 ./contract_server/ ./oracle/
+  - flake8 --exclude=migrations,settings,__init__.py --ignore=E123,E133,E226,E241,E242,E402,E501,W503 ./contract_server/ ./oracle/
+
 script:
-  - python contract_server/manage.py test
+  - cd ./contract_server
+  - ./manage.py test
+  - cd ../oracle
+  - ./manage.py test
