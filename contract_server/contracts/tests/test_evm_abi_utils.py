@@ -7,7 +7,7 @@ from contracts.evm_abi_utils import (
 
 class EvmAbiUtilsTest(TestCase):
     def setUp(self):
-        # monk interface
+        # mock interface
         self.interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
             "inputs": [{"name": "index", "type": "int256"}], \
             "constant": true, "payable": false, "name": "getAttributes", \
