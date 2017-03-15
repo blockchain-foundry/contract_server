@@ -1,4 +1,4 @@
-ximport ast
+import ast
 import base58
 import binascii
 import hashlib
@@ -172,12 +172,13 @@ class Sign(CsrfExemptMixin, BaseFormView):
         tx = form.cleaned_data['raw_tx']
         script = form.cleaned_data['script']
         input_index = form.cleaned_data['input_index']
-        from_address = form.cleaned_data['user_address']
+        sender_address = form.cleaned_data['sender_address']
         multisig_address = form.cleaned_data['multisig_address']
         amount = form.cleaned_data['amount']
-        color_id = form.cleaned_data['color_id']
+        color_id = form.cleaned_data['color']
 
-        user_evm_address = wallet_address_to_evm(user_address)
+
+        user_evm_address = wallet_address_to_evm(sender_address)
         # need to check contract result before sign Tx
         try:
             with open(EVM_PATH.format(multisig_address=multisig_address), 'r') as f:
