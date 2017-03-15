@@ -62,7 +62,7 @@ class ContractFuncTest(TestCase):
         ]
 
         self.sample_form = {
-            'from_address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
+            'sender_address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
             'amount': 1,
             'color': 1,
             'function_name': 'getAttributes',
@@ -148,10 +148,11 @@ class ContractViewTest(TestCase):
         Oracle.objects.create(url='http://52.197.157.107:5590', name='oss1')
         self.sample_form = {
             'source_code': source_code,
-            'address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
+            'sender_address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
             'm': 1,
             'oracles': "[{'url': 'http://52.197.157.107:5590', 'name': 'oss1'}]",
-            'data': '{"name": "abc", "conditions": "[]"}'
+            "contract_name": "abc",
+            "conditions": "[]"
         }
 
     def fake_get_multisig_addr(self, oracle_list, source_code, conditions, m):

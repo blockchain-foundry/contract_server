@@ -1,4 +1,4 @@
-import ast
+ximport ast
 import base58
 import binascii
 import hashlib
@@ -92,7 +92,7 @@ class Proposes(CsrfExemptMixin, BaseFormView):
                 if condition['condition_type'] == 'specifies_balance' or condition['condition_type'] == 'issuance_of_asset_transfer':
                     o = OraclizeContract.objects.get(name=condition['condition_type'])
                     l = ProposalOraclizeLink.objects.create(receiver=condition['receiver_addr'], color=condition[
-                                                            'color_id'], oraclize_contract=o)
+                                                            'color'], oraclize_contract=o)
                     p.links.add(l)
                 else:
                     o = OraclizeContract.objects.get(name=condition['condition_type'])
@@ -142,7 +142,7 @@ class Multisig_addr(CsrfExemptMixin, BaseFormView):
 
     def form_valid(self, form):
         pubkey = form.cleaned_data.get('pubkey')
-        multisig_addr = form.cleaned_data.get('multisig_addr')
+        multisig_addr = form.cleaned_data.get('multisig_address')
 
         try:
             p = Proposal.objects.get(public_key=pubkey)
@@ -169,10 +169,10 @@ class Sign(CsrfExemptMixin, BaseFormView):
     form_class = SignForm
 
     def form_valid(self, form):
-        tx = form.cleaned_data['tx']
+        tx = form.cleaned_data['raw_tx']
         script = form.cleaned_data['script']
         input_index = form.cleaned_data['input_index']
-        user_address = form.cleaned_data['user_address']
+        from_address = form.cleaned_data['user_address']
         multisig_address = form.cleaned_data['multisig_address']
         amount = form.cleaned_data['amount']
         color_id = form.cleaned_data['color_id']
@@ -216,7 +216,7 @@ class SignNew(CsrfExemptMixin, BaseFormView):
     form_class = SignForm
 
     def form_valid(self, form):
-        tx = form.cleaned_data['tx']
+        tx = form.cleaned_data['raw_tx']
         script = form.cleaned_data['script']
         input_index = form.cleaned_data['input_index']
         multisig_address = form.cleaned_data['multisig_address']

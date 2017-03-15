@@ -5,11 +5,12 @@ from django import forms
 
 class GenContractRawTxForm(forms.Form):
     source_code = forms.CharField(required=True)
-    address = forms.CharField(required=True)
+    sender_address = forms.CharField(required=True)
     m = forms.IntegerField(required=True)
     # have to change to dict
     oracles = forms.CharField(required=True)
-    data = forms.CharField(required=True)
+    conditions = forms.CharField(required=True)
+    contract_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
 
     def clean_function_inputs(self):
@@ -19,7 +20,7 @@ class GenContractRawTxForm(forms.Form):
 
 
 class SubContractFunctionCallForm(forms.Form):
-    from_address = forms.CharField(required=True)
+    sender_address = forms.CharField(required=True)
     amount = forms.IntegerField(required=True)
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
@@ -31,7 +32,7 @@ class SubContractFunctionCallForm(forms.Form):
 
 
 class ContractFunctionCallFrom(forms.Form):
-    from_address = forms.CharField(required=True)
+    sender_address = forms.CharField(required=True)
     amount = forms.IntegerField(required=True)
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
@@ -45,8 +46,8 @@ class ContractFunctionCallFrom(forms.Form):
 class GenSubContractRawTxForm(forms.Form):
     source_code = forms.CharField(required=True)
     deploy_address = forms.CharField(required=True)
-    from_address = forms.CharField(required=True)
-    data = forms.CharField(required=True)
+    sender_address = forms.CharField(required=True)
+    contract_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
 
     def clean_function_inputs(self):

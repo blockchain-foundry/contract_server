@@ -79,10 +79,10 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         sigs = []
         for oracle in oracles:
             data = {
-                'tx': raw_tx,
+                'raw_tx': raw_tx,
                 'multisig_address': from_address,
                 'user_address': to_address,
-                'color_id': color_id,
+                'color': color_id,
                 'amount': amount,
                 'script': contract.multisig_script,
                 'input_index': i,
@@ -181,14 +181,14 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         The oracle monitor will notice the created tx
         and then tunrs it to evn state
 
-        inputs: from_address, to_address, amount, color, function_inputs, function_id
-        `function_inputs` is a list
+        inputs: sender_address, to_address, amount, color, function_inputs, function_id
+        `function_inpunts` is a list
         '''
-        from_address = form.cleaned_data['from_address']
+        from_address = form.cleaned_data['sender_address']
         multisig_address = self.multisig_address
         to_address = form.cleaned_data['deploy_address']
         source_code = form.cleaned_data['source_code']
-        data = json.loads(form.cleaned_data['data'])
+        contract_name = json.loads(form.cleaned_data['contract_name'])
         function_inputs = form.cleaned_data['function_inputs']
 
         try:
@@ -198,7 +198,6 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
         try:
-            contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
             input_value = []
             for i in function_inputs:
@@ -206,7 +205,7 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             function = get_constructor_function(interface)
             evm_input_code = make_evm_constructor_code(function, input_value)
             code = json.dumps({'source_code': compiled_code + evm_input_code,
-                               'multisig_addr': multisig_address, 'to_addr': to_address})
+                               'multisig_address': multisig_address, 'to_addr': to_address})
             subcontract = SubContract(
                 parent_contract=contract,
                 deploy_address=to_address,
@@ -316,25 +315,24 @@ class Contracts(BaseFormView, CsrfExemptMixin):
     def form_valid(self, form):
         # required parameters
         source_code = form.cleaned_data['source_code']
-        address = form.cleaned_data['address']
+        address = form.cleaned_data['sender_address']
         m = form.cleaned_data['m']
         oracles = form.cleaned_data['oracles']
-        data = json.loads(form.cleaned_data['data'])
+        conditions = form.cleaned_data['conditions']
+        contract_name = form.cleaned_data['contract_name']
         function_inputs = form.cleaned_data['function_inputs']
 
         multisig_addr = ""
 
         try:
             oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
-            conditions = data['conditions']
             multisig_addr, multisig_script, url_map_pubkeys = self._get_multisig_addr(
                 oracle_list, source_code, conditions, m)
-            contract_name = data['name']
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
 
             input_value = []
             if function_inputs:
-                for i in function_inputs:
+                for i in functionx_inputs:
                     input_value.append(i['value'])
             function = get_constructor_function(interface)
             if function:
@@ -342,7 +340,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             else:
                 evm_input_code = ''
             code = json.dumps({'source_code': compiled_code + evm_input_code,
-                               'multisig_addr': multisig_addr})
+                               'multisig_address': multisig_addr})
 
         except Compiled_error as e:
             response = {
@@ -359,7 +357,6 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         except Exception as e:
             response = {'status': 'Bad request. ' + str(e)}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
-
         try:
             callback_url = get_callback_url(self.request, multisig_addr)
             subscription_id = ""
@@ -396,10 +393,14 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             response = {'status': 'Bad request. ' + str(e)}
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-        response = {
+        response_data = {
             'multisig_address': multisig_addr,
             'oracles': oracle_list,
-            'tx': tx_hex
+            'raw_tx': tx_hex
+        }
+        response = {
+            'status': 'success',
+            'data': response_data
         }
         return JsonResponse(response, status=httplib.OK)
 
@@ -454,10 +455,10 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         The oracle monitor will notice the created tx
         and then tunrs it to evn state
 
-        inputs: from_address, to_address, amount, color, function_inputs, function_id
+        inputs: sender_address, to_address, amount, color, function_inputs, function_id
         `function_inputs` is a list
         '''
-        from_address = form.cleaned_data['from_address']
+        from_address = form.cleaned_data['sender_address']
         to_address = self.multisig_address
         amount = form.cleaned_data['amount']
         color = form.cleaned_data['color']
@@ -552,7 +553,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         inputs: from_address, to_address, amount, color, function_inputs, function_id
         `function_inputs` is a list
         '''
-        from_address = form.cleaned_data['from_address']
+        from_address = form.cleaned_data['sender_address']
         deploy_address = self.deploy_address
         multisig_address = self.multisig_address
         amount = form.cleaned_data['amount']
@@ -677,7 +678,7 @@ class DeployContract(APIView):
 def _handle_payment_parameter_error(form):
     # the payment should at least takes the following inputs
     # from_address, to_address, amount, color
-    inputs = ['from_address', 'to_address', 'amount', 'color']
+    inputs = ['sender_address', 'to_address', 'amount', 'color']
     errors = []
     for i in inputs:
         if i in form.errors:
