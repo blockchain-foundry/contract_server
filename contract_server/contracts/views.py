@@ -23,7 +23,7 @@ from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import ContractSerializer, SubContractSerializer
 
 from .config import CONTRACT_FEE
-from .exceptions import Compiled_error, Multisig_error
+from .exceptions import Compiled_error, Multisig_error, SubscribeAddrsssNotificationError
 from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     ContractFunctionCallFrom, SubContractFunctionCallForm,
                     WithdrawFromContractForm)
@@ -63,7 +63,7 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
     oracles = contract.oracles.all()
     try:
         raw_tx = OSSclient.prepare_raw_tx(from_address, to_address, amount, color_id)
-    except:
+    except Exception as e:
         return {'error': 'prepare multisig payment failed'}
 
     # multisig sign
@@ -97,6 +97,13 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         return {'tx_id': tx_id}
     except Exception as e:
         raise e
+
+
+def get_callback_url(request, multisig_address):
+    callback_url = request.build_absolute_uri('/') + \
+        'addressnotify/' + multisig_address
+    callback_url = ''.join(callback_url.split())
+    return callback_url
 
 
 class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
@@ -309,6 +316,8 @@ class Contracts(BaseFormView, CsrfExemptMixin):
         data = json.loads(form.cleaned_data['data'])
         function_inputs = form.cleaned_data['function_inputs']
 
+        multisig_addr = ""
+
         try:
             oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
             conditions = data['conditions']
@@ -346,6 +355,17 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         try:
+            callback_url = get_callback_url(self.request, multisig_addr)
+            subscription_id = ""
+            created_time = ""
+
+            try:
+                subscription_id, created_time = OSSclient.subscribe_address_notification(
+                    multisig_addr,
+                    callback_url)
+            except Exception as e:
+                raise SubscribeAddrsssNotificationError
+
             tx_hex = OSSclient.deploy_contract_raw_tx(address, multisig_addr, code, CONTRACT_FEE)
             self._save_multisig_addr(multisig_addr, url_map_pubkeys)
             contract = Contract(
@@ -494,7 +514,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
-        except:
+        except Exception as e:
             response['error'] = 'contract or subcontract not found'
             return JsonResponse(response, status=httplib.NOT_FOUND)
 
@@ -537,7 +557,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
-        except:
+        except Exception as e:
             response = {'error': 'contract or subcontract not found'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
 

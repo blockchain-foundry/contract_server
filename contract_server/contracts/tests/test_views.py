@@ -174,10 +174,21 @@ class ContractViewTest(TestCase):
             test_interface = test_abi_file.read().replace('\n', '')
         return test_binary_code, test_interface
 
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = "1"
+        created_time = "2017-03-15"
+        return subscription_id, created_time
+
+    def fake_get_callback_url(request, multisig_address):
+        callback_url = "http://172.18.250.12:7787/addressnotify/" + multisig_address
+        return callback_url
+
     @mock.patch("contracts.views.Contracts._get_multisig_addr", fake_get_multisig_addr)
     @mock.patch("gcoinapi.client.GcoinAPIClient.deploy_contract_raw_tx", fake_deploy_contract_raw_tx)
     @mock.patch("contracts.views.Contracts._save_multisig_addr", fake_save_multisig_addr)
     @mock.patch("contracts.views.Contracts._compile_code_and_interface", fake_compile_code_and_interface)
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
+    @mock.patch("contracts.views.get_callback_url", fake_get_callback_url)
     def test_create_contract(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)

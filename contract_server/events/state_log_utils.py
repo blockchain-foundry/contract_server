@@ -23,6 +23,7 @@ def _search_watch(logs):
     for log in logs:
         for watch in watches:
             if log['address'] == watch.contract_address:
+                _decode_log(log, watch)
                 matching_watch_list.append(watch.id)
     return matching_watch_list
 
