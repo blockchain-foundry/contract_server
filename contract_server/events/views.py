@@ -11,8 +11,7 @@ from django.http import JsonResponse
 
 from contract_server.decorators import handle_uncaught_exception
 from contract_server.utils import wallet_address_to_evm_address
-from contracts.evm_abi_utils import wrap_decoded_data
-from contracts.views import ContractFunc
+from contracts.evm_abi_utils import (wrap_decoded_data, get_event_by_name)
 from eth_abi.abi import decode_abi, decode_single
 from events.models import Watch
 from events.serializers import WatchSerializer
@@ -159,8 +158,7 @@ class Events(APIView):
         else:
             interface = contract.interface
         try:
-            contract_func = ContractFunc()
-            event_json = contract_func._get_event_by_name(interface, key)
+            event_json = get_event_by_name(interface, key)
             return True if event_json != {} else False
         except:
             return False
@@ -310,8 +308,7 @@ class Notify(APIView):
             return JsonResponse(response, status=http_status)
 
         # Get event JSON
-        contract_func = ContractFunc()
-        event_json = contract_func._get_event_by_name(interface, event_name)
+        event_json = get_event_by_name(interface, event_name)
         types = []
         event_args = []
         order = 0

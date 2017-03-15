@@ -394,20 +394,6 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
     http_method_names = ['get', 'post']
     form_class = ContractFunctionCallFrom
 
-    def _get_event_by_name(self, interface, event_name):
-        '''
-        interface is string of a list of dictionary containing id, name, type, inputs and outputs
-        '''
-        if not interface:
-            return {}
-
-        interface = json.loads(interface.replace("'", '"'))
-        for i in interface:
-            name = i.get('name')
-            if name == event_name and i['type'] == 'event':
-                return i
-        return {}
-
     @handle_uncaught_exception
     def get(self, request, multisig_address):
         # Get contract details.
