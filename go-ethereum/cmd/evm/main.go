@@ -131,17 +131,19 @@ var (
 
 func ReadStateDB(statedb *state.StateDB,world state.World) {
 	for key, value := range world.Accounts{
-	//	fmt.Println("Address:",key)
-		 statedb.CreateAccount(common.HexToAddress(key))
+		//	fmt.Println("Address:",key)
+		address := common.HexToAddress(key)
+		statedb.CreateAccount(address)
 		for storage_location, storage_value := range value.Storage{
-	//		fmt.Println(common.HexToHash(storage_value),storage_value)
-			statedb.SetState(common.HexToAddress(key),common.HexToHash(storage_location),common.HexToHash(storage_value))
+			//		fmt.Println(common.HexToHash(storage_value),storage_value)
+			statedb.SetState(address, common.HexToHash(storage_location), common.HexToHash(storage_value))
 		}
-		statedb.SetCode(common.HexToAddress(key),common.Hex2Bytes(value.Code))
+		statedb.SetCode(address, common.Hex2Bytes(value.Code))
 		for k,v := range value.Balance{
 			color,_ :=strconv.Atoi(k)
-			statedb.AddBalance(uint(color),common.HexToAddress(key),common.Big(v))
+			statedb.AddBalance(uint(color),address,common.Big(v))
 		}
+		statedb.SetNonce(address, value.Nonce)
 	}
 }
 
