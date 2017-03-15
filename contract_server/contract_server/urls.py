@@ -14,13 +14,16 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 from django.conf.urls import patterns, include, url
-from .views import NewTxNotified
+from .views import NewTxNotified, AddressNotified
 
 urlpatterns = [
     url(r'^events/', include('events.urls')),
     url(r'^oracles/', include('oracles.urls')),
     url(r'^', include('contracts.urls')),
 ]
-urlpatterns += patterns('',
-                        url(r'^notify/(?P<tx_id>[a-zA-Z0-9]+)/', NewTxNotified.as_view()),
-                        )
+
+urlpatterns += patterns(
+    '',
+    url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)/', NewTxNotified.as_view()),
+    url(r'^addressnotify/(?P<multisig_address>[a-zA-Z0-9]+)', AddressNotified.as_view()),
+)

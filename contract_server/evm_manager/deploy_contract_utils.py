@@ -4,6 +4,7 @@ from binascii import unhexlify
 from subprocess import check_call
 import json
 import os
+import time
 from threading import Lock
 from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm
@@ -93,6 +94,7 @@ def get_unexecuted_txs(multisig_addr, tx_hash, _time):
             for tx in txs:
                 if tx.get('hash') == tx_hash:
                     tx_found = True
+            time.sleep(1)
 
         txs = txs[::-1]
         if latest_tx_time == '0':
@@ -177,19 +179,22 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
 
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
+    log_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr + "_" + tx_hash + "_log"
     print("Contract path: ", contract_path)
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
-            byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+            byte_code + " --receiver " + multisig_hex + " --time " + str(_time) + \
+            " --writelog " + log_path
         if is_sub_contract:
             command += " --read " + contract_path
     else:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
-            multisig_hex + " --read " + contract_path + " --time " + str(_time)
+            multisig_hex + " --read " + contract_path + " --time " + str(_time) + \
+            " --writelog " + log_path
     lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
@@ -218,7 +223,7 @@ def deploy_contracts(tx_hash):
     multisig_addr = get_multisig_addr(tx_hash)
 
     if multisig_addr is None:
-        print ("Non-contract tx & Non-cashout tx: " + tx_hash)
+        print("Non-contract tx & Non-cashout tx: " + tx_hash)
         return False
 
     tx = get_tx_info(tx_hash)
@@ -227,7 +232,7 @@ def deploy_contracts(tx_hash):
     try:
         txs, latest_tx_hash = get_unexecuted_txs(multisig_addr, tx_hash, _time)
     except Exception as e:
-        print (e)
+        print(e)
         return False
     for tx in txs:
         completed = deploy_single_tx(tx['hash'], latest_tx_hash, multisig_addr)
