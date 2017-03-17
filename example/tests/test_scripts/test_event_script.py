@@ -18,19 +18,17 @@ def test_event_script():
     function_inputs = '[]'
 
     # 2. Deploy contract
-    contract_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
-    apply_get_contract_status(contract_address=contract_address)
+    multisig_address = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
+    apply_get_contract_status(multisig_address=multisig_address)
 
     '''
     Thread 1: Watch Event before transaction call
     This thread would be responsed after function was executed at Contract Server
     '''
-    key = 'Deposit'
-    oracle_url = ORACLE_URL
-    callback_url = CONTRACT_URL +  '/events/notify/' + contract_address + '/'
     receiver_address = ''
+    event_name = 'Deposit'
 
-    t1 = Thread(target=apply_watch_event, args=(contract_address, key, oracle_url, callback_url, receiver_address, ))
+    t1 = Thread(target=apply_watch_event, args=(multisig_address, receiver_address, event_name,))
     t1.start()
 
     ''' Thread 2: Transaction call
@@ -46,7 +44,7 @@ def test_event_script():
     from_address = owner_address
 
 
-    t2 = Thread(target=apply_transaction_call_contract, args=(contract_address, function_name, function_inputs, from_address, owner_privkey))
+    t2 = Thread(target=apply_transaction_call_contract, args=(multisig_address, function_name, function_inputs, from_address, owner_privkey))
     t2.start()
 
     t1.join()

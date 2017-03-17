@@ -1,7 +1,3 @@
-class SubscribeAddrsssNotificationError(Exception):
-    pass
-
-
 class UnsubscribeAddrsssNotificationError(Exception):
     pass
 

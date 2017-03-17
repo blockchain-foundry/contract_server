@@ -88,7 +88,7 @@ $ python tests/test_scripts/test_bytes32_passer_script.py
 ## For Multisig Address Contract
 ### apply_deploy_contract
 - input: contract_file, contract_name
-- output: contract_address
+- output: multisig_address
 
 ### apply_deploy_sub_contract
 - input: contract_file, contract_name, multisig_address, deploy_address, source_code, from_address, privkey
@@ -96,29 +96,29 @@ $ python tests/test_scripts/test_bytes32_passer_script.py
 
 ### apply_get_contract_status:
 - print multisig contract address
-- input: contract_address
+- input: multisig_address
 - no output
 
 ### apply_transaction_call_contract
-- input: contract_address, function_name, function_inputs, from_address, privkey
+- input: multisig_address, function_name, function_inputs, from_address, privkey
 - no output
 
 ## For SubContract
 ### apply_transaction_call_sub_contract
-- input: contract_address, deploy_address, function_name, function_inputs, from_address, privkey
+- input: multisig_address, deploy_address, function_name, function_inputs, from_address, privkey
 - no output
 
 ### apply_call_constant_contract
-- input: contract_address, function_name, function_inputs, from_address
+- input: multisig_address, function_name, function_inputs, from_address
 - output: function_outputs
 
 ### apply_call_constant_sub_contract
-- input: contract_address, function_name, function_inputs, from_address
+- input: multisig_address, function_name, function_inputs, from_address
 - output: function_outputs
 
 ## For Event
 ### apply_watch_event
-- input: contract_address, key, oracle_url, callback_url, receiver_address
-  - For testing Multisig Contract, set receiver_address = ''
-  - For testing SubContract, set receiver_address = deploy_address
+- input: multisig_address, contract_address, event_name
+  - For testing Multisig Contract, set contract_address = ''
+  - For testing SubContract, set contract_address = deploy_address
 - output: event

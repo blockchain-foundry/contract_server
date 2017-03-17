@@ -1,10 +1,9 @@
-from django.utils import timezone
+import json
+import mock
 from django.test import TestCase
-
-from events.exceptions import WatchIsClosedError, WatchIsExpiredError
 from events.models import Watch
-from events.views import Notify
-from oracles.models import Contract
+from events.views import Watches, wait_for_notification
+from oracles.models import Contract, SubContract
 
 TEST_MULTISIG_ADDRESS = '3NEga9GGxi4hPYqryL1pUsDicwnDsCNYyF'
 TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
@@ -12,131 +11,141 @@ TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
 TEST_SUBSCRIPTION_ID_CLOSED = '90d9931e-88cd-458b-96b3-3cea31ae051'
 TEST_SUBSCRIPTION_ID_EXPIRED = '90d9931e-88cd-458b-96b3-3cea31ae052'
 
+try:
+    import http.client as httplib
+except ImportError:
+    import httplib
 
-class NotifyTestCase(TestCase):
+
+class WatchCase(TestCase):
 
     def setUp(self):
-        # monk contract
-        source_code = ""
-        multisig_address = TEST_MULTISIG_ADDRESS
-        multisig_script = '514104403f136ee837c4e206dc69356bc6a4609a3cfeaf795fb7d1338f7063d9d23a3b749c0e048574dc18789f5d498e5f2827a8927cd48eb75ee1b45f88620a22649a51ae'
-        interface = '[{"outputs": [{"name": "", "type": "uint256"}], "constant": true, "type": "function", "inputs": [{"name": "", "type": "address"}], "id": 1, "name": "storedUint", "payable": false}, {"outputs": [], "constant": false, "type": "function", "inputs": [{"name": "inputUint", "type": "uint256"}, {"name": "inputInt", "type": "int256"}, {"name": "inputString", "type": "string"}, {"name": "inputBytes", "type": "bytes"}], "id": 2, "name": "setValue", "payable": false}, {"id": 3, "anonymous": false, "name": "TestEvent", "type": "event", "inputs": [{"name": "_message", "indexed": false, "type": "string"}, {"name": "_my_uint", "indexed": true, "type": "uint256"}, {"name": "_my_int", "indexed": false, "type": "int256"}, {"name": "_my_address", "indexed": false, "type": "address"}, {"name": "_my_bytes", "indexed": false, "type": "bytes"}]}]'
+        self.url = '/contracts/'
+        with open('./contracts/test_files/test_source_code', 'r') as source_code_file:
+            source_code = source_code_file.read().replace('\n', '')
+
+        source_code = 'contract AttributeLookup { \
+            event AttributesSet(address indexed _sender, uint _timestamp); \
+            mapping(int => int) public attributeLookupMap; \
+            function setAttributes(int index, int value) { \
+            attributeLookupMap[index] = value; AttributesSet(msg.sender, now); } \
+            function getAttributes(int index) constant returns(int) { \
+            return attributeLookupMap[index]; } }'
+        multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
+        multisig_script = '51210224015f5f489cf8c7d558ed306daa23448a69c645aaa835981189699a143a4f5751ae'
+        interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
+            "inputs": [{"name": "index", "type": "int256"}], \
+            "constant": true, "payable": false, "name": "getAttributes", \
+            "type": "function"}, {"outputs": [], "id": 2, \
+            "inputs": [{"name": "index", "type": "int256"}, \
+            {"name": "value", "type": "int256"}], \
+            "constant": false, "payable": false, "name": "setAttributes", \
+            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
+            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
+            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
+            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
+            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
+            "name": "AttributesSet", "type": "event", "anonymous": false}]'
+
         contract = Contract.objects.create(
             source_code=source_code,
             multisig_address=multisig_address,
             multisig_script=multisig_script,
             interface=interface,
             color_id=1,
-            amount=0)
-        contract.save()
+            amount=0
+        )
 
-        # monk watch
-        subscription_id = TEST_SUBSCRIPTION_ID
-        key = 'TestEvent'
+        subscontract_source_code = 'contract AttributeLookup { \
+            event AttributesSet2(address indexed _sender, uint _timestamp); \
+            mapping(int => int) public attributeLookupMap; \
+            function setAttributes(int index, int value) { \
+            attributeLookupMap[index] = value; AttributesSet2(msg.sender, now); } \
+            function getAttributes(int index) constant returns(int) { \
+            return attributeLookupMap[index]; } }'
 
-        watch = Watch.objects.create(
+        subcontract_interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
+            "inputs": [{"name": "index", "type": "int256"}], \
+            "constant": true, "payable": false, "name": "getAttributes", \
+            "type": "function"}, {"outputs": [], "id": 2, \
+            "inputs": [{"name": "index", "type": "int256"}, \
+            {"name": "value", "type": "int256"}], \
+            "constant": false, "payable": false, "name": "setAttributes", \
+            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
+            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
+            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
+            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
+            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
+            "name": "AttributesSet2", "type": "event", "anonymous": false}]'
+
+        subcontract = SubContract.objects.create(
+            parent_contract=contract,
+            deploy_address="0000000000000000000000000000000000000157",
+            source_code=subscontract_source_code,
+            color_id=1,
+            amount=0,
+            interface=subcontract_interface)
+
+        self.watch = Watch.objects.create(
+            event_name="AttributesSet2",
+            multisig_contract=contract,
+            subcontract=subcontract
+        )
+
+        self.url = "/events/watches/"
+        self.sample_form = {
+            'multisig_address': '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4',
+            'contract_address': '0000000000000000000000000000000000000157',
+            'event_name': 'AttributesSet2'
+        }
+
+    def fake_wait_for_notification(watch_id):
+        args = [{"value": "hello world", "type": "string", "name": "event_string", "indexed": True}]
+        event = {
+            "args": args,
+            "name": "AttributesSet2"
+        }
+        return event
+
+    def test_wait_for_notification_success(self):
+        watch_id = self.watch.id
+
+        args = [{"value": "hello world", "type": "string", "name": "event_string", "indexed": True}]
+        self.watch.args = json.dumps(args)
+        self.watch.save()
+        event = wait_for_notification(watch_id)
+
+        self.assertEqual(event["name"], "AttributesSet2")
+        self.assertEqual(event["args"][0]["value"], "hello world")
+
+    def test_event_exists_success(self):
+        multisig_address = "339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4"
+        contract_address = "0000000000000000000000000000000000000157"
+        event_name = "AttributesSet2"
+
+        is_matched, contract, subcontract = Watches()._event_exists(multisig_address, contract_address, event_name)
+        self.assertTrue(is_matched)
+        self.assertEqual(contract.multisig_address, multisig_address)
+        self.assertEqual(subcontract.deploy_address, contract_address)
+
+    @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
+    def test_process_watch_event_successs(self):
+        multisig_address = "339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4"
+        event_name = "AttributesSet2"
+        contract_address = "0000000000000000000000000000000000000157"
+
+        self.response = Watches()._process_watch_event(
             multisig_address=multisig_address,
-            key=key,
-            subscription_id=subscription_id
+            event_name=event_name,
+            contract_address=contract_address
         )
-        watch.save()
+        self.assertEqual(self.response.status_code, httplib.OK)
 
-    def test_hash_key(self):
-        notify = Notify()
-        key = 'AttributesSet(address,uint256)'
-        hashed_key = notify._hash_key(key)
-        self.assertEqual(
-            hashed_key, '70c8251d1f51f94ab26213a0dd53ead1bf32aeeb2e95bb6497d8d8bbde61b98d')
+    def test_watch_event_not_acceptable(self):
+        self.response = self.client.post(self.url, {})
+        self.assertEqual(self.response.status_code, httplib.NOT_ACCEPTABLE)
 
-    def test_get_event_key(self):
-        notify = Notify()
-        multisig_address = TEST_MULTISIG_ADDRESS
-        receiver_address = TEST_MULTISIG_ADDRESS
-        event_name = 'TestEvent'
-        key, event_args = notify._get_event_key(multisig_address, receiver_address, event_name)
-
-        expect_key = 'TestEvent(string,uint256,int256,address,bytes)'
-        self.assertEqual(key, expect_key)
-
-        expect_event_args = [
-            {'indexed': False, 'name': '_message', 'type': 'string', 'order': 0},
-            {'indexed': True, 'name': '_my_uint', 'type': 'uint256', 'order': 1},
-            {'indexed': False, 'name': '_my_int', 'type': 'int256', 'order': 2},
-            {'indexed': False, 'name': '_my_address', 'type': 'address', 'order': 3},
-            {'indexed': False, 'name': '_my_bytes', 'type': 'bytes', 'order': 4}]
-        self.assertEqual(event_args, expect_event_args)
-
-    def test_decode_event_from_logs(self):
-        notify = Notify()
-
-        logs = [
-            {"address": "1503be2df26f867d62481d93c1d55ab1ea11ad23",
-             "topics": ["0xf2b599259a3c14af4a4b44075e64f5d5535176716ce26402e6c5e0904ea1925d",
-                        "0x00000000000000000000000000000000000000000000000000000000000015be"],
-             "data":"000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000015be000000000000000000000000891bc670fd33feeb556eafe7d635f298d21c153600000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d736d617274636f6e74726163740000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063078313233340000000000000000000000000000000000000000000000000000",
-             "transactionHash":"0000000000000000000000000000000000000000000000000000000000000000",
-             "transactionIndex":0, "blockHash":"0000000000000000000000000000000000000000000000000000000000000000",
-             "logIndex":0}]
-        evm_address = '1503be2df26f867d62481d93c1d55ab1ea11ad23'
-        # key = 'TestEvent(string,uint256,int256,address,bytes)'
-        event_hex = 'f2b599259a3c14af4a4b44075e64f5d5535176716ce26402e6c5e0904ea1925d'
-        event_args = [
-            {'type': 'string', 'name': '_message', 'order': 0, 'indexed': False},
-            {'type': 'uint256', 'name': '_my_uint', 'order': 1, 'indexed': True},
-            {'type': 'int256', 'name': '_my_int', 'order': 2, 'indexed': False},
-            {'type': 'address', 'name': '_my_address', 'order': 3, 'indexed': False},
-            {'type': 'bytes', 'name': '_my_bytes', 'order': 4, 'indexed': False}]
-
-        event = notify._decode_event_from_logs(
-            logs=logs,
-            evm_address=evm_address,
-            event_hex=event_hex,
-            event_args=event_args,
-            receiver_address=evm_address)
-
-        expect_event = {'args': [
-            {'type': 'string', 'indexed': 'False', 'value': 'smartcontract', 'name': '_message'},
-            {'type': 'uint256', 'indexed': 'True', 'value': 5566, 'name': '_my_uint'},
-            {'type': 'int256', 'indexed': 'False', 'value': 5566, 'name': '_my_int'},
-            {'type': 'address', 'indexed': 'False',
-                'value': '891bc670fd33feeb556eafe7d635f298d21c1536', 'name': '_my_address'},
-            {'type': 'bytes', 'indexed': 'False', 'value': '0x307831323334', 'name': '_my_bytes'}
-        ]}
-
-        self.assertEqual(event, expect_event['args'])
-
-    def run_get_alive_watch(self, subscription_id):
-        '''For assertRaises tests
-        '''
-        Notify()._get_alive_watch(subscription_id)
-
-    def test_get_alive_watch(self):
-        # success
-        watch = Notify()._get_alive_watch(TEST_SUBSCRIPTION_ID)
-        self.assertEqual(watch.multisig_address, TEST_MULTISIG_ADDRESS)
-
-    def test_get_alive_watch_is_closed(self):
-        # mock watch
-        watch = Watch.objects.create(
-            multisig_address=TEST_MULTISIG_ADDRESS,
-            key='TestEvent',
-            subscription_id=TEST_SUBSCRIPTION_ID_CLOSED,
-            is_closed=True
-        )
-        watch.save()
-
-        self.assertRaises(WatchIsClosedError, self.run_get_alive_watch,
-                          TEST_SUBSCRIPTION_ID_CLOSED)
-
-    def test_get_alive_watch_is_expired(self):
-        # mock watch
-        watch = Watch.objects.create(
-            multisig_address=TEST_MULTISIG_ADDRESS,
-            key='TestEvent',
-            subscription_id=TEST_SUBSCRIPTION_ID_EXPIRED,
-            created=timezone.now() + timezone.timedelta(minutes=20)
-        )
-        watch.save()
-
-        self.assertRaises(WatchIsExpiredError, self.run_get_alive_watch,
-                          TEST_SUBSCRIPTION_ID_EXPIRED)
+    @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
+    def test_watch_event_success(self):
+        self.response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(self.response.status_code, httplib.OK)

@@ -8,3 +8,7 @@ class Compiled_error(Exception):
 
 class Insufficient_utxo_error(Exception):
     pass
+
+
+class SubscribeAddrsssNotificationError(Exception):
+    pass

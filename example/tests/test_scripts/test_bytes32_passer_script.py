@@ -17,9 +17,9 @@ def test_bytes32_passer_script():
     contract_name = 'Descriptor'
     function_inputs = '[]'
 
-    contract_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
-    print('>>> Descriptor contract_addr:{}'.format(contract_address_descriptor))
-    # Applyed contract_address_bytes32passer: '3DubYuqy3ja2UziDoGC6376ZyV67JzyMse'
+    multisig_address_descriptor = apply_deploy_contract(contract_file=contract_file, contract_name=contract_name, function_inputs=function_inputs, from_address=owner_address, privkey=owner_privkey)
+    print('>>> Descriptor contract_addr:{}'.format(multisig_address_descriptor))
+    # Applyed multisig_address_bytes32passer: '3DubYuqy3ja2UziDoGC6376ZyV67JzyMse'
 
     """
     Deploy Bytes32Passer
@@ -28,7 +28,7 @@ def test_bytes32_passer_script():
     contract_name = 'Bytes32Passer'
 
     source_code = loadContract(contract_file)
-    source_code = source_code.replace('DESCRIPTOR_ADDRESS', prefixed_wallet_address_to_evm_address(contract_address_descriptor))
+    source_code = source_code.replace('DESCRIPTOR_ADDRESS', prefixed_wallet_address_to_evm_address(multisig_address_descriptor))
     print('source_code:{}'.format(source_code))
     second_contract_receiver = '0000000000000000000000000000000000000111'
     function_inputs = '[]'
@@ -36,7 +36,7 @@ def test_bytes32_passer_script():
     apply_deploy_sub_contract(
         contract_file=contract_file,
         contract_name=contract_name,
-        multisig_address = contract_address_descriptor,
+        multisig_address = multisig_address_descriptor,
         deploy_address = second_contract_receiver,
         source_code=source_code,
         function_inputs=function_inputs,
@@ -53,13 +53,11 @@ def test_bytes32_passer_script():
     Thread 1: Watch Event before transaction call
     This thread would be responsed after function was executed at Contract Server
     '''
-    contract_address = contract_address_descriptor
-    key = 'TestEvent'
-    oracle_url = ORACLE_URL
-    callback_url = CONTRACT_URL + '/events/notify/' + contract_address + '/' + second_contract_receiver
+    multisig_address = multisig_address_descriptor
     receiver_address = second_contract_receiver
+    event_name = 'TestEvent'
 
-    t1 = Thread(target=apply_watch_event, args=(contract_address, key, oracle_url, callback_url, receiver_address, ))
+    t1 = Thread(target=apply_watch_event, args=(multisig_address, receiver_address, event_name, ))
     t1.start()
     print('>>> Watching event......')
 
@@ -67,12 +65,12 @@ def test_bytes32_passer_script():
     ''' Thread 2: Transaction call
     Call getDescription function which would trigger Event
     '''
-    contract_address = contract_address_descriptor
+    multisig_address = multisig_address_descriptor
     deploy_address = second_contract_receiver
     function_name = 'getDescription'
     function_inputs = '[]'
 
-    t2 = Thread(target=apply_transaction_call_sub_contract, args=(contract_address, deploy_address, function_name, function_inputs, owner_address, owner_privkey))
+    t2 = Thread(target=apply_transaction_call_sub_contract, args=(multisig_address, deploy_address, function_name, function_inputs, owner_address, owner_privkey))
     t2.start()
 
     t1.join()

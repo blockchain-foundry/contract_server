@@ -4,15 +4,13 @@ from binascii import unhexlify
 from subprocess import check_call
 import json
 import os
+import time
 from threading import Lock
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
-
 from gcoinbackend import core as gcoincore
-
 from .utils import wallet_address_to_evm
 from .models import StateInfo
 import logging
-
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
@@ -45,7 +43,7 @@ def get_sender_addr(txid, vout):
     try:
         tx = gcoincore.get_tx(txid)
         return tx['vout'][vout]['scriptPubKey']['addresses'][0]
-    except:
+    except Exception as e:
         print("[ERROR] getting sender address")
 
 
@@ -78,16 +76,26 @@ def get_multisig_addr(tx_hash):
                 return sender_address
             else:
                 return None
-    except:
+    except Exception as e:
         return None
 
 
-def get_unexecuted_txs(multisig_addr):
+def get_unexecuted_txs(multisig_addr, tx_hash, _time):
     state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
     latest_tx_time = '0' if state.latest_tx_time == '' else state.latest_tx_time
     latest_tx_hash = state.latest_tx_hash
+    if int(_time) < int(latest_tx_time):
+        return [], latest_tx_hash
     try:
         txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
+        tx_found = False
+        while tx_found is False:
+            txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
+            for tx in txs:
+                if tx.get('hash') == tx_hash:
+                    tx_found = True
+            time.sleep(1)
+
         txs = txs[::-1]
         if latest_tx_time == '0':
             return txs, latest_tx_hash
@@ -142,7 +150,7 @@ def get_contracts_info(tx):
                     value[vout['color']] += int(vout['value'])
                     # for color in value:
                     # value[color] = str(value[color])
-    except:
+    except Exception as e:
         print("ERROR finding address")
     value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
     if multisig_addr is None or bytecode is None or sender_addr is None:
@@ -171,19 +179,22 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
 
     sender_hex = "0x" + wallet_address_to_evm(sender_addr)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr
+    log_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_addr + "_" + tx_hash + "_log"
     print("Contract path: ", contract_path)
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
             " --deploy " + " --write " + contract_path + " --code " + \
-            byte_code + " --receiver " + multisig_hex + " --time " + str(_time)
+            byte_code + " --receiver " + multisig_hex + " --time " + str(_time) + \
+            " --writelog " + log_path
         if is_sub_contract:
             command += " --read " + contract_path
     else:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + " --write " + \
             contract_path + " --input " + byte_code + " --receiver " + \
-            multisig_hex + " --read " + contract_path + " --time " + str(_time)
+            multisig_hex + " --read " + contract_path + " --time " + str(_time) + \
+            " --writelog " + log_path
     lock = get_lock(multisig_addr)
     with lock:
         state, created = StateInfo.objects.get_or_create(multisig_address=multisig_addr)
@@ -215,8 +226,11 @@ def deploy_contracts(tx_hash):
         print("Non-contract tx & Non-cashout tx: " + tx_hash)
         return False
 
+    tx = get_tx_info(tx_hash)
+    _time = tx['blocktime']
+
     try:
-        txs, latest_tx_hash = get_unexecuted_txs(multisig_addr)
+        txs, latest_tx_hash = get_unexecuted_txs(multisig_addr, tx_hash, _time)
     except Exception as e:
         print(e)
         return False
@@ -239,7 +253,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_addr):
         try:
             sender_addr, multisig_addr, to_addr, bytecode, value, is_deploy, blocktime = get_contracts_info(
                 tx)
-        except:
+        except Exception as e:
             _log('Failed', 'CONTRACT', tx_hash, 'Decode tx error')
             return False
         try:
@@ -247,7 +261,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_addr):
                 sender_addr, multisig_addr, bytecode, value, is_deploy, to_addr, tx_hash, ex_tx_hash)
             _log(status, tx['type'], tx_hash, message)
             return completed
-        except:
+        except Exception as e:
             _log('Failed', 'CONTRACT', tx_hash, 'Call evm error')
             return False
 

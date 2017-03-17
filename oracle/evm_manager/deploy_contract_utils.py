@@ -4,6 +4,7 @@ from binascii import unhexlify
 from subprocess import check_call
 import json
 import os
+import time
 from threading import Lock
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
@@ -95,7 +96,7 @@ def get_unexecuted_txs(multisig_addr, tx_hash, _time):
             for tx in txs:
                 if tx.get('hash') == tx_hash:
                     tx_found = True
-
+            time.sleep(1)
         txs = txs[::-1]
         if latest_tx_time == '0':
             return txs, latest_tx_hash
