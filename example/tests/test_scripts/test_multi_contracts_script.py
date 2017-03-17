@@ -100,7 +100,7 @@ def test_deploy_multi_contracts_script():
         multisig_address=multisig_address,
         deploy_address=second_multisig_address,
         function_name='setgreeter',
-        function_input='[{"name": "_greeting", "type": "string", "value":"Hello World"}]',
+        function_inputs='[{"name": "_greeting", "type": "string", "value":"Hello World"}]',
         from_address=owner_address,
         privkey=owner_privkey)
     print('>>> Wait 60s.....')
