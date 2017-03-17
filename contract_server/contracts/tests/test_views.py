@@ -102,7 +102,7 @@ class ContractFuncTest(TestCase):
         self.url = '/smart-contract/contracts/339AXdNwaLddddPw8mkwbnJnY8CetBbUP4/'
         response = self.client.get(self.url)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['error'], 'contract not found')
+        self.assertEqual(json_data['errors'][0]['message'], 'contract not found')
         self.assertEqual(response.status_code, httplib.NOT_FOUND)
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
@@ -125,7 +125,7 @@ class ContractFuncTest(TestCase):
         self.sample_form['function_name'] = 'non_exist_function_name'
         response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['error'], 'function not found')
+        self.assertEqual(json_data['errors'][0]['message'], 'function not found')
         self.assertEqual(response.status_code, httplib.NOT_FOUND)
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
@@ -135,8 +135,18 @@ class ContractFuncTest(TestCase):
         self.sample_form['function_name'] = 'non_exist_function_name'
         response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['error'], 'contract not found')
+        self.assertEqual(json_data['errors'][0]['message'], 'contract not found')
         self.assertEqual(response.status_code, httplib.NOT_FOUND)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_post_with_wrong_api_version(self):
+        # non exist multisig
+        self.url = '/contracts/339AXdNwaLddddPw8mkwbnJnY8CetBbUP4/'
+        self.sample_form['apiVersion'] = 'wrong_api'
+        response = self.client.post(self.url, self.sample_form)
+        json_data = json.loads(response.content.decode('utf-8'))
+        self.assertEqual(json_data['errors'][0]['message'], 'Wrong api version')
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
 
 
 class ContractViewTest(TestCase):
@@ -202,7 +212,7 @@ class ContractViewTest(TestCase):
     def test_create_contract_with_multisig_error(self):
         response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['code'], ERROR_CODE['multisig_error'])
+        self.assertEqual(json_data['errors'][0]['code'], ERROR_CODE['multisig_error'])
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
 
@@ -265,7 +275,7 @@ class WithdrawFromContractTest(TestCase):
         self.sample_form['multisig_address'] = '339AXdNwadddd3Pw8mkwbnJnY8CetBbUP4'
         response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['error'], 'Contract matching query does not exist.')
+        self.assertEqual(json_data['errors'][0]['message'], 'Contract matching query does not exist.')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
 

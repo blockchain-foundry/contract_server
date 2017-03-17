@@ -15,7 +15,7 @@ from rest_framework import status
 import json 
 
 from .error_codes import ERROR_CODE
-
+from .utils import error_response
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def handle_apiversion(view_func):
         API_VERSION = getattr(settings, "API_VERSION", None)
         request_api_version = form.cleaned_data.get('apiVersion')
         if request_api_version and request_api_version != API_VERSION:
-            return JsonResponse(error_response(ERROR_CODE['wrong_api_version'], "Wrong api version"), httplib.NOT_ACCEPTABLE)
+            return JsonResponse(error_response(ERROR_CODE['wrong_api_version'], "Wrong api version"), status=httplib.NOT_ACCEPTABLE)
         response = view_func(self, form)
         content =  json.loads(response.content.decode('utf-8'))
         content['apiVersion'] = API_VERSION
