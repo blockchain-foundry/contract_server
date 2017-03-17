@@ -7,13 +7,38 @@ except ImportError:
     import httplib
 
 from django.http import JsonResponse
+from django.conf import settings
 from functools import wraps
+
+from rest_framework import status
+
+import json 
+
+from .error_codes import ERROR_CODE
 
 
 logger = logging.getLogger(__name__)
 
 __all__ = ['handle_uncaught_exception']
 
+def handle_apiversion(view_func):
+    """
+    This decorator handles api versioning.
+    Reject the requests with wrong api-version and append apiVersion fields in response.
+    """
+
+    @wraps(view_func)
+    def wrapper(self, form):
+        API_VERSION = getattr(settings, "API_VERSION", None)
+        request_api_version = form.cleaned_data.get('apiVersion')
+        if request_api_version and request_api_version != API_VERSION:
+            return JsonResponse(error_response(ERROR_CODE['wrong_api_version'], "Wrong api version"), httplib.NOT_ACCEPTABLE)
+        response = view_func(self, form)
+        content =  json.loads(response.content.decode('utf-8'))
+        content['apiVersion'] = API_VERSION
+        response.content = response.make_bytes(json.dumps(content))
+        return response
+    return wrapper
 
 def handle_uncaught_exception(view_func):
     """

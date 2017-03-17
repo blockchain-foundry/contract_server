@@ -21,7 +21,8 @@ from gcoin import hash160, scriptaddr, apply_multisignatures, deserialize, mk_mu
 from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function, get_abi_list, make_evm_input_code)
-from contract_server.decorators import handle_uncaught_exception
+
+from contract_server.decorators import handle_uncaught_exception, handle_apiversion
 from contract_server import response_utils
 
 from oracles.models import Oracle, SubContract, Contract
@@ -40,7 +41,7 @@ from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     WithdrawFromContractForm, BindForm)
 from .models import MultisigAddress
 
-from contract_server import ERROR_CODE
+from contract_server import ERROR_CODE, error_response
 from contract_server.mixins import CsrfExemptMixin
 
 from solc import compile_source
@@ -116,6 +117,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
     http_method_names = ['post']
     form_class = WithdrawFromContractForm
 
+    @handle_apiversion
     def form_valid(self, form):
         response = {}
         multisig_address = form.cleaned_data['multisig_address']
@@ -153,7 +155,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
     def form_invalid(self, form):
-        response = {'error': form.errors}
+        response = error_response(400, form.errors)
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
@@ -174,6 +176,7 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         return super().post(request, multisig_address)
 
     @handle_uncaught_exception
+    @handle_apiversion
     def form_valid(self, form):
         '''
         This function will make a tx (user transfer money to multisig address)
@@ -312,6 +315,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
+    @handle_apiversion
     def form_valid(self, form):
         # required parameters
         source_code = form.cleaned_data['source_code']
@@ -448,6 +452,7 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         return super().post(request, multisig_address)
 
     @handle_uncaught_exception
+    @handle_apiversion
     def form_valid(self, form):
         '''
         This function will make a tx (user transfer money to multisig address)
@@ -543,6 +548,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         return super().post(request, multisig_address, deploy_address)
 
     @handle_uncaught_exception
+    @handle_apiversion
     def form_valid(self, form):
         '''
         This function will make a tx (user transfer money to multisig address)
