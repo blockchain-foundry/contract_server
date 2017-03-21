@@ -19,6 +19,7 @@ from .views import NewTxNotified, AddressNotified
 urlpatterns = [
     url(r'^events/', include('events.urls')),
     url(r'^oracles/', include('oracles.urls')),
+    url(r'^smart-contract/', include('contracts.urls')),
     url(r'^', include('contracts.urls')),
 ]
 

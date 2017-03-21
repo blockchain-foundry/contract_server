@@ -12,3 +12,7 @@ class Insufficient_utxo_error(Exception):
 
 class SubscribeAddrsssNotificationError(Exception):
     pass
+
+
+class OracleMultisigAddressError(Exception):
+    pass

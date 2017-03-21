@@ -18,11 +18,12 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 from app.views import (CheckContractCode, DumpContractState, GetBalance,
                        GetStorage, NewTxNotified, Proposes, ProposalList,
-                       Multisig_addr, Sign, SignNew)
+                       Multisig_addr, Sign, SignNew, NewProposes)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^proposals/', Proposes.as_view()),
+    url(r'^newproposals/', NewProposes.as_view()),
     url(r'^sign/', Sign.as_view()),
     url(r'^signnew/', SignNew.as_view()),
     url(r'^multisigaddress/', Multisig_addr.as_view()),

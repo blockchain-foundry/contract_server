@@ -211,5 +211,5 @@ class Watches(APIView):
             )
         else:
             response = {"error": form.errors}
-            http_status = status.HTTP_406_NOT_ACCEPTABLE
+            http_status = status.HTTP_400_BAD_REQUEST
             return JsonResponse(response, status=http_status)

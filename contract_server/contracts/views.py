@@ -4,7 +4,6 @@ import json
 import os
 import logging
 import requests
-
 from binascii import hexlify
 from subprocess import PIPE, STDOUT, Popen
 
@@ -12,18 +11,26 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.generic import View
 from django.views.generic.edit import BaseFormView
+from django.utils import timezone
+
+from rest_framework.views import APIView, status
+from rest_framework.pagination import LimitOffsetPagination
 
 from gcoin import hash160, scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function, get_abi_list, make_evm_input_code)
 from contract_server.decorators import handle_uncaught_exception
+from contract_server import response_utils
 
 from oracles.models import Oracle, Contract, SubContract
 from oracles.serializers import ContractSerializer, SubContractSerializer
 
+from contracts.models import MultisigAddress
+from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer
+
 from .config import CONTRACT_FEE
-from .exceptions import Compiled_error, Multisig_error, SubscribeAddrsssNotificationError
+from .exceptions import Compiled_error, Multisig_error, SubscribeAddrsssNotificationError, OracleMultisigAddressError
 from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     ContractFunctionCallFrom, SubContractFunctionCallForm,
                     WithdrawFromContractForm)
@@ -32,6 +39,7 @@ from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
 
 from solc import compile_source
+from evm_manager import deploy_contract_utils
 
 try:
     import http.client as httplib
@@ -646,3 +654,170 @@ def _call_constant_function(sender_addr, multisig_addr, byte_code, value, to_add
         raise Exception(err_msg)
 
     return {'out': stdout.decode().split()[-1]}
+
+
+class MultisigAddressesView(APIView):
+    """
+    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
+    CONTRACT_FEE = 1 # 1 bitcoin
+    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    FEE_COLOR = 1
+    CONTRACT_TX_TYPE = 5
+    """
+    SOLIDITY_PATH = "../solidity/solc/solc"
+    serializer_class = CreateMultisigAddressSerializer
+    queryset = MultisigAddress.objects.all()
+    pagination_class = LimitOffsetPagination
+
+    def _get_pubkey_from_oracle(self, url, url_map_pubkeys):
+        """Get public keys from an oracle
+        """
+        r = requests.post(url + '/newproposals/')
+        pubkey = json.loads(r.text)['public_key']
+        url_map_pubkey = {
+            "url": url,
+            "pubkey": pubkey
+        }
+        logger.debug("get " + url + "'s pubkey.")
+        url_map_pubkeys.append(url_map_pubkey)
+
+    def _get_multisig_address(self, oracle_list, m):
+        """Get public keys and create multisig_address
+        """
+        if len(oracle_list) < m:
+            raise Multisig_error("The m in 'm of n' is bigger than n.")
+        url_map_pubkeys = []
+        pubkeys = []
+
+        for oracle in oracle_list:
+            self._get_pubkey_from_oracle(oracle['url'], url_map_pubkeys)
+
+        for url_map_pubkey in url_map_pubkeys:
+            pubkeys.append(url_map_pubkey["pubkey"])
+        if len(pubkeys) != len(oracle_list):
+            raise Multisig_error('there are some oracles that did not response')
+        multisig_script = mk_multisig_script(pubkeys, m)
+        multisig_address = scriptaddr(multisig_script)
+        return multisig_address, multisig_script, url_map_pubkeys
+
+    def _get_oracle_list(self, oracle_list):
+        """Check oracle_list is matching oracles in database
+        """
+        if len(oracle_list) == 0:
+            oracle_list = []
+            for i in Oracle.objects.all():
+                oracle_list.append(
+                    {
+                        'name': i.name,
+                        'url': i.url
+                    }
+                )
+        return oracle_list
+
+    def _save_multisig_address(self, multisig_address, url_map_pubkeys):
+        """Save multisig_address at Oracle
+        """
+        for url_map_pubkey in url_map_pubkeys:
+            url = url_map_pubkey["url"]
+            data = {
+                "pubkey": url_map_pubkey["pubkey"],
+                "multisig_addr": multisig_address
+            }
+            requests.post(url + "/multisigaddress/", data=data)
+
+    @handle_uncaught_exception
+    def post(self, request):
+        """Create MultisigAddress
+
+        Args:
+            m: for m-of-n multisig_address, least m oracles sign
+            oracles: list of oracles
+
+        Returns:
+            multisig_address: multisig address
+        """
+        serializer = self.serializer_class(data=request.data)
+
+        if serializer.is_valid(raise_exception=False):
+            m = serializer.validated_data['m']
+            oracles = serializer.validated_data['oracles']
+        else:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
+
+        try:
+            oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
+            multisig_address, multisig_script, url_map_pubkeys = self._get_multisig_address(
+                oracle_list, m)
+
+        except Compiled_error as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        except Multisig_error as e:
+            response = {
+                'code': ERROR_CODE['multisig_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        except Exception as e:
+            response = {'status': 'Bad request. ' + str(e)}
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+        try:
+            callback_url = get_callback_url(self.request, multisig_address)
+            subscription_id = ""
+            created_time = ""
+
+            try:
+                subscription_id, created_time = OSSclient.subscribe_address_notification(
+                    multisig_address,
+                    callback_url)
+            except Exception as e:
+                raise SubscribeAddrsssNotificationError
+
+            try:
+                self._save_multisig_address(multisig_address, url_map_pubkeys)
+            except Exception as e:
+                raise OracleMultisigAddressError
+
+            multisig_address_object = MultisigAddress(
+                address=multisig_address,
+                script=multisig_script,
+                least_sign_number=m
+            )
+
+            deploy_contract_utils.make_multisig_address_file(multisig_address)
+
+            multisig_address_object.save()
+            for i in oracle_list:
+                multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
+
+        except Exception as e:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
+
+        data = {
+            'multisig_address': multisig_address,
+        }
+
+        return response_utils.data_response(data)
+
+    def get(self, request, format=None):
+        """Get MultisigAddresses
+
+        Args:
+            limit: for pagination limit
+            offset: for pagination offset
+
+        Returns:
+            multisig_addresseses: list of MultisigAddress
+            query_time: query timestamp (timezome)
+        """
+        paginator = LimitOffsetPagination()
+        multisig_addresses = MultisigAddress.objects.all()
+        result_page = paginator.paginate_queryset(multisig_addresses, request)
+        serializer = MultisigAddressSerializer(result_page, many=True)
+        response = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
+
+        return JsonResponse(response)
