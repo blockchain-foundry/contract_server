@@ -20,6 +20,7 @@ urlpatterns = [
     url(r'^events/', include('events.urls')),
     url(r'^oracles/', include('oracles.urls')),
     url(r'^', include('contracts.urls')),
+    url(r'^states/', include('evm_manager.urls')),
 ]
 
 urlpatterns += patterns(
