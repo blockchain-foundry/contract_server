@@ -201,6 +201,7 @@ def deploy_to_evm(sender_addr, multisig_addr, byte_code, value, is_deploy, to_ad
         if state.latest_tx_hash == ex_tx_hash:
             try:
                 check_call(command, shell=True)
+                inc_nonce(contract_path, wallet_address_to_evm(sender_addr))
                 state.latest_tx_hash = tx_hash
                 state.latest_tx_time = _time
                 state.save()
@@ -348,3 +349,13 @@ def update_state_after_payment(vouts, multisig_addr, tx_hash, ex_tx_hash, _time)
         else:
             completed, status, message = True, 'Ignored', 'Wrong sequential order'
             return completed, status, message
+
+
+def inc_nonce(contract_path, sender_evm_addr):
+    with open(contract_path, 'r') as f:
+        content = json.load(f)
+        if sender_evm_addr in content['accounts']:
+            content['accounts'][sender_evm_addr]['nonce'] += 1
+
+    with open(contract_path, 'w') as f:
+        json.dump(content, f, indent=4, separators=(',', ': '))
