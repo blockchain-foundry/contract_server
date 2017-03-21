@@ -177,7 +177,6 @@ class Sign(CsrfExemptMixin, BaseFormView):
         amount = form.cleaned_data['amount']
         color_id = form.cleaned_data['color']
 
-
         user_evm_address = wallet_address_to_evm(sender_address)
         # need to check contract result before sign Tx
         try:

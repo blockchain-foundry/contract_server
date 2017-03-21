@@ -41,7 +41,7 @@ from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     WithdrawFromContractForm, BindForm)
 from .models import MultisigAddress
 
-from contract_server import ERROR_CODE, error_response
+from contract_server import ERROR_CODE, error_response, data_response
 from contract_server.mixins import CsrfExemptMixin
 
 from solc import compile_source
@@ -138,8 +138,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
             try:
                 r = create_multisig_payment(multisig_address, user_address, color_id, amount)
             except Exception as e:
-                response = error_response(ERROR_CODE['undefined_error'], str(e))
-                return JsonResponse(response, status=httplib.BAD_REQUEST)
+                return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['undefined_error'])
             tx_id = r.get('tx_id')
 
             if tx_id is None:
@@ -151,12 +150,11 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
         response['error'] = errors
 
         if txs:
-            return JsonResponse(response, status=httplib.OK)
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return data_response(response)
+        return error_response(httplib.BAD_REQUEST, 'no_txs', ERROR_CODE['no_txs_error'])
 
     def form_invalid(self, form):
-        response = error_response(400, form.errors)
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])
 
 
 class SubContracts(BaseFormView, CsrfExemptMixin):
@@ -197,8 +195,7 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
         except Contract.DoesNotExist:
-            response = error_response(ERROR_CODE['undefined_error'], 'contract not found')
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            return error_response(httplib.NOT_FOUND, 'contract not found', ERROR_CODE['contract_not_found_error'])
 
         try:
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
@@ -219,18 +216,17 @@ class SubContracts(BaseFormView, CsrfExemptMixin):
             subcontract.save()
 
         except Compiled_error as e:
-            return JsonResponse(error_response(ERROR_CODE['compiled_error'], str(e)), status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['compield_error'])
 
         tx_hex = OSSclient.deploy_contract_raw_tx(
             from_address, multisig_address, code, CONTRACT_FEE)
         response = {'raw_tx': tx_hex}
 
-        return JsonResponse(response)
+        return data_response(response)
 
     @handle_uncaught_exception
     def form_invalid(self, form):
-        response = error_response(ERROR_CODE['undefined_error'], form.errors)
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])
 
 
 class Contracts(BaseFormView, CsrfExemptMixin):
@@ -332,7 +328,7 @@ class Contracts(BaseFormView, CsrfExemptMixin):
 
             input_value = []
             if function_inputs:
-                for i in functionx_inputs:
+                for i in function_inputs:
                     input_value.append(i['value'])
             function = get_constructor_function(interface)
             if function:
@@ -343,12 +339,11 @@ class Contracts(BaseFormView, CsrfExemptMixin):
                                'multisig_address': multisig_addr})
 
         except Compiled_error as e:
-            return JsonResponse(error_response(ERROR_CODE['compiled_error'], str(e)), status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['compiled_error'])
         except Multisig_error as e:
-            return JsonResponse(error_response(ERROR_CODE['multisig_error'], str(e)), status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
         except Exception as e:
-            response = {'status': 'Bad request. ' + str(e)}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['undefined_error'])
         try:
             callback_url = get_callback_url(self.request, multisig_addr)
             subscription_id = ""
@@ -377,28 +372,19 @@ class Contracts(BaseFormView, CsrfExemptMixin):
             for i in oracle_list:
                 contract.oracles.add(Oracle.objects.get(url=i["url"]))
 
-            data = {
-                "multisig_addr": multisig_addr,
-                "compiled_code": compiled_code
-            }
         except Exception as e:
-            response = error_response(ERROR_CODE['undefinde_error'], str(e))
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['undefined_error'])
 
-        response_data = {
+        response = {
             'multisig_address': multisig_addr,
             'oracles': oracle_list,
             'raw_tx': tx_hex
         }
-        response = {
-            'data': response_data
-        }
-        return JsonResponse(response, status=httplib.OK)
+        return data_response(response)
 
     @handle_uncaught_exception
     def form_invalid(self, form):
-        response = error_response(ERROR_CODE['undefined_error'], form.error)
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        return error_response(httplib.BAD_REQUEST, form.error, ERROR_CODE['invalid_form_error'])
 
 
 class ContractFunc(BaseFormView, CsrfExemptMixin):
@@ -417,8 +403,7 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=multisig_address)
         except Contract.DoesNotExist:
-            response = error_response(ERROR_CODE['undefined_error'], 'contract not found')
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            return error_response(httplib.NOT_FOUND, 'contract not found', ERROR_CODE['contract_not_found_error'])
 
         function_list, event_list = get_abi_list(contract.interface)
         serializer = ContractSerializer(contract)
@@ -458,13 +443,11 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
         try:
             contract = Contract.objects.get(multisig_address=to_address)
         except Contract.DoesNotExist:
-            response = error_response(ERROR_CODE['undefined_error'], 'contract not found')
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            return error_response(httplib.NOT_FOUND, 'contract not found', ERROR_CODE['contract_not_found_error'])
 
         function, is_constant = get_function_by_name(contract.interface, function_name)
         if not function:
-            response = error_response(ERROR_CODE['undefined_error'], 'function not found')
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            return error_response(httplib.NOT_FOUND, 'function not found', ERROR_CODE['function_not_found_error'])
 
         input_value = []
         if function_inputs:
@@ -487,12 +470,11 @@ class ContractFunc(BaseFormView, CsrfExemptMixin):
             out = response['out']
             function_outputs = decode_evm_output(contract.interface, function_name, out)
             response['function_outputs'] = function_outputs
-        return JsonResponse(response)
+        return data_response(response)
 
     @handle_uncaught_exception
     def form_invalid(self, form):
-        response = {'error': form.errors}
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])
 
 
 class SubContractFunc(BaseFormView, CsrfExemptMixin):
@@ -512,10 +494,7 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
         except:
-            return JsonResponse(
-                error_response(ERROR_CODE['undefined_error'], 'contract or subcontract not found'),
-                status=httplib.NOT_FOUND
-            )
+            return error_response(httplib.NOT_FOUND, 'contract or subcontract not found', ERROR_CODE['contract_not_found_error'])
 
         function_list, event_list = get_abi_list(subcontract.interface)
         serializer = SubContractSerializer(subcontract)
@@ -526,8 +505,8 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
         response['multisig_address'] = multisig_address
         response['deploy_address'] = deploy_address
         response['source_code'] = source_code
-        return_response = {'data': response}
-        return JsonResponse(return_response, status=httplib.OK)
+
+        return data_response(response)
 
     def post(self, request, multisig_address, deploy_address):
         self.multisig_address = multisig_address
@@ -558,12 +537,11 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             contract = Contract.objects.get(multisig_address=multisig_address)
             subcontract = contract.subcontract.all().filter(deploy_address=deploy_address)[0]
         except:
-            return error_response(httplib.NOT_FOUND, 'contract or subcontract not found', ERROR_CODE['undefined_error'])
+            return error_response(httplib.NOT_FOUND, 'contract or subcontract notfound', ERROR_CODE['contract_not_found_error'])
 
         function, is_constant = get_function_by_name(subcontract.interface, function_name)
         if not function:
-            response = {'error': 'function not found'}
-            return JsonResponse(response, status=httplib.NOT_FOUND)
+            return error_response(httplib.NOT_FOUND, 'function not found', ERROR_CODE['contract_function_not_found_error'])
 
         input_value = []
         for i in function_inputs:
@@ -586,12 +564,11 @@ class SubContractFunc(BaseFormView, CsrfExemptMixin):
             out = response['out']
             function_outputs = decode_evm_output(subcontract.interface, function_name, out)
             response['function_outputs'] = function_outputs
-        return JsonResponse(response)
+        return data_response(response)
 
     @handle_uncaught_exception
     def form_invalid(self, form):
-        response = {'error': form.errors}
-        return JsonResponse(response, status=httplib.BAD_REQUEST)
+        return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])
 
 
 class ContractList(View):
@@ -600,7 +577,7 @@ class ContractList(View):
         contracts = Contract.objects.all()
         serializer = ContractSerializer(contracts, many=True)
         response = {'contracts': serializer.data}
-        return JsonResponse(response)
+        return data_response(response)
 
 
 class DeployContract(APIView):

@@ -12,6 +12,7 @@ class GenContractRawTxForm(forms.Form):
     conditions = forms.CharField(required=True)
     contract_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
+    apiVersion = forms.CharField(required=False)
 
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
@@ -25,6 +26,7 @@ class SubContractFunctionCallForm(forms.Form):
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
+    apiVersion = forms.CharField(required=False)
 
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
@@ -37,6 +39,7 @@ class ContractFunctionCallFrom(forms.Form):
     color = forms.IntegerField(required=True)
     function_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=True)
+    apiVersion = forms.CharField(required=False)
 
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
@@ -49,6 +52,7 @@ class GenSubContractRawTxForm(forms.Form):
     sender_address = forms.CharField(required=True)
     contract_name = forms.CharField(required=True)
     function_inputs = forms.CharField(required=False)
+    apiVersion = forms.CharField(required=False)
 
     def clean_function_inputs(self):
         function_inputs = self.cleaned_data['function_inputs']
@@ -60,6 +64,7 @@ class WithdrawFromContractForm(forms.Form):
     user_address = forms.CharField(required=True)
     colors = forms.CharField(required=True)
     amounts = forms.CharField(required=True)
+    apiVersion = forms.CharField(required=False)
 
     def clean_colors(self):
         colors = self.cleaned_data['colors']

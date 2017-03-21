@@ -1,6 +1,17 @@
 ERROR_CODE = {
-    # contract_server
-    'compiled_error': 1100,
-    'multisig_error': 1101,
-    'form_error': 1102
+    # A SmartContract
+    'contract_not_found_error': 'A000',
+    'function_not_found_error': 'A001',
+
+    # E Solidity
+    'compiled_error': 'E000',
+
+    # F gcoinapi
+    'no_txs_error': 'F000',
+    'multisig_error': 'F001',
+
+    # Z others
+    'undefined_error': 'Z000',
+    'wrong_api_version': 'Z001',
+    'form_invalid_error': 'Z002'
 }
