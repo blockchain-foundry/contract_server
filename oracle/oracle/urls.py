@@ -12,7 +12,7 @@ Including another URLconf
     1. Import the include() function: from django.conf.urls import url, include
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
-from django.conf.urls import url
+from django.conf.urls import url, include
 from django.contrib import admin
 from rest_framework.urlpatterns import format_suffix_patterns
 
@@ -29,11 +29,13 @@ urlpatterns = [
     url(r'^multisigaddress/', Multisig_addr.as_view()),
     url(r'^proposallist/', ProposalList.as_view()),
     url(r'^storage/(?P<multisig_address>[a-zA-Z0-9]+)/', GetStorage.as_view()),
-    url(r'^states/(?P<multisig_address>[a-zA-Z0-9]+)/', DumpContractState.as_view()),
+    url(r'^states/(?P<multisig_address>[a-zA-Z0-9]+)/$', DumpContractState.as_view()),
     url(r'^balance/(?P<multisig_address>[a-zA-Z0-9]+)/(?P<address>[a-zA-Z0-9]+)$',
         GetBalance.as_view()),
     url(r'^getcontract/(?P<multisig_address>[a-zA-Z0-9]+)/', CheckContractCode.as_view()),
-    url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)', NewTxNotified.as_view())
+    url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)', NewTxNotified.as_view()),
+    url(r'^states/', include('evm_manager.urls', namespace='evm_manager')),
+
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)
