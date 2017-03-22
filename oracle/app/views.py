@@ -17,10 +17,11 @@ from rest_framework import status
 from rest_framework.views import APIView
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
-from evm_manager.deploy_contract_utils import deploy_contracts
+from evm_manager import deploy_contract_utils
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
+from app import response_utils
 
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
 pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
@@ -107,6 +108,34 @@ class Proposes(CsrfExemptMixin, BaseFormView):
         return JsonResponse(response, status=httplib.BAD_REQUEST)
 
 
+class NewProposes(CsrfExemptMixin, BaseFormView):
+    """
+    Give the publicKey when invoked.
+    """
+    http_method_name = ['post']
+    form_class = ProposeForm
+
+    def form_valid(self, form):
+        # Return public key to Contract-Server
+        # source_code = form.cleaned_data.get('source_code')
+        # conditions_string = form.cleaned_data.get('conditions')
+        source_code = "empty_source_code"
+        private_key = sha256(get_random_string(64, '0123456789abcdef'))
+        public_key = privtopub(private_key)
+        address = pubtoaddr(public_key)
+        p = Proposal(source_code=source_code, public_key=public_key, address=address)
+        k = Keystore(public_key=public_key, private_key=private_key)
+        p.save()
+        k.save()
+
+        response = {'public_key': public_key}
+        return JsonResponse(response, status=httplib.OK)
+
+    def form_invalid(self, form):
+        response = {'error': form.errors}
+        return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+
 class Multisig_addr(CsrfExemptMixin, BaseFormView):
     http_method_name = ['post']
     form_class = MultisigAddrFrom
@@ -117,11 +146,11 @@ class Multisig_addr(CsrfExemptMixin, BaseFormView):
 
         try:
             p = Proposal.objects.get(public_key=pubkey)
+            deploy_contract_utils.make_multisig_address_file(multisig_addr)
         except Proposal.DoesNotExist:
-            response = {
-                'error': 'Cannot find proposal with this pubkey.'
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return response_utils.error_response(httplib.BAD_REQUEST, "Cannot find proposal with this pubkey.")
+        except Exception as e:
+            return response_utils.error_response(httplib.INTERNAL_SERVER_ERROR, str(e))
 
         p.multisig_addr = multisig_addr
         p.save()
@@ -195,7 +224,7 @@ class SignNew(CsrfExemptMixin, BaseFormView):
         decoded_tx = deserialize(tx)
         try:
             old_utxo, all_utxos = self.get_oldest_utxo(multisig_address)
-            deploy_contracts(old_utxo[0])
+            deploy_contract_utils.deploy_contracts(old_utxo[0])
         except:
             response = {'error': 'Do not contain oldest tx'}
             return JsonResponse(response, status=httplib.NOT_FOUND)
@@ -357,7 +386,7 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
         tx_hash = self.kwargs['tx_hash']
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-        completed = deploy_contracts(tx_hash)
+        completed = deploy_contract_utils.deploy_contracts(tx_hash)
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)

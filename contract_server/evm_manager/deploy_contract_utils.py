@@ -359,3 +359,16 @@ def inc_nonce(contract_path, sender_evm_addr):
 
     with open(contract_path, 'w') as f:
         json.dump(content, f, indent=4, separators=(',', ': '))
+
+
+def make_multisig_address_file(multisig_address):
+    try:
+        EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
+        contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+        if not os.path.exists(contract_path):
+            command = EVM_PATH + " --deploy " " --write " + contract_path
+            check_call(command, shell=True)
+            return True
+    except Exception as e:
+        logger.debug(e)
+        raise(e)

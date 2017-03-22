@@ -2,7 +2,7 @@ from django import forms
 
 
 class ProposeForm(forms.Form):
-    source_code = forms.CharField(required=True)
+    source_code = forms.CharField(required=False)
     conditions = forms.CharField(required=False)
 
 

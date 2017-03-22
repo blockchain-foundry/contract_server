@@ -141,9 +141,9 @@ class WatchCase(TestCase):
         )
         self.assertEqual(self.response.status_code, httplib.OK)
 
-    def test_watch_event_not_acceptable(self):
+    def test_watch_event_bad_request(self):
         self.response = self.client.post(self.url, {})
-        self.assertEqual(self.response.status_code, httplib.NOT_ACCEPTABLE)
+        self.assertEqual(self.response.status_code, httplib.BAD_REQUEST)
 
     @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
     def test_watch_event_success(self):

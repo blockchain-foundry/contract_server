@@ -11,6 +11,7 @@ urlpatterns = [
     url(r'^contractlist/$', views.ContractList.as_view()),
     url(r'^execute/$', views.create_multisig_payment),
     url(r'^withdraw/$', views.WithdrawFromContract.as_view()),
+    url(r'^multisig-addresses/$', views.MultisigAddressesView.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

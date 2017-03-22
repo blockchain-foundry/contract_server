@@ -25,11 +25,6 @@ class ProposeTest(TestCase):
         self.assertEqual(response.status_code, httplib.OK)
         self.assertNotEqual(data.get('public_key'), None)
 
-    def test_invalid_form(self):
-        self.sample_form['source_code'] = ''
-        response = self.client.post(self.url, self.sample_form)
-        self.assertEqual(response.status_code, httplib.BAD_REQUEST)
-
 
 class SignTest(TestCase):
 
@@ -88,6 +83,10 @@ class MultisigAddrTest(TestCase):
                                 public_key='048cfd6643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052',
                                 address='fake_address')
 
+    def fake_make_multisig_address_file(self):
+        pass
+
+    @mock.patch("evm_manager.deploy_contract_utils.make_multisig_address_file", fake_make_multisig_address_file)
     def test_set_multisig_addr(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)
@@ -102,5 +101,5 @@ class MultisigAddrTest(TestCase):
             'pubkey'] = '048cfdd643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052'
         response = self.client.post(self.url, self.sample_form)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data['error'], 'Cannot find proposal with this pubkey.')
+        self.assertEqual(data['errors'][0]["message"], 'Cannot find proposal with this pubkey.')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
