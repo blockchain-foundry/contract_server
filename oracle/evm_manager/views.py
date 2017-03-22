@@ -44,6 +44,7 @@ class CheckUpdate(APIView):
             state = StateInfo.objects.get(multisig_address=multisig_address)
             latest_tx_time = state.latest_tx_time
             latest_tx_hash = state.latest_tx_hash
+
             if latest_tx_hash == tx_hash:
                 return True
             if latest_tx_hash == no_data:
@@ -51,19 +52,21 @@ class CheckUpdate(APIView):
 
             if multisig_address != get_multisig_addr(tx_hash):
                 return False
+
             tx = get_tx_info(tx_hash)
             _time = tx['blocktime']
-            if _time > latest_tx_time:
+            if int(_time) > int(latest_tx_time):
                 return False
-            elif _time < latest_tx_time:
+            elif int(_time) < int(latest_tx_time):
                 return True
+
             txs = gcoincore.get_txs_by_address(multisig_address, starting_after=latest_tx_hash).get('txs')
             for i, tx in enumerate(txs):
                 if tx.get('hash') == tx_hash:
                     return True
-                if tx.get('time') != latest_tx_time:
+                if int(tx.get('time')) != int(latest_tx_time):
                     return False
+            return False
 
-            return False
         except Exception as e:
-            return False
+            raise e
