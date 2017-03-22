@@ -23,10 +23,12 @@ from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_co
 from contract_server.decorators import handle_uncaught_exception
 from contract_server import response_utils
 
-from oracles.models import Oracle, Contract, SubContract
+from oracles.models import Oracle, SubContract, Contract
 from oracles.serializers import ContractSerializer, SubContractSerializer
 
-from contracts.models import MultisigAddress
+import contracts.serializers
+from evm_manager.utils import mk_contract_address, get_nonce, wallet_address_to_evm
+
 from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer
 
 from .config import CONTRACT_FEE
@@ -34,6 +36,8 @@ from .exceptions import Compiled_error, Multisig_error, SubscribeAddrsssNotifica
 from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     ContractFunctionCallFrom, SubContractFunctionCallForm,
                     WithdrawFromContractForm)
+from .models import MultisigAddress
+import contracts.models
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -52,13 +56,6 @@ OSSclient = GcoinAPIClient(settings.OSS_API_URL)
 
 
 # Create your views here.
-
-def wallet_address_to_evm(address):
-    address = base58.b58decode(address)
-    address = hexlify(address)
-    address = hash160(address)
-
-    return address
 
 
 def create_multisig_payment(from_address, to_address, color_id, amount):
@@ -610,6 +607,70 @@ class ContractList(View):
         serializer = ContractSerializer(contracts, many=True)
         response = {'contracts': serializer.data}
         return JsonResponse(response)
+
+
+class DeployContract(APIView):
+
+    def _compile_code_and_interface(self, source_code, contract_name):
+        output = compile_source(source_code)
+        byte_code = output[contract_name]['bin']
+        interface = output[contract_name]['abi']
+        interface = json.dumps(interface)
+        return byte_code, interface
+
+    def post(self, request, multisig_address, format=None):
+        serializer = contracts.serializers.ContractSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.data
+        else:
+            response = {
+                'code:': ERROR_CODE['form_error'],
+                'message': 'form invalid'
+            }
+        contract_name = data['contract_name']
+        sender_address = data['sender_address']
+        multisig_address = multisig_address
+        source_code = data['source_code']
+        try:
+            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+        except Compiled_error as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        try:
+            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+        except:
+            print('multisig not found')
+        nonce = get_nonce(multisig_address, sender_address)
+        contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
+        contract_address = hexlify(contract_address_byte).decode("utf-8")
+        contract = contracts.models.Contract(
+            source_code=source_code,
+            interface=interface,
+            contract_address=contract_address,
+            multisig_address=multisig_address_object,
+            color=1,
+            amount=0)
+        contract.save()
+        evm_input_code = ''
+        if 'function_inputs' in data:
+            function_inputs = data['function_inputs']
+            input_value = []
+            for i in function_inputs:
+                input_value.append(i['value'])
+            function = get_constructor_function(interface)
+            evm_input_code = make_evm_constructor_code(function, input_value)
+
+        code = json.dumps({'source_code': compiled_code + evm_input_code,
+                           'multisig_addr': multisig_address, 'to_addr': contract_address})
+
+        tx_hex = OSSclient.deploy_contract_raw_tx(
+            sender_address, multisig_address, code, CONTRACT_FEE)
+        data = {'raw_tx': tx_hex, 'contract_address': contract_address}
+
+        return response_utils.data_response(data)
 
 
 def _handle_payment_parameter_error(form):
