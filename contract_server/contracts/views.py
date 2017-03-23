@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.views.generic import View
 from django.views.generic.edit import BaseFormView
 from django.utils import timezone
+from django.db.models import Q
 
 from rest_framework.views import APIView, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -882,3 +883,55 @@ class MultisigAddressesView(APIView):
         response = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
 
         return JsonResponse(response)
+
+
+class ContractFunction(APIView):
+
+    def post(self, request, multisig_address, contract_address, format=None):
+        serializer = contracts.serializers.ContractFunctionSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.data
+        else:
+            response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'form invalid')
+        sender_address = data['sender_address']
+        function_name = data['function_name']
+        function_inputs = ast.literal_eval(data['function_inputs'])
+        amount = data['amount']
+        color = data['color']
+
+        try:
+            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+        except:
+            print('multisig not found')
+
+        try:
+            contract = contracts.models.Contract.objects.filter(Q(multisig_address=multisig_address_object) & Q(contract_address=contract_address))[0]
+        except:
+            print('contract not found')
+
+        function, is_constant = get_function_by_name(contract.interface, function_name)
+        if not function:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
+
+        input_value = []
+        for i in function_inputs:
+            input_value.append(i['value'])
+        evm_input_code = make_evm_input_code(function, input_value)
+
+        code = json.dumps({
+            "function_inputs_hash": evm_input_code,
+            "multisig_addr": multisig_address,
+            "to_addr": contract_address
+        })
+
+        if not is_constant:
+            tx_hex = OSSclient.operate_contract_raw_tx(
+                sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
+            data = {'raw_tx': tx_hex}
+        else:
+            data = _call_constant_function(
+                sender_address, multisig_address, evm_input_code, amount, contract_address)
+            out = data['out']
+            function_outputs = decode_evm_output(contract.interface, function_name, out)
+            data['function_outputs'] = function_outputs
+        return response_utils.data_response(data)
