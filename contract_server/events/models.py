@@ -5,7 +5,7 @@ from binascii import hexlify
 from gcoin import hash160
 from django.utils import timezone
 from django.db import models
-from oracles.models import Contract, SubContract
+from contracts.models import Contract
 
 
 def wallet_address_to_evm_address(address):
@@ -33,8 +33,8 @@ class Watch(models.Model):
     event_name = models.CharField(max_length=200)
     args = models.CharField(max_length=5000, blank=True, default="")
     is_closed = models.BooleanField(default=False)
-    multisig_contract = models.ForeignKey(Contract, related_name='watch', blank=True, null=True)
-    subcontract = models.ForeignKey(SubContract, related_name='watch', blank=True, null=True)
+    # multisig_contract = models.ForeignKey(Contract, related_name='watch', blank=True, null=True)
+    contract = models.ForeignKey(Contract, related_name='watch', blank=True, null=True)
 
     objects = WatchManager()
 
@@ -64,25 +64,8 @@ class Watch(models.Model):
     def interface(self):
         """Event interface
         """
-        interface = ""
-        if self.subcontract:
-            interface = self.subcontract.interface
-        else:
-            interface = self.multisig_contract.interface
-        interface = self._get_event_by_name(interface)
+        interface = self._get_event_by_name(self.contract.interface)
         return interface
-
-    @property
-    def contract_address(self):
-        """Contract address watching contract
-        """
-        contract_address = ""
-        if self.subcontract:
-            contract_address = self.subcontract.deploy_address
-        else:
-            contract_address = wallet_address_to_evm_address(self.multisig_contract.multisig_address)
-
-        return contract_address
 
     def _get_event_by_name(self, interface):
         """
