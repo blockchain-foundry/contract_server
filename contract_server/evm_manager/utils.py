@@ -53,6 +53,8 @@ def get_evm_balance(multisig_address, address):
 
 
 def mk_contract_address(sender, nonce):
+    if nonce is None:
+        nonce = 0
     return sha3(rlp.encode([normalize_address(sender), nonce]))[12:]
 
 
