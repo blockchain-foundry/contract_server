@@ -53,6 +53,8 @@ def get_evm_balance(multisig_address, address):
 
 
 def mk_contract_address(sender, nonce):
+    if nonce is None:
+        nonce = 0
     return sha3(rlp.encode([normalize_address(sender), nonce]))[12:]
 
 
@@ -87,3 +89,12 @@ sha3_count = [0]
 def sha3(seed):
     sha3_count[0] += 1
     return sha3_256(to_string(seed))
+
+
+def get_nonce(multisig_address, sender_address):
+    sender_evm_address = wallet_address_to_evm(sender_address)
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+    with open(contract_path, 'r') as f:
+        content = json.load(f)
+        if sender_evm_address in content['accounts']:
+            return content['accounts'][sender_evm_address]['nonce']

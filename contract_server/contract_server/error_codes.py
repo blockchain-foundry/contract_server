@@ -1,5 +1,6 @@
 ERROR_CODE = {
     # contract_server
     'compiled_error': 1100,
-    'multisig_error': 1101
+    'multisig_error': 1101,
+    'form_error': 1102
 }
