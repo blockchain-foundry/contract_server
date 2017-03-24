@@ -73,6 +73,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
 STATIC_URL = '/static/'
+CONTRACT_SERVER_API_URL = '<contract_server_url>'
 OSS_API_URL = '<oss_url>'
 
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
