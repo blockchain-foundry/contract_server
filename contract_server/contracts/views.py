@@ -31,14 +31,14 @@ import contracts.serializers
 from evm_manager.utils import mk_contract_address, get_nonce, wallet_address_to_evm
 
 from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer
+import contracts.models
 
 from .config import CONTRACT_FEE
 from .exceptions import Compiled_error, Multisig_error, SubscribeAddrsssNotificationError, OracleMultisigAddressError
 from .forms import (GenContractRawTxForm, GenSubContractRawTxForm,
                     ContractFunctionCallFrom, SubContractFunctionCallForm,
-                    WithdrawFromContractForm)
+                    WithdrawFromContractForm, BindForm)
 from .models import MultisigAddress
-import contracts.models
 
 from contract_server import ERROR_CODE
 from contract_server.mixins import CsrfExemptMixin
@@ -935,3 +935,41 @@ class ContractFunction(APIView):
             function_outputs = decode_evm_output(contract.interface, function_name, out)
             data['function_outputs'] = function_outputs
         return response_utils.data_response(data)
+
+
+class Bind(BaseFormView, CsrfExemptMixin):
+    @handle_uncaught_exception
+    def post(self, request, multisig_address):
+
+        form = BindForm(request.POST)
+        if form.is_valid():
+            new_contract_address = form.cleaned_data['new_contract_address']
+            original_contract_address = form.cleaned_data['original_contract_address']
+
+            try:
+                original_contract = contracts.models.Contract.objects.get(contract_address=original_contract_address)
+            except Exception as e:
+                # Todo
+                return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
+
+            try:
+                new_contract, created = contracts.models.Contract.objects.get_or_create(
+                    source_code=original_contract.source_code,
+                    color=original_contract.color,
+                    amount=original_contract.amount,
+                    interface=original_contract.interface,
+                    contract_address=new_contract_address,
+                    multisig_address=original_contract.multisig_address
+                )
+
+                if created:
+                    data = {"is_success": True}
+                    return response_utils.data_response(data)
+                else:
+                    # TODO
+                    return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'contract address already exist')
+            except Exception as e:
+                return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+
+        else:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'form_invalid_error', 'Z002')

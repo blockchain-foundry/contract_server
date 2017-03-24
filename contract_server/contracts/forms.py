@@ -67,3 +67,8 @@ class WithdrawFromContractForm(forms.Form):
     def clean_amounts(self):
         amounts = self.cleaned_data['amounts']
         return ast.literal_eval(amounts)
+
+
+class BindForm(forms.Form):
+    new_contract_address = forms.CharField(required=True)
+    original_contract_address = forms.CharField(required=True)

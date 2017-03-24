@@ -5,6 +5,7 @@ from contracts import views
 
 urlpatterns = [
     url(r'^contracts/$', views.Contracts.as_view()),
+    url(r'^multisig-addresses/(?P<multisig_address>[A-Za-z0-9]+)/bind/$', views.Bind.as_view()),
     url(r'^subcontracts/(?P<multisig_address>[A-Za-z0-9]+)/$', views.SubContracts.as_view()),
     url(r'^subcontracts/(?P<multisig_address>[A-Za-z0-9]+)/(?P<deploy_address>[0-9]+)/$', views.SubContractFunc.as_view()),
     url(r'^contracts/(?P<multisig_address>[A-Za-z0-9]+)/$', views.ContractFunc.as_view()),
