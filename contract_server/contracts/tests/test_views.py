@@ -8,6 +8,7 @@ from contract_server import ERROR_CODE
 from oracles.models import Contract, Oracle
 from contracts.views import MultisigAddressesView
 from contracts.models import MultisigAddress
+import contracts.models
 
 
 try:
@@ -353,3 +354,49 @@ class MultisigAddressesViewTest(TestCase):
         json_data = json.loads(response.content.decode('utf-8'))
 
         self.assertEqual(len(json_data["multisig_addresses"]), 2)
+
+
+class ContractBindTest(TestCase):
+
+    def setUp(self):
+        # monk contract
+        self.address = "339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4"
+        self.script = "51210224015f5f489cf8c7d558ed306daa23448a69c645aaa835981189699a143a4f5751ae"
+        self.oracles = Oracle.objects.create(url='http://52.197.157.107:5590', name='oss1')
+        self.least_sign_number = 1
+
+        self.multisig_address = MultisigAddress.objects.create(
+            address=self.address,
+            script=self.script,
+            least_sign_number=self.least_sign_number
+        )
+        self.multisig_address.oracles.add(self.oracles)
+        self.source_code_onlyGreeter = 'contract Greeter{ string greeting; function greeter(string _greeting) public { greeting = _greeting; } function greet() constant returns (string) { return greeting; } function setgreeter(string _greeting) public { greeting = _greeting; } }'
+        self.color = 1
+        self.amount = 0
+        self.interface = '[{"name": "setgreeter","inputs": [{"type": "string","name": "_greeting"}]},{"name": "greet","inputs": []},{"name": "greeter","inputs": [{"type": "string","name": "_greeting"}]}]'
+        self.contract_address = 'a75c04b0cf9adfdf012222347c18c9445a8fa6f2'
+
+        self.contract_Greeter = contracts.models.Contract.objects.create(
+            source_code=self.source_code_onlyGreeter,
+            color=self.color,
+            amount=self.amount,
+            interface=self.interface,
+            contract_address=self.contract_address,
+            multisig_address=self.multisig_address
+            )
+        self.url = '/smart-contract/multisig-addresses/' + self.address + '/bind/'
+
+        self.sample_form = {
+            'new_contract_address': 'a76c04b0cf9adfdf012222347c18c9445a8fa6f2',
+            'original_contract_address': 'a75c04b0cf9adfdf012222347c18c9445a8fa6f2',
+        }
+
+    def test_bind(self):
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+        contract = contracts.models.Contract.objects.get(
+            contract_address='a76c04b0cf9adfdf012222347c18c9445a8fa6f2',
+            multisig_address=self.multisig_address
+        )
+        self.assertEqual(contract.interface, self.interface)
