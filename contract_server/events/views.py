@@ -2,7 +2,6 @@ import json
 import logging
 import time
 from rest_framework.views import APIView, status
-from django.http import JsonResponse
 
 from contract_server.decorators import handle_uncaught_exception
 from contracts import evm_abi_utils
@@ -14,6 +13,7 @@ from .exceptions import (GetStateFromOracleError, WatchCallbackTimeoutError,
                          WatchKeyNotFoundError, ContractNotFoundError)
 
 from .forms import WatchForm
+from contract_server import response_utils
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +70,11 @@ class Watches(APIView):
         try:
             watch = Watch.objects.get(id=watch_id)
             serializer = WatchSerializer(watch)
-
-            response = {"watch": serializer.data}
-            http_status = status.HTTP_200_OK
+            data = {"watch": serializer.data}
+            return response_utils.data_response(data)
         except Exception as e:
-            response = {"error": "watch not found"}
-            http_status = status.HTTP_404_NOT_FOUND
-        finally:
-            return JsonResponse(response, status=http_status)
+            # TODO: ERROR_CODE
+            return response_utils.error_response(status.HTTP_404_NOT_FOUND, "watch not found")
 
     def _event_exists(self, multisig_address, contract_address, event_name):
         """ Check if event_name exists in multisig_address/contract_address
@@ -122,8 +119,6 @@ class Watches(APIView):
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
         """
-        response = {'message': 'error'}
-        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         try:
             # Check if event exsits
             is_matched, contract = self._event_exists(multisig_address, contract_address, event_name)
@@ -140,33 +135,23 @@ class Watches(APIView):
             # logger.debug('saving watch: id={}, event_name={}'.format(watch.id, watch.event_name))
 
             event = wait_for_notification(watch.id)
-            response = {
+            data = {
                 'watch_id': watch.id,
                 'event': event
             }
-            http_status = status.HTTP_200_OK
+
+            return response_utils.data_response(data)
 
         except ContractNotFoundError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except WatchKeyNotFoundError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except GetStateFromOracleError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except WatchCallbackTimeoutError as e:
-            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = {'message': str(e)}
-        except (Contract.DoesNotExist):
-            response = {'message': 'contract not found'}
-            http_status = status.HTTP_404_NOT_FOUND
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
         except Exception as e:
-            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = {'message': str(e)}
-        finally:
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
     @handle_uncaught_exception
     def post(self, request):
@@ -181,9 +166,6 @@ class Watches(APIView):
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
         """
-        response = {}
-        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-
         # Form validation
         form = WatchForm(request.POST)
 
@@ -199,6 +181,4 @@ class Watches(APIView):
                 contract_address=contract_address
             )
         else:
-            response = {"error": form.errors}
-            http_status = status.HTTP_400_BAD_REQUEST
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, form.errors)
