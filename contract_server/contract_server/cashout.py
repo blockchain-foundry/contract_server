@@ -4,7 +4,7 @@ from django.conf import settings
 
 from gcoinapi.client import GcoinAPIClient
 from gcoinbackend import core as gcoincore
-from oracles.models import Contract
+from contracts.models import MultisigAddress
 from evm_manager.utils import get_evm_balance
 from gcoin import apply_multisignatures, deserialize
 
@@ -107,10 +107,10 @@ def process_dict_type(dic):
 
 def send_cashout_tx(signed_tx, multisig_address):
     try:
-        contract = Contract.objects.get(multisig_address=multisig_address)
-    except Contract.DoesNotExist as e:
+        multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+    except MultisigAddress.DoesNotExist as e:
         raise e
-    oracles = contract.oracles.all()
+    oracles = multisig_address_object.oracles.all()
     urls = [ora.url for ora in oracles]
     tx_id = gcoincore.send_cashout_tx(signed_tx, urls)
     return tx_id
@@ -118,10 +118,10 @@ def send_cashout_tx(signed_tx, multisig_address):
 
 def sign(raw_tx, multisig_address):
     try:
-        contract = Contract.objects.get(multisig_address=multisig_address)
-    except Contract.DoesNotExist as e:
+        multisig_address_object = MultisigAddress.objects.get(multisig_address=multisig_address)
+    except MultisigAddress.DoesNotExist as e:
         raise e
-    oracles = contract.oracles.all()
+    oracles = multisig_address_object.oracles.all()
 
     # multisig sign
     # calculate counts of inputs
@@ -135,7 +135,7 @@ def sign(raw_tx, multisig_address):
                 'user_address': multisig_address,
                 'color_id': "1",
                 'amount': "0",
-                'script': contract.multisig_script,
+                'script': multisig_address_object.script,
                 'input_index': i,
             }
             r = requests.post(oracle.url + '/signnew/', data=data)
@@ -144,8 +144,8 @@ def sign(raw_tx, multisig_address):
             if signature is not None:
                 # sign success, update raw_tx
                 sigs.append(signature)
-        raw_tx = apply_multisignatures(raw_tx, i, contract.multisig_script,
-                                       sigs[:contract.least_sign_number])
+        raw_tx = apply_multisignatures(raw_tx, i, multisig_address_object.script,
+                                       sigs[:multisig_address_object.least_sign_number])
     return raw_tx
 
 

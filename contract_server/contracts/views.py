@@ -13,6 +13,8 @@ from django.views.generic import View
 from django.views.generic.edit import BaseFormView
 from django.utils import timezone
 from django.db.models import Q
+from django.core.exceptions import ObjectDoesNotExist
+
 
 from rest_framework.views import APIView, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -594,54 +596,54 @@ class DeployContract(APIView):
         if serializer.is_valid():
             data = serializer.data
         else:
-            response = {
-                'code:': ERROR_CODE['form_error'],
-                'message': 'form invalid'
-            }
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
+
         contract_name = data['contract_name']
         sender_address = data['sender_address']
         multisig_address = multisig_address
         source_code = data['source_code']
         try:
-            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-        except Compiled_error as e:
-            response = {
-                'code:': ERROR_CODE['compiled_error'],
-                'message': str(e)
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-        try:
-            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
-        except:
-            print('multisig not found')
-        nonce = get_nonce(multisig_address, sender_address)
-        contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
-        contract_address = hexlify(contract_address_byte).decode("utf-8")
-        contract = contracts.models.Contract(
-            source_code=source_code,
-            interface=interface,
-            contract_address=contract_address,
-            multisig_address=multisig_address_object,
-            color=1,
-            amount=0)
-        contract.save()
-        evm_input_code = ''
-        if 'function_inputs' in data:
-            function_inputs = data['function_inputs']
-            input_value = []
-            for i in function_inputs:
-                input_value.append(i['value'])
-            function = get_constructor_function(interface)
-            evm_input_code = make_evm_constructor_code(function, input_value)
+            try:
+                compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+            except Compiled_error as e:
+                return response_utils.error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['compiled_error'])
+            try:
+                multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+            except Exception as e:
+                raise ObjectDoesNotExist('multisig not found')
+            nonce = get_nonce(multisig_address, sender_address)
+            print("nonce:{}".format(nonce))
+            contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
+            print("contract_address_byte:{}".format(contract_address_byte))
+            contract_address = hexlify(contract_address_byte).decode("utf-8")
+            print("contract_address:{}".format(contract_address))
+            contract = contracts.models.Contract(
+                source_code=source_code,
+                interface=interface,
+                contract_address=contract_address,
+                multisig_address=multisig_address_object,
+                color=1,
+                amount=0)
+            contract.save()
+            evm_input_code = ''
+            if 'function_inputs' in data:
+                function_inputs = data['function_inputs']
+                input_value = []
+                for i in function_inputs:
+                    input_value.append(i['value'])
+                function = get_constructor_function(interface)
+                evm_input_code = make_evm_constructor_code(function, input_value)
 
-        code = json.dumps({'source_code': compiled_code + evm_input_code,
-                           'multisig_addr': multisig_address, 'to_addr': contract_address})
-
-        tx_hex = OSSclient.deploy_contract_raw_tx(
-            sender_address, multisig_address, code, CONTRACT_FEE)
-        data = {'raw_tx': tx_hex, 'contract_address': contract_address}
-
-        return response_utils.data_response(data)
+            code = json.dumps({'source_code': compiled_code + evm_input_code,
+                               'multisig_addr': multisig_address, 'to_addr': contract_address})
+            print("code")
+            tx_hex = OSSclient.deploy_contract_raw_tx(
+                sender_address, multisig_address, code, CONTRACT_FEE)
+            print("tx_hex:{}".format(tx_hex))
+            data = {'raw_tx': tx_hex, 'contract_address': contract_address}
+            return response_utils.data_response(data)
+        except Exception as e:
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
 
 def _handle_payment_parameter_error(form):
@@ -857,6 +859,7 @@ class MultisigAddressesView(APIView):
 
 class ContractFunction(APIView):
 
+    @handle_uncaught_exception
     def post(self, request, multisig_address, contract_address, format=None):
         serializer = contracts.serializers.ContractFunctionSerializer(data=request.data)
         if serializer.is_valid():
@@ -870,41 +873,43 @@ class ContractFunction(APIView):
         color = data['color']
 
         try:
-            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
-        except:
-            print('multisig not found')
+            try:
+                multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+                contract = contracts.models.Contract.objects.filter(Q(multisig_address=multisig_address_object) & Q(contract_address=contract_address))[0]
+            except Exception as e:
+                raise ObjectDoesNotExist(str(e))
 
-        try:
-            contract = contracts.models.Contract.objects.filter(Q(multisig_address=multisig_address_object) & Q(contract_address=contract_address))[0]
-        except:
-            print('contract not found')
+            function, is_constant = get_function_by_name(contract.interface, function_name)
+            if not function:
+                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
 
-        function, is_constant = get_function_by_name(contract.interface, function_name)
-        if not function:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
+            input_value = []
+            for i in function_inputs:
+                input_value.append(i['value'])
+            evm_input_code = make_evm_input_code(function, input_value)
 
-        input_value = []
-        for i in function_inputs:
-            input_value.append(i['value'])
-        evm_input_code = make_evm_input_code(function, input_value)
+            code = json.dumps({
+                "function_inputs_hash": evm_input_code,
+                "multisig_addr": multisig_address,
+                "to_addr": contract_address
+            })
 
-        code = json.dumps({
-            "function_inputs_hash": evm_input_code,
-            "multisig_addr": multisig_address,
-            "to_addr": contract_address
-        })
+            if not is_constant:
+                tx_hex = OSSclient.operate_contract_raw_tx(
+                    sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
+                data = {'raw_tx': tx_hex}
+            else:
+                data = _call_constant_function(
+                    sender_address, multisig_address, evm_input_code, amount, contract_address)
+                out = data['out']
+                function_outputs = decode_evm_output(contract.interface, function_name, out)
+                data['function_outputs'] = function_outputs
+            return response_utils.data_response(data)
 
-        if not is_constant:
-            tx_hex = OSSclient.operate_contract_raw_tx(
-                sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
-            data = {'raw_tx': tx_hex}
-        else:
-            data = _call_constant_function(
-                sender_address, multisig_address, evm_input_code, amount, contract_address)
-            out = data['out']
-            function_outputs = decode_evm_output(contract.interface, function_name, out)
-            data['function_outputs'] = function_outputs
-        return response_utils.data_response(data)
+        except ObjectDoesNotExist as e:
+            return response_utils.error_response(status.HTTP_404_NOT_FOUND, str(e))
+        except Exception as e:
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
 
 class Bind(BaseFormView, CsrfExemptMixin):
