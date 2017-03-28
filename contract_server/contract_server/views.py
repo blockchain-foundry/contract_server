@@ -4,7 +4,11 @@ except ImportError:
     import httplib
 from django.http import JsonResponse
 from rest_framework.views import APIView
+
 from evm_manager import deploy_contract_utils
+from contract_server import ERROR_CODE, error_response, data_response
+from evm_manager.deploy_contract_utils import deploy_contracts, get_multisig_addr
+from .cashout import clear_evm_accouts
 from .decorators import handle_uncaught_exception
 from .forms import NotifyForm
 
@@ -28,10 +32,11 @@ class NewTxNotified(APIView):
         completed = deploy_contract_utils.deploy_contracts(tx_hash)
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return JsonResponse(response, status=httplib.OK)
-        # response = clear_evm_accouts(multisig_address)
+            return data_response(response)
+
+        #response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
-        return JsonResponse(response, status=httplib.OK)
+        return data_response(response)
 
 
 class AddressNotified(APIView):
@@ -55,15 +60,20 @@ class AddressNotified(APIView):
             tx_hash = form.cleaned_data['tx_hash']
         else:
             response = {"error": form.errors}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return error_response(httplib.NOT_ACCEPTABLE, form.errors, ERROR_CODE['form_invalid_error'])
 
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
         completed = deploy_contract_utils.deploy_contracts(tx_hash)
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return JsonResponse(response, status=httplib.OK)
+            return data_response(response)
+        else:
+            try:
+                state_log_utils.check_watch(tx_hash, multisig_address)
+            except Exception as e:
+                print(e)
 
         # response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
-        return JsonResponse(response, status=httplib.OK)
+        return data_response(response)

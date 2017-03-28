@@ -4,6 +4,7 @@ import platform
 from django.http import JsonResponse
 from rest_framework.views import APIView
 
+from contract_server import error_response, data_response, ERROR_CODE
 from oracles.models import Oracle
 from .forms import RegisterOracleForm
 import logging
@@ -60,7 +61,7 @@ class OracleList(APIView):
                 oracle_list.append(reachable_oracles)
         response['oracles'] = oracle_list
 
-        return JsonResponse(response, status=httplib.OK)
+        return data_response(response)
 
 
 class RegistereOracle(APIView):
@@ -80,12 +81,13 @@ class RegistereOracle(APIView):
             # check if exist
             if Oracle.objects.filter(url=url).exists():
                 response = {"message": "This url already exists."}
-                return JsonResponse(response, status=httplib.BAD_REQUEST)
+                return error_response(httplib.BAD_REQUEST, "This url already exists", ERROR_CODE['repeat_register_error'])
             oracle = Oracle.objects.create(name=name, url=url)
             oracle.save()
 
             response = {"message": "Add oracle successfully"}
-            return JsonResponse(response, status=httplib.OK)
+            return data_response(response)
         else:
             response['errors'] = form.errors
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['form_invalid_error'])
+

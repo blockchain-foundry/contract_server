@@ -40,7 +40,7 @@ class AddressNotifiedCase(TestCase):
         self.response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(self.response.content.decode('utf-8'))
         self.assertEqual(self.response.status_code, httplib.OK)
-        self.assertIn("State-Update failed", json_data['status'])
+        self.assertIn("State-Update failed", json_data['data']['status'])
 
     @mock.patch("evm_manager.deploy_contract_utils.deploy_contracts", fake_deploy_contracts)
     @mock.patch("events.state_log_utils.check_watch", fake_check_watch)
@@ -49,4 +49,4 @@ class AddressNotifiedCase(TestCase):
         self.response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(self.response.content.decode('utf-8'))
         self.assertEqual(self.response.status_code, httplib.OK)
-        self.assertIn("State-Update completed", json_data['status'])
+        self.assertIn("State-Update completed", json_data['data']['status'])
