@@ -596,7 +596,7 @@ class DeployContract(APIView):
         if serializer.is_valid():
             data = serializer.data
         else:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors), ERROR_CODE['form_error'])
 
         contract_name = data['contract_name']
         sender_address = data['sender_address']
@@ -612,11 +612,8 @@ class DeployContract(APIView):
             except Exception as e:
                 raise ObjectDoesNotExist('multisig not found')
             nonce = get_nonce(multisig_address, sender_address)
-            print("nonce:{}".format(nonce))
             contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
-            print("contract_address_byte:{}".format(contract_address_byte))
             contract_address = hexlify(contract_address_byte).decode("utf-8")
-            print("contract_address:{}".format(contract_address))
             contract = contracts.models.Contract(
                 source_code=source_code,
                 interface=interface,
@@ -636,10 +633,9 @@ class DeployContract(APIView):
 
             code = json.dumps({'source_code': compiled_code + evm_input_code,
                                'multisig_addr': multisig_address, 'to_addr': contract_address})
-            print("code")
+
             tx_hex = OSSclient.deploy_contract_raw_tx(
                 sender_address, multisig_address, code, CONTRACT_FEE)
-            print("tx_hex:{}".format(tx_hex))
             data = {'raw_tx': tx_hex, 'contract_address': contract_address}
             return response_utils.data_response(data)
         except Exception as e:
@@ -755,7 +751,7 @@ class MultisigAddressesView(APIView):
             url = url_map_pubkey["url"]
             data = {
                 "pubkey": url_map_pubkey["pubkey"],
-                "multisig_addr": multisig_address
+                "multisig_address": multisig_address
             }
             requests.post(url + "/multisigaddress/", data=data)
 
@@ -782,22 +778,10 @@ class MultisigAddressesView(APIView):
             oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
             multisig_address, multisig_script, url_map_pubkeys = self._get_multisig_address(
                 oracle_list, m)
-
-        except Compiled_error as e:
-            response = {
-                'code:': ERROR_CODE['compiled_error'],
-                'message': str(e)
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
         except Multisig_error as e:
-            response = {
-                'code': ERROR_CODE['multisig_error'],
-                'message': str(e)
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
         except Exception as e:
-            response = {'status': 'Bad request. ' + str(e)}
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
 
         try:
             callback_url = get_callback_url(self.request, multisig_address)
@@ -809,12 +793,12 @@ class MultisigAddressesView(APIView):
                     multisig_address,
                     callback_url)
             except Exception as e:
-                raise SubscribeAddrsssNotificationError
+                raise SubscribeAddrsssNotificationError("SubscribeAddrsssNotificationError")
 
             try:
                 self._save_multisig_address(multisig_address, url_map_pubkeys)
             except Exception as e:
-                raise OracleMultisigAddressError
+                raise OracleMultisigAddressError("OracleMultisigAddressError")
 
             multisig_address_object = MultisigAddress(
                 address=multisig_address,
@@ -852,9 +836,9 @@ class MultisigAddressesView(APIView):
         multisig_addresses = MultisigAddress.objects.all()
         result_page = paginator.paginate_queryset(multisig_addresses, request)
         serializer = MultisigAddressSerializer(result_page, many=True)
-        response = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
+        data = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
 
-        return JsonResponse(response)
+        return response_utils.data_response(data)
 
 
 class ContractFunction(APIView):
