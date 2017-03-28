@@ -62,4 +62,4 @@ class CheckUpdateTestCase(TestCase):
         response = self.client.get(self.url.format(
             multisig_address=self.multisig_address_wrong, tx_hash=self.tx_hash))
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data.get('error')[0].get('code'), httplib.BAD_REQUEST)
+        self.assertEqual(data.get('errors')[0].get('code'), httplib.BAD_REQUEST)

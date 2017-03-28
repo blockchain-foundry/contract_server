@@ -18,7 +18,7 @@ def error_response(**kwargs):
     for k, v in kwargs.items():
         data[k] = v
     error.append(data)
-    response['error'] = error
+    response['errors'] = error
     return response
 
 
@@ -49,11 +49,10 @@ def check_state(multisig_address, tx_hash):
 
     try:
         tx = deploy_contract_utils.get_tx_info(tx_hash)
+        _time = tx['blocktime']
     except Exception as e:
-        print(str(e))
+        print("error: " + str(e))
         return False
-
-    _time = tx['blocktime']
     if int(_time) > int(latest_tx_time):
         return False
     elif int(_time) < int(latest_tx_time):
@@ -61,7 +60,7 @@ def check_state(multisig_address, tx_hash):
     try:
         txs = gcoincore.get_txs_by_address(multisig_address, starting_after=latest_tx_hash).get('txs')
     except Exception as e:
-        print(str(e))
+        print("error: " + str(e))
         return False
 
     for i, tx in enumerate(txs):

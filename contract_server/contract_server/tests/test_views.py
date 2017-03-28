@@ -30,9 +30,9 @@ class AddressNotifiedCase(TestCase):
     def fake_check_watch(tx_hash, multisig_address):
         return True
 
-    def test_address_notified_not_acceptable(self):
+    def test_address_notified_bad_request(self):
         self.response = self.client.post(self.url, {})
-        self.assertEqual(self.response.status_code, httplib.NOT_ACCEPTABLE)
+        self.assertEqual(self.response.status_code, httplib.BAD_REQUEST)
 
     @mock.patch("evm_manager.deploy_contract_utils.deploy_contracts", fake_deploy_contracts_failed)
     @mock.patch("contract_server.cashout.clear_evm_accouts", fake_clear_evm_accouts)

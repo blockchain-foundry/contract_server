@@ -12,7 +12,7 @@ from events import state_log_utils
 
 class NewTxNotified(APIView):
     @handle_uncaught_exception
-    def get(self, request, tx_hash):
+    def post(self, request, tx_hash):
         """ Receive Transaction Notification From OSS
 
         Args:
@@ -62,7 +62,7 @@ class AddressNotified(APIView):
             tx_hash = form.cleaned_data['tx_hash']
         else:
             response = {"error": form.errors}
-            return JsonResponse(response, status=httplib.NOT_ACCEPTABLE)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
