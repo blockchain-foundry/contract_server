@@ -21,6 +21,11 @@ class Contract(models.Model):
     interface = models.TextField(default='')
     contract_address = models.CharField(max_length=100, blank=True, default='')
     multisig_address = models.ForeignKey(MultisigAddress)
+    tx_hash_init = models.CharField(max_length=200, blank=True, default='')
+    hash_op_return = models.IntegerField(default=-1)
+    sender_evm_address = models.CharField(max_length=100, blank=True, default='')
+    sender_nonce_predicted = models.IntegerField(default=-1)
+    is_deployed = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('created',)
