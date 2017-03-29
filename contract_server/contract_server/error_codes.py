@@ -5,6 +5,13 @@ ERROR_CODE = {
     'multisig_address_not_found_error': 'A002',
     'found_multiple_contract': 'A003',
 
+    # B Oracle
+    'repeat_register_error': 'B000',
+
+    # C Event
+
+    # D Evm
+
     # E Solidity
     'compiled_error': 'E000',
 

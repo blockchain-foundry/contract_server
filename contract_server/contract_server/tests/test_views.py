@@ -15,7 +15,8 @@ class AddressNotifiedCase(TestCase):
         self.sample_form = {
             "tx_hash": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
             "subscription_id": '1',
-            "notification_id": '2'
+            "notification_id": '2',
+            "apiVersion": '0.3.0',
         }
 
     def fake_clear_evm_accouts(multisig_address):
@@ -32,7 +33,7 @@ class AddressNotifiedCase(TestCase):
 
     def test_address_notified_bad_request(self):
         self.response = self.client.post(self.url, {})
-        self.assertEqual(self.response.status_code, httplib.BAD_REQUEST)
+        self.assertEqual(self.response.status_code, httplib.NOT_ACCEPTABLE)
 
     @mock.patch("evm_manager.deploy_contract_utils.deploy_contracts", fake_deploy_contracts_failed)
     @mock.patch("contract_server.cashout.clear_evm_accouts", fake_clear_evm_accouts)
@@ -50,3 +51,8 @@ class AddressNotifiedCase(TestCase):
         json_data = json.loads(self.response.content.decode('utf-8'))
         self.assertEqual(self.response.status_code, httplib.OK)
         self.assertIn("State-Update completed", json_data['data']['status'])
+
+    def test_wrong_apiversion(self):
+        self.sample_form['apiVersion'] = 'wrong_api_version'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)

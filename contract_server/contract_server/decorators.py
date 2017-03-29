@@ -40,6 +40,27 @@ def handle_apiversion(view_func):
     return wrapper
 
 
+def handle_apiversion_apiview(view_func):
+    """
+    This decorator handles api versioning.
+    Reject the requests with wrong api-version and append apiVersion fields in response.
+    """
+
+    @wraps(view_func)
+    def wrapper(*args, **kwargs):
+        API_VERSION = getattr(settings, "API_VERSION", None)
+
+        request_api_version = args[1].POST.get('apiVersion')
+        if request_api_version and request_api_version != API_VERSION:
+            return error_response(httplib.NOT_ACCEPTABLE, "Wrong api version", ERROR_CODE['wrong_api_version'])
+        response = view_func(*args, **kwargs)
+        content = json.loads(response.content.decode('utf-8'))
+        content['apiVersion'] = API_VERSION
+        response.content = response.make_bytes(json.dumps(content))
+        return response
+    return wrapper
+
+
 def handle_uncaught_exception(view_func):
     """
     This decorator catches all exception that thrown by the view_func,

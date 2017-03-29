@@ -1,10 +1,10 @@
 import os
 import platform
 
-from django.http import JsonResponse
 from rest_framework.views import APIView
 
 from contract_server import error_response, data_response, ERROR_CODE
+from contract_server.decorators import handle_apiversion_apiview
 from oracles.models import Oracle
 from .forms import RegisterOracleForm
 import logging
@@ -67,6 +67,7 @@ class OracleList(APIView):
 class RegistereOracle(APIView):
     # Register a new oracle
 
+    @handle_apiversion_apiview
     def post(self, request):
         response = {}
 
@@ -89,5 +90,4 @@ class RegistereOracle(APIView):
             return data_response(response)
         else:
             response['errors'] = form.errors
-            return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['form_invalid_error'])
-
+            return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])

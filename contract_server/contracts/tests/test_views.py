@@ -119,15 +119,12 @@ class ContractFunctionViewTest(TestCase):
         response = self.client.post(url, self.sample_form)
         self.assertEqual(response.status_code, httplib.NOT_FOUND)
 
-    '''
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
     def test_post_with_wrong_api_version(self):
         # non exist multisig
         self.sample_form['apiVersion'] = 'wrong_api'
         response = self.client.post(self.url, self.sample_form)
-        json_data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
-    '''
 
     def test_miss_field_form(self):
         required_field = ['function_name', 'function_inputs', 'sender_address', 'color', 'amount']
@@ -197,6 +194,11 @@ class DeployContractViewTest(TestCase):
             response = self.client.post(self.url, wrong_field_params)
             self.assertNotEqual(response.status_code, httplib.OK)
 
+    def test_wrong_apiversion(self):
+        self.sample_form['apiVersion'] = 'wrong_api_version'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
+
 
 class WithdrawFromContractTest(TestCase):
 
@@ -237,7 +239,8 @@ class WithdrawFromContractTest(TestCase):
             "multisig_address": "339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4",
             "user_address": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
             "colors": '[1]',
-            "amounts": '[1]'
+            "amounts": '[1]',
+            "apiVersion": "0.3.0"
         }
 
     def fake_create_multisig_payment(from_address, to_address, color_id, amount):
@@ -263,6 +266,11 @@ class WithdrawFromContractTest(TestCase):
         json_data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(json_data['errors'][0]['message'], 'multisig_address_not_found_error')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+    def test_post_with_wrong_api_version(self):
+        self.sample_form['apiVersion'] = 'wrong'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
 
 
 class MultisigAddressesViewTest(TestCase):
@@ -388,7 +396,13 @@ class ContractBindTest(TestCase):
         self.sample_form = {
             'new_contract_address': 'a76c04b0cf9adfdf012222347c18c9445a8fa6f2',
             'original_contract_address': 'a75c04b0cf9adfdf012222347c18c9445a8fa6f2',
+            'apiVersion': '0.3.0'
         }
+
+    def test_wrong_apiversion(self):
+        self.sample_form['apiVersion'] = 'wrong_api_version'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
 
     def test_bind(self):
         response = self.client.post(self.url, self.sample_form)
