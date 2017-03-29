@@ -109,8 +109,8 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
 
 
 def get_callback_url(request, multisig_address):
-    callback_url = request.build_absolute_uri('/') + \
-        'addressnotify/' + multisig_address
+    callback_url = settings.CONTRACT_SERVER_API_URL + \
+        '/addressnotify/' + multisig_address
     callback_url = ''.join(callback_url.split())
     return callback_url
 
