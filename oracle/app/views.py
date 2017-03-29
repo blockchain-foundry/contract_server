@@ -142,17 +142,17 @@ class Multisig_addr(CsrfExemptMixin, BaseFormView):
 
     def form_valid(self, form):
         pubkey = form.cleaned_data.get('pubkey')
-        multisig_addr = form.cleaned_data.get('multisig_address')
+        multisig_address = form.cleaned_data.get('multisig_address')
 
         try:
             p = Proposal.objects.get(public_key=pubkey)
-            deploy_contract_utils.make_multisig_address_file(multisig_addr)
+            deploy_contract_utils.make_multisig_address_file(multisig_address)
         except Proposal.DoesNotExist:
             return response_utils.error_response(httplib.BAD_REQUEST, "Cannot find proposal with this pubkey.")
         except Exception as e:
             return response_utils.error_response(httplib.INTERNAL_SERVER_ERROR, str(e))
 
-        p.multisig_addr = multisig_addr
+        p.multisig_address = multisig_address
         p.save()
         response = {
             'status': 'success'
@@ -196,7 +196,7 @@ class Sign(CsrfExemptMixin, BaseFormView):
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         # signature = connection.signrawtransaction(tx)
-        p = Proposal.objects.get(multisig_addr=multisig_address)
+        p = Proposal.objects.get(multisig_address=multisig_address)
         private_key = Keystore.objects.get(public_key=p.public_key).private_key
 
         signature = multisign(tx, input_index, script, private_key)
@@ -270,7 +270,7 @@ class SignNew(CsrfExemptMixin, BaseFormView):
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
 
         # signature = connection.signrawtransaction(tx)
-        p = Proposal.objects.get(multisig_addr=multisig_address)
+        p = Proposal.objects.get(multisig_address=multisig_address)
         private_key = Keystore.objects.get(public_key=p.public_key).private_key
 
         signature = multisign(tx, input_index, script, private_key)

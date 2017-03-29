@@ -34,7 +34,7 @@ class CheckUpdateTestCase(TestCase):
         StateInfo.objects.all().delete()
 
     @mock.patch('evm_manager.views.get_tx_info')
-    @mock.patch('evm_manager.views.get_multisig_addr')
+    @mock.patch('evm_manager.views.get_multisig_address')
     @mock.patch('gcoinbackend.core.get_txs_by_address')
     def test_check_update(self, mock_txs_by_address, mock_multisig_address, mock_tx_info):
         mock_multisig_address.return_value = self.multisig_address
@@ -47,7 +47,7 @@ class CheckUpdateTestCase(TestCase):
         self.assertEqual(response.status_code, httplib.OK)
         self.assertEqual(data.get('data').get('completed'), True)
 
-    @mock.patch('evm_manager.views.get_multisig_addr')
+    @mock.patch('evm_manager.views.get_multisig_address')
     def test_wrong_multisig_addr(self, mock_multisig_address):
         mock_multisig_address.return_value = None
 
@@ -57,7 +57,7 @@ class CheckUpdateTestCase(TestCase):
         self.assertEqual(data.get('data').get('completed'), False)
 
     @mock.patch('evm_manager.views.get_tx_info')
-    @mock.patch('evm_manager.views.get_multisig_addr')
+    @mock.patch('evm_manager.views.get_multisig_address')
     @mock.patch('gcoinbackend.core.get_txs_by_address')
     def test_tx_hash_with_same_time(self, mock_txs_by_address, mock_multisig_address, mock_tx_info):
         mock_multisig_address.return_value = self.multisig_address

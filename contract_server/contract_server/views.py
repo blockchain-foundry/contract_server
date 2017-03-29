@@ -32,7 +32,7 @@ class NewTxNotified(APIView):
             return JsonResponse(response, status=httplib.OK)
         else:
             try:
-                multisig_address = deploy_contract_utils.get_multisig_addr(tx_hash)
+                multisig_address = deploy_contract_utils.get_multisig_address(tx_hash)
                 state_log_utils.check_watch(tx_hash, multisig_address)
             except Exception as e:
                 print(e)
