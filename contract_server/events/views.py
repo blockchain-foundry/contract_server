@@ -2,18 +2,18 @@ import json
 import logging
 import time
 from rest_framework.views import APIView, status
-from django.http import JsonResponse
 
 from contract_server.decorators import handle_uncaught_exception
 from contracts import evm_abi_utils
 from events.models import Watch
 from events.serializers import WatchSerializer
-from oracles.models import Contract, SubContract
+from contracts.models import Contract
 
 from .exceptions import (GetStateFromOracleError, WatchCallbackTimeoutError,
-                         WatchKeyNotFoundError, ContractNotFoundError, SubContractNotFoundError)
+                         WatchKeyNotFoundError, ContractNotFoundError)
 
 from .forms import WatchForm
+from contract_server import response_utils
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +70,11 @@ class Watches(APIView):
         try:
             watch = Watch.objects.get(id=watch_id)
             serializer = WatchSerializer(watch)
-
-            response = {"watch": serializer.data}
-            http_status = status.HTTP_200_OK
+            data = {"watch": serializer.data}
+            return response_utils.data_response(data)
         except Exception as e:
-            response = {"error": "watch not found"}
-            http_status = status.HTTP_404_NOT_FOUND
-        finally:
-            return JsonResponse(response, status=http_status)
+            # TODO: ERROR_CODE
+            return response_utils.error_response(status.HTTP_404_NOT_FOUND, "watch not found")
 
     def _event_exists(self, multisig_address, contract_address, event_name):
         """ Check if event_name exists in multisig_address/contract_address
@@ -85,37 +82,30 @@ class Watches(APIView):
         Args:
             multisig_address: the multisig_address of state
             event_name: event name
-            contract_address: the contract_address for subcontract
+            contract_address: the contract_address
 
         Returns:
             is_matched: check if there's matching event
             contract: matching Contract object
-            subcontract: matching SubContract object
         """
         contract = None
-        subcontract = None
 
         try:
-            contract = Contract.objects.get(multisig_address=multisig_address)
+            contracts = Contract.objects.filter(
+                multisig_address__address=multisig_address,
+                contract_address=contract_address)
+            contract = contracts[0]
         except Exception as e:
             raise ContractNotFoundError('Contract does not exsit')
 
-        if contract_address != '' and contract_address != multisig_address:
-            try:
-                subcontract = contract.subcontract.all().filter(deploy_address=contract_address)[0]
-                interface = subcontract.interface
-            except Exception as e:
-                raise SubContractNotFoundError('SubContract does not exsit')
-        else:
-            interface = contract.interface
         try:
-            event_json = evm_abi_utils.get_event_by_name(interface, event_name)
+            event_json = evm_abi_utils.get_event_by_name(contract.interface, event_name)
             if event_json != {}:
-                return True, contract, subcontract
+                return True, contract
             else:
                 raise
         except Exception as e:
-            return False, None, None
+            return False, None
 
     def _process_watch_event(self, multisig_address, event_name, contract_address):
         """Process new event watching subscription and wait for event triggered
@@ -129,11 +119,9 @@ class Watches(APIView):
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
         """
-        response = {'message': 'error'}
-        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
         try:
             # Check if event exsits
-            is_matched, contract, subcontract = self._event_exists(multisig_address, contract_address, event_name)
+            is_matched, contract = self._event_exists(multisig_address, contract_address, event_name)
             if not is_matched:
                 raise WatchKeyNotFoundError(
                     "event_name:[{}] of contract  {}/{} doesn't exsit".format(event_name, multisig_address, contract_address))
@@ -141,60 +129,43 @@ class Watches(APIView):
             # Create Watch object in database
             watch = Watch.objects.create(
                 event_name=event_name,
-                multisig_contract=contract,
-                subcontract=subcontract
+                contract=contract,
             )
             watch.save()
             # logger.debug('saving watch: id={}, event_name={}'.format(watch.id, watch.event_name))
 
             event = wait_for_notification(watch.id)
-            response = {
+            data = {
                 'watch_id': watch.id,
                 'event': event
             }
-            http_status = status.HTTP_200_OK
+
+            return response_utils.data_response(data)
 
         except ContractNotFoundError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
-        except SubContractNotFoundError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except WatchKeyNotFoundError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except GetStateFromOracleError as e:
-            http_status = status.HTTP_400_BAD_REQUEST
-            response = {'message': str(e)}
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
         except WatchCallbackTimeoutError as e:
-            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = {'message': str(e)}
-        except (Contract.DoesNotExist, SubContract.DoesNotExist):
-            response = {'message': 'contract not found'}
-            http_status = status.HTTP_404_NOT_FOUND
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
         except Exception as e:
-            http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-            response = {'message': str(e)}
-        finally:
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
     @handle_uncaught_exception
     def post(self, request):
         """Create new event watching subscription and wait for event triggered
 
         Args:
-            multisig_address: the multisig_address of state
+            multisig_address: the multisig_address
             event_name: event name
-            contract_address: the contract address for subcontract
+            contract_address: the contract address
 
         Returns:
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
         """
-        response = {}
-        http_status = status.HTTP_500_INTERNAL_SERVER_ERROR
-
         # Form validation
         form = WatchForm(request.POST)
 
@@ -210,6 +181,4 @@ class Watches(APIView):
                 contract_address=contract_address
             )
         else:
-            response = {"error": form.errors}
-            http_status = status.HTTP_400_BAD_REQUEST
-            return JsonResponse(response, status=http_status)
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, form.errors)

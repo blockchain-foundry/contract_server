@@ -4,9 +4,7 @@ except ImportError:
     import httplib
 from django.http import JsonResponse
 from rest_framework.views import APIView
-
-from evm_manager.deploy_contract_utils import deploy_contracts, get_multisig_addr
-from .cashout import clear_evm_accouts
+from evm_manager import deploy_contract_utils
 from .decorators import handle_uncaught_exception
 from .forms import NotifyForm
 from events import state_log_utils
@@ -14,7 +12,7 @@ from events import state_log_utils
 
 class NewTxNotified(APIView):
     @handle_uncaught_exception
-    def get(self, request, tx_hash):
+    def post(self, request, tx_hash):
         """ Receive Transaction Notification From OSS
 
         Args:
@@ -28,13 +26,17 @@ class NewTxNotified(APIView):
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
 
-        completed = deploy_contracts(tx_hash)
+        completed = deploy_contract_utils.deploy_contracts(tx_hash)
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)
-
-        multisig_address = get_multisig_addr(tx_hash)
-        response = clear_evm_accouts(multisig_address)
+        else:
+            try:
+                multisig_address = deploy_contract_utils.get_multisig_addr(tx_hash)
+                state_log_utils.check_watch(tx_hash, multisig_address)
+            except Exception as e:
+                print(e)
+        # response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
 
@@ -60,11 +62,11 @@ class AddressNotified(APIView):
             tx_hash = form.cleaned_data['tx_hash']
         else:
             response = {"error": form.errors}
-            return JsonResponse(response, status=httplib.NOT_ACCEPTABLE)
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
 
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
-        completed = deploy_contracts(tx_hash)
+        completed = deploy_contract_utils.deploy_contracts(tx_hash)
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)
@@ -74,6 +76,6 @@ class AddressNotified(APIView):
             except Exception as e:
                 print(e)
 
-        response = clear_evm_accouts(multisig_address)
+        # response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)

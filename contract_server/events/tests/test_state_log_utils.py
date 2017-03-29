@@ -3,7 +3,7 @@ import json
 from django.test import TestCase
 from events import state_log_utils
 from events.models import Watch
-from oracles.models import Contract, SubContract
+from contracts.models import MultisigAddress, Contract
 
 EVENT_NAME = "TestEvent"
 
@@ -32,58 +32,26 @@ class StateLogUtilsTest(TestCase):
         self.multisig_script = 'multisig_script'
         interface = '[{"outputs": [{"name": "", "type": "string"}, {"name": "", "type": "bytes"}, {"name": "", "type": "bytes2"}, {"name": "", "type": "bytes32"}, {"name": "", "type": "uint256"}, {"name": "", "type": "int256"}, {"name": "", "type": "bool"}, {"name": "", "type": "address"}, {"name": "", "type": "address[]"}, {"name": "", "type": "int256[2][2]"}], "name": "getAttributes", "inputs": [], "constant": true, "payable": false, "type": "function"}, {"outputs": [], "name": "testEvent", "inputs": [], "constant": false, "payable": false, "type": "function"}, {"inputs": [{"name": "_string", "type": "string"}, {"name": "_bytes", "type": "bytes"}, {"name": "_bytes2", "type": "bytes2"}, {"name": "_bytes32", "type": "bytes32"}, {"name": "_uint", "type": "uint256"}, {"name": "_int", "type": "int256"}, {"name": "_bool", "type": "bool"}, {"name": "_address", "type": "address"}], "payable": false, "type": "constructor"}, {"name": "TestEvent", "inputs": [{"name": "event_string", "indexed": false, "type": "string"}, {"name": "event_bytes", "indexed": false, "type": "bytes"}, {"name": "event_bytes2", "indexed": false, "type": "bytes2"}, {"name": "event_bytes32", "indexed": true, "type": "bytes32"}, {"name": "event_uint", "indexed": false, "type": "uint256"}, {"name": "event_int", "indexed": false, "type": "int256"}, {"name": "event_bool", "indexed": false, "type": "bool"}, {"name": "event_address", "indexed": true, "type": "address"}, {"name": "event_address_array_dynamic", "indexed": false, "type": "address[]"}, {"name": "event_int_array_2d", "indexed": false, "type": "int256[2][2]"}], "type": "event", "anonymous": false}]'
 
+        multisig_address_object = MultisigAddress.objects.create(
+            address=self.multisig_address,
+            script=self.multisig_script)
+
         contract = Contract.objects.create(
+            multisig_address=multisig_address_object,
+            contract_address="bd841c963c498133d26596859144042ae186738f",
             source_code=source_code,
-            multisig_address=self.multisig_address,
-            multisig_script=self.multisig_script,
-            interface=interface,
-            color_id=1,
-            amount=0)
-
-        subscontract_source_code = 'contract AttributeLookup { \
-            event AttributesSet2(address indexed _sender, uint _timestamp); \
-            mapping(int => int) public attributeLookupMap; \
-            function setAttributes(int index, int value) { \
-            attributeLookupMap[index] = value; AttributesSet2(msg.sender, now); } \
-            function getAttributes(int index) constant returns(int) { \
-            return attributeLookupMap[index]; } }'
-
-        subcontract_interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
-            "inputs": [{"name": "index", "type": "int256"}], \
-            "constant": true, "payable": false, "name": "getAttributes", \
-            "type": "function"}, {"outputs": [], "id": 2, \
-            "inputs": [{"name": "index", "type": "int256"}, \
-            {"name": "value", "type": "int256"}], \
-            "constant": false, "payable": false, "name": "setAttributes", \
-            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
-            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
-            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
-            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
-            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
-            "name": "AttributesSet2", "type": "event", "anonymous": false}]'
-
-        subcontract = SubContract.objects.create(
-            parent_contract=contract,
-            deploy_address="0000000000000000000000000000000000000157",
-            source_code=subscontract_source_code,
-            color_id=1,
+            color=1,
             amount=0,
-            interface=subcontract_interface)
+            interface=interface)
 
         Watch.objects.create(
             event_name=EVENT_NAME,
-            multisig_contract=contract
+            contract=contract
         )
 
         Watch.objects.create(
             event_name=EVENT_NAME,
-            multisig_contract=contract
-        )
-
-        Watch.objects.create(
-            event_name=EVENT_NAME,
-            multisig_contract=contract,
-            subcontract=subcontract
+            contract=contract
         )
 
     def test_decode_logs(self):

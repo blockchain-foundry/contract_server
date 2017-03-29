@@ -77,6 +77,7 @@ def get_multisig_addr(tx_hash):
             else:
                 return None
     except Exception as e:
+        logger.debug("Exception:{}".format(str(e)))
         return None
 
 
@@ -89,12 +90,15 @@ def get_unexecuted_txs(multisig_addr, tx_hash, _time):
     try:
         txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
         tx_found = False
+        retry_count = 0
         while tx_found is False:
             txs = gcoincore.get_txs_by_address(multisig_addr, since=latest_tx_time).get('txs')
             for tx in txs:
                 if tx.get('hash') == tx_hash:
                     tx_found = True
-            time.sleep(1)
+            time.sleep(3)
+            retry_count += 1
+            print("get_txs_by_address retry_count: {}".format(retry_count))
 
         txs = txs[::-1]
         if latest_tx_time == '0':
@@ -221,11 +225,18 @@ def deploy_contracts(tx_hash):
         Using thread doesn't help due to the fact that rpc getrawtransaction
         locks cs_main, which blocks other operations requiring cs_main lock.
     """
-    multisig_addr = get_multisig_addr(tx_hash)
-
-    if multisig_addr is None:
-        print("Non-contract tx & Non-cashout tx: " + tx_hash)
-        return False
+    multisig_addr = None
+    retry_count = 0
+    while(True):
+        multisig_addr = get_multisig_addr(tx_hash)
+        if multisig_addr is not None:
+            break
+        elif multisig_addr is None and retry_count < 20:
+            time.sleep(3)
+            retry_count += 1
+            print("get_multisig_addr retry_count:{}".format(retry_count))
+        else:
+            return False
 
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
@@ -235,6 +246,7 @@ def deploy_contracts(tx_hash):
     except Exception as e:
         print(e)
         return False
+
     for tx in txs:
         completed = deploy_single_tx(tx['hash'], latest_tx_hash, multisig_addr)
         if completed is False:

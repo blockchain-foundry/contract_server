@@ -26,6 +26,6 @@ urlpatterns = [
 
 urlpatterns += patterns(
     '',
-    url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)/', NewTxNotified.as_view()),
-    url(r'^addressnotify/(?P<multisig_address>[a-zA-Z0-9]+)', AddressNotified.as_view()),
+    url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)(|/)$', NewTxNotified.as_view()),
+    url(r'^addressnotify/(?P<multisig_address>[a-zA-Z0-9]+)(|/)$', AddressNotified.as_view()),
 )

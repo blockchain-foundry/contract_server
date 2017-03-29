@@ -3,13 +3,7 @@ import mock
 from django.test import TestCase
 from events.models import Watch
 from events.views import Watches, wait_for_notification
-from oracles.models import Contract, SubContract
-
-TEST_MULTISIG_ADDRESS = '3NEga9GGxi4hPYqryL1pUsDicwnDsCNYyF'
-TEST_SUBSCRIPTION_ID = '90d9931e-88cd-458b-96b3-3cea31ae05e'
-
-TEST_SUBSCRIPTION_ID_CLOSED = '90d9931e-88cd-458b-96b3-3cea31ae051'
-TEST_SUBSCRIPTION_ID_EXPIRED = '90d9931e-88cd-458b-96b3-3cea31ae052'
+from contracts.models import MultisigAddress, Contract
 
 try:
     import http.client as httplib
@@ -21,42 +15,13 @@ class WatchCase(TestCase):
 
     def setUp(self):
         self.url = '/contracts/'
-        with open('./contracts/test_files/test_source_code', 'r') as source_code_file:
-            source_code = source_code_file.read().replace('\n', '')
-
-        source_code = 'contract AttributeLookup { \
-            event AttributesSet(address indexed _sender, uint _timestamp); \
-            mapping(int => int) public attributeLookupMap; \
-            function setAttributes(int index, int value) { \
-            attributeLookupMap[index] = value; AttributesSet(msg.sender, now); } \
-            function getAttributes(int index) constant returns(int) { \
-            return attributeLookupMap[index]; } }'
         multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
         multisig_script = '51210224015f5f489cf8c7d558ed306daa23448a69c645aaa835981189699a143a4f5751ae'
-        interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
-            "inputs": [{"name": "index", "type": "int256"}], \
-            "constant": true, "payable": false, "name": "getAttributes", \
-            "type": "function"}, {"outputs": [], "id": 2, \
-            "inputs": [{"name": "index", "type": "int256"}, \
-            {"name": "value", "type": "int256"}], \
-            "constant": false, "payable": false, "name": "setAttributes", \
-            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
-            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
-            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
-            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
-            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
-            "name": "AttributesSet", "type": "event", "anonymous": false}]'
+        multisig_address_object = MultisigAddress.objects.create(
+            address=multisig_address,
+            script=multisig_script)
 
-        contract = Contract.objects.create(
-            source_code=source_code,
-            multisig_address=multisig_address,
-            multisig_script=multisig_script,
-            interface=interface,
-            color_id=1,
-            amount=0
-        )
-
-        subscontract_source_code = 'contract AttributeLookup { \
+        contract_source_code = 'contract AttributeLookup { \
             event AttributesSet2(address indexed _sender, uint _timestamp); \
             mapping(int => int) public attributeLookupMap; \
             function setAttributes(int index, int value) { \
@@ -64,7 +29,7 @@ class WatchCase(TestCase):
             function getAttributes(int index) constant returns(int) { \
             return attributeLookupMap[index]; } }'
 
-        subcontract_interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
+        contract_interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
             "inputs": [{"name": "index", "type": "int256"}], \
             "constant": true, "payable": false, "name": "getAttributes", \
             "type": "function"}, {"outputs": [], "id": 2, \
@@ -78,18 +43,17 @@ class WatchCase(TestCase):
             {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
             "name": "AttributesSet2", "type": "event", "anonymous": false}]'
 
-        subcontract = SubContract.objects.create(
-            parent_contract=contract,
-            deploy_address="0000000000000000000000000000000000000157",
-            source_code=subscontract_source_code,
-            color_id=1,
+        contract = Contract.objects.create(
+            multisig_address=multisig_address_object,
+            contract_address="0000000000000000000000000000000000000157",
+            source_code=contract_source_code,
+            color=1,
             amount=0,
-            interface=subcontract_interface)
+            interface=contract_interface)
 
         self.watch = Watch.objects.create(
             event_name="AttributesSet2",
-            multisig_contract=contract,
-            subcontract=subcontract
+            contract=contract
         )
 
         self.url = "/events/watches/"
@@ -123,10 +87,10 @@ class WatchCase(TestCase):
         contract_address = "0000000000000000000000000000000000000157"
         event_name = "AttributesSet2"
 
-        is_matched, contract, subcontract = Watches()._event_exists(multisig_address, contract_address, event_name)
+        is_matched, contract = Watches()._event_exists(multisig_address, contract_address, event_name)
         self.assertTrue(is_matched)
-        self.assertEqual(contract.multisig_address, multisig_address)
-        self.assertEqual(subcontract.deploy_address, contract_address)
+        self.assertEqual(contract.multisig_address.address, multisig_address)
+        self.assertEqual(contract.contract_address, contract_address)
 
     @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
     def test_process_watch_event_successs(self):

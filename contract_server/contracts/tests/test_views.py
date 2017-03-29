@@ -352,7 +352,7 @@ class MultisigAddressesViewTest(TestCase):
     def test_create_contract_with_multisig_error(self):
         response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(json_data['code'], ERROR_CODE['multisig_error'])
+        self.assertEqual(json_data['errors'][0]['code'], ERROR_CODE['multisig_error'])
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
 
     def test_get_all_multisig_address(self):
@@ -364,7 +364,7 @@ class MultisigAddressesViewTest(TestCase):
         response = self.client.get(self.url + '?limit=2&offset=0')
         json_data = json.loads(response.content.decode('utf-8'))
 
-        self.assertEqual(len(json_data["multisig_addresses"]), 2)
+        self.assertEqual(len(json_data["data"]["multisig_addresses"]), 2)
 
 
 class ContractBindTest(TestCase):

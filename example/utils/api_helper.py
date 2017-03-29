@@ -26,65 +26,79 @@ API Call
 '''
 # GET
 def get_helper(url, payload={}):
-    json_string = ''
-    code = 500
-    try:
-        r = requests.get(url, params=payload)
-        if r.status_code == 200:
-            json_string = r.text
-        if 400 <= r.status_code < 500:
-            message = "Bad request, raw response body: {0}".format(r.text)
-            json_string = json.dumps({ 'message': message })
-        elif r.status_code >= 500:
-            message = "Server error, raw response body: {0}".format(r.text)
-            json_string = json.dumps({ 'message': message })
-        elif not r.status_code // 100 == 2:
-            message = "Error: Unexpected response {}".format(r)
-            json_string = json.dumps({ 'message': message })
-        code = r.status_code
-    except ConnectionError as e:
-        message = "Error: {}".format(e)
-        json_string = json.dumps({ 'message': message })
-        code = 500
-    except requests.exceptions.RequestException as e:
-        message =  "Ensure that the backend is working properly"
-        json_string = json.dumps({ 'message': message })
-        code = 500
-    finally:
-        return { 'data': json.loads(json_string), 'code': code }
+    # json_string = ''
+    # code = 500
+
+    r = requests.get(url, params=payload)
+
+    json_string = r.text
+    json_object = json.loads(json_string)
+    json_object["code"] = r.status_code
+    return json_object
+
+    # try:
+    #     r = requests.get(url, params=payload)
+    #     return json.loads(json_string)
+    #     if r.status_code == 200:
+    #         json_string = r.text
+    #     if 400 <= r.status_code < 500:
+    #         message = "Bad request, raw response body: {0}".format(r.text)
+    #         json_string = json.dumps({ 'message': message })
+    #     elif r.status_code >= 500:
+    #         message = "Server error, raw response body: {0}".format(r.text)
+    #         json_string = json.dumps({ 'message': message })
+    #     elif not r.status_code // 100 == 2:
+    #         message = "Error: Unexpected response {}".format(r)
+    #         json_string = json.dumps({ 'message': message })
+    #     code = r.status_code
+    # except ConnectionError as e:
+    #     message = "Error: {}".format(e)
+    #     json_string = json.dumps({ 'message': message })
+    #     code = 500
+    # except requests.exceptions.RequestException as e:
+    #     message =  "Ensure that the backend is working properly"
+    #     json_string = json.dumps({ 'message': message })
+    #     code = 500
+    # finally:
+    #     return { 'data': json.loads(json_string), 'code': code }
 
 #  POST
 def post_helper(url, data={}, headers={}, json_input={}):
     """
     Return handled json data
     """
-    json_string = ''
-    code = 500
-    try:
-        r = requests.post(url, data=data, headers=headers, json=json_input)
-        if r.status_code == 200:
-            json_string = r.text
-        if 400 <= r.status_code < 500:
-            message = "Bad request, raw response body: {0}".format(r.text)
-            json_string = json.dumps({ 'message': message })
-        elif r.status_code >= 500:
-            message = "Server error, raw response body: {0}".format(r.text)
-            json_string = json.dumps({ 'message': message })
-        elif not r.status_code // 100 == 2:
-            message = "Error: Unexpected response {}".format(r)
-            json_string = json.dumps({ 'message': message })
-
-        code = r.status_code
-    except ConnectionError as e:
-        message = "Error: {}".format(e)
-        json_string = json.dumps({ 'message': message })
-        code = 500
-    except requests.exceptions.RequestException as e:
-        message =  "Ensure that the backend is working properly"
-        json_string = json.dumps({ 'message': message })
-        code = 500
-    finally:
-        return { 'data': json.loads(json_string), 'code': code }
+    # json_string = ''
+    # code = 500
+    r = requests.post(url, data=data, headers=headers, json=json_input)
+    json_string = r.text
+    json_object = json.loads(json_string)
+    json_object["code"] = r.status_code
+    return json_object
+    # try:
+    #     r = requests.post(url, data=data, headers=headers, json=json_input)
+    #     if r.status_code == 200:
+    #         json_string = r.text
+    #     if 400 <= r.status_code < 500:
+    #         message = "Bad request, raw response body: {0}".format(r.text)
+    #         json_string = json.dumps({ 'message': message })
+    #     elif r.status_code >= 500:
+    #         message = "Server error, raw response body: {0}".format(r.text)
+    #         json_string = json.dumps({ 'message': message })
+    #     elif not r.status_code // 100 == 2:
+    #         message = "Error: Unexpected response {}".format(r)
+    #         json_string = json.dumps({ 'message': message })
+    #
+    #     code = r.status_code
+    # except ConnectionError as e:
+    #     message = "Error: {}".format(e)
+    #     json_string = json.dumps({ 'message': message })
+    #     code = 500
+    # except requests.exceptions.RequestException as e:
+    #     message =  "Ensure that the backend is working properly"
+    #     json_string = json.dumps({ 'message': message })
+    #     code = 500
+    # finally:
+        # return json.loads(json_string)
 
 def loadContract(filename):
     """Load solidty code and intergrate to one line
@@ -184,17 +198,17 @@ def signAndSendTx(raw_tx, from_privkey):
 
     response = post_helper(url, data=data)
     if response['code'] == 200:
-        return response['data']['tx_id']
+        return response['tx_id']
     else:
-        print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['data']))
+        print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['message']))
         raise
 
 
-def subscribeTx(tx_id):
+def subscribeTx(tx_id, callback_url=ORACLE_URL):
     """Subscribe to a Tx
     """
     url = OSS_URL + '/notification/v1/tx/subscription'
-    callback_url = ORACLE_URL + '/notify/' + tx_id
+    callback_url = callback_url + '/notify/' + tx_id
     data = {
         'tx_hash': tx_id,
         'callback_url': callback_url,
@@ -203,11 +217,28 @@ def subscribeTx(tx_id):
     # return post(url, data).json()
     response = post_helper(url, data=data)
     if response['code'] == 200:
-        return response['data']
+        return response
     else:
-        print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['data']))
+        print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['errors'][0]['message']))
         raise
 
+
+def subscribeAddress(multisig_address):
+    """Subscribe to a Tx
+    """
+    url = OSS_URL + '/notification/v1/address/subscription'
+    callback_url = CONTRACT_URL + '/notify'
+    data = {
+        'address': multisig_address,
+        'callback_url': callback_url
+    }
+    # return post(url, data).json()
+    response = post_helper(url, data=data)
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['errors'][0]['data']))
+        raise
 
 def is_contract_deployed(oracle_list, multisig_address, min_successes, deployed_list):
     time.sleep(18)
@@ -328,11 +359,11 @@ def getOracleList():
     """
     url = CONTRACT_URL + '/oracles/'
     # return get(url).json()
-    r =  get_helper(url)
+    r = get_helper(url)
     if r['code'] == 200:
-        return r['data']
+        return r
     else:
-        print(r['data'])
+        print(r)
         # [TODO] raise?
 
 
@@ -348,3 +379,93 @@ def watchEvent(data):
     else:
         print('[ResponseCode]:{} [Message]:{}'.format(response['code'], response['data']))
         raise
+
+# New Contract Architecture
+
+def watch_event(data):
+    """Watch a certain event of multisig_address
+    """
+
+    url = CONTRACT_URL + '/events/watches/'
+
+    response = post_helper(url, data=data)
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)
+
+
+def create_multisig_address(data):
+    """Prepare raw contract transaction
+    """
+    url = CONTRACT_URL + '/smart-contract/multisig-addresses/'
+    data = MultipartEncoder(data)
+    response = post_helper(url, data=data, headers={'Content-Type': data.content_type})
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)
+
+
+def create_contract(multisig_address, data):
+    """Prepare raw contract transaction
+    """
+    url = CONTRACT_URL + '/smart-contract/multisig-addresses/{}/contracts/'.format(multisig_address)
+
+    data = MultipartEncoder(data)
+    response = post_helper(url, data=data, headers={'Content-Type': data.content_type})
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print("response:{}".format(response))
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)
+
+
+def call_contract(multisig_address, contract_address, data):
+    """Call contract function
+    """
+    url = CONTRACT_URL + '/smart-contract/multisig-addresses/{}/contracts/{}/function/'.format(multisig_address, contract_address)
+
+    data = MultipartEncoder(data)
+    response = post_helper(url, data=data, headers={'Content-Type': data.content_type})
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)
+
+
+def check_state(multisig_address, tx_hash):
+    """Check if tx_hash related action is executed
+    """
+    url = CONTRACT_URL + '/states/checkupdate/{}/{}'.format(multisig_address, tx_hash)
+
+    response = get_helper(url)
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)
+
+
+def bind_contract(multisig_address, data):
+    """Call contract function
+    """
+    url = CONTRACT_URL + '/smart-contract/multisig-addresses/{}/bind/'.format(multisig_address)
+
+    data = MultipartEncoder(data)
+    response = post_helper(url, data=data, headers={'Content-Type': data.content_type})
+    if response['code'] == 200:
+        return response['data']
+    else:
+        print('[ResponseCode]:{} [Message]:{}'.format(response['errors'][0]['code'], response['errors'][0]['message']))
+        print(sys.exc_info())
+        sys.exit(1)

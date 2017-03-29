@@ -6,21 +6,20 @@ try:
 except:
     import httplib
 from django.test import TestCase
-from oracles.models import Contract, Oracle
+from oracles.models import Oracle
+from contracts.models import MultisigAddress
 
 
 class CheckUpdateTestCase(TestCase):
     def setUp(self):
         oracle1 = Oracle.objects.create(name="test1", url="0.0.0.0:123")
         oracle2 = Oracle.objects.create(name="test2", url="0.0.0.0:124")
-        contract = Contract.objects.create(
-            multisig_address='3LP9zszUXKQQox6EwZZEMKbQ6323tqGLLH',
-            least_sign_number=2,
-            color_id=1,
-            amount=0,
+        multisig_address_object = MultisigAddress.objects.create(
+            address='3LP9zszUXKQQox6EwZZEMKbQ6323tqGLLH',
+            least_sign_number=2
         )
-        contract.oracles.add(oracle1)
-        contract.oracles.add(oracle2)
+        multisig_address_object.oracles.add(oracle1)
+        multisig_address_object.oracles.add(oracle2)
         self.url = '/states/checkupdate/{multisig_address}/{tx_hash}'
         self.tx_hash = '091c6f6100000000000000000000000000000000000000000000000000000003'
         self.tx_hash_new = '091c6f6100000000000000000000000000000000000000000000000000000002'
@@ -32,7 +31,7 @@ class CheckUpdateTestCase(TestCase):
 
     def tearDown(self):
         Oracle.objects.all().delete()
-        Contract.objects.all().delete()
+        MultisigAddress.objects.all().delete()
 
     @mock.patch('evm_manager.views.requests')
     def test_check_update(self, mock_requests):
@@ -63,4 +62,4 @@ class CheckUpdateTestCase(TestCase):
         response = self.client.get(self.url.format(
             multisig_address=self.multisig_address_wrong, tx_hash=self.tx_hash))
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data.get('error')[0].get('code'), httplib.BAD_REQUEST)
+        self.assertEqual(data.get('errors')[0].get('code'), httplib.BAD_REQUEST)

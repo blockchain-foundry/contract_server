@@ -22,7 +22,7 @@ def _search_watch(logs):
     matching_watch_list = []
     for log in logs:
         for watch in watches:
-            if log['address'] == watch.contract_address:
+            if log['address'] == watch.contract.contract_address:
                 _decode_log(log, watch)
                 matching_watch_list.append(watch.id)
     return matching_watch_list
@@ -56,7 +56,6 @@ def _decode_log(log, watch):
     decoded_data = abi.decode_abi(non_indexed_types, data)
     indexed_count = 1
     non_indexed_count = 0
-
     for arg in watch.interface["inputs"]:
         item = {
             "name": arg["name"],
