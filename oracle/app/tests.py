@@ -42,7 +42,7 @@ class SignTest(TestCase):
         }
         Proposal.objects.create(source_code='fake_source_code',
                                 public_key='048cfd6643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052',
-                                address='fake_address', multisig_addr='36Q4vWxZ8co2h2UviEudacMwFadqL4TtBw')
+                                address='fake_address', multisig_address='36Q4vWxZ8co2h2UviEudacMwFadqL4TtBw')
         Keystore.objects.create(public_key='048cfd6643a92b2681a753521c056838f3d104a91af3bf37104dba698b4c75c5025ab25d96b600fef2d105b3e005e6e4ae2c234a58f54a8683762b05fd59935052',
                                 private_key='6572cb0d4f04391b2fb0d23778e4d8b9eb5512759aa62f0c03ac2d1b4d5e1d05')
 
@@ -87,7 +87,7 @@ class MultisigAddrTest(TestCase):
         pass
 
     @mock.patch("evm_manager.deploy_contract_utils.make_multisig_address_file", fake_make_multisig_address_file)
-    def test_set_multisig_addr(self):
+    def test_set_multisig_address(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)
 

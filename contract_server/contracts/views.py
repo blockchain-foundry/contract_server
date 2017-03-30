@@ -603,43 +603,48 @@ class DeployContract(APIView):
         multisig_address = multisig_address
         source_code = data['source_code']
         try:
-            try:
-                compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-            except Compiled_error as e:
-                return response_utils.error_response(httplib.BAD_REQUEST, str(e), ERROR_CODE['compiled_error'])
-            try:
-                multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
-            except Exception as e:
-                raise ObjectDoesNotExist('multisig not found')
-            nonce = get_nonce(multisig_address, sender_address)
-            contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
-            contract_address = hexlify(contract_address_byte).decode("utf-8")
-            contract = contracts.models.Contract(
-                source_code=source_code,
-                interface=interface,
-                contract_address=contract_address,
-                multisig_address=multisig_address_object,
-                color=1,
-                amount=0)
-            contract.save()
-            evm_input_code = ''
-            if 'function_inputs' in data:
-                function_inputs = data['function_inputs']
-                input_value = []
-                for i in function_inputs:
-                    input_value.append(i['value'])
-                function = get_constructor_function(interface)
-                evm_input_code = make_evm_constructor_code(function, input_value)
+            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+        except Compiled_error as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        try:
+            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+        except:
+            response = {
+                'code:': ERROR_CODE['multisig_address_not_found_error'],
+                'message': 'multisig_address_not_found_error'
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+        nonce = get_nonce(multisig_address, sender_address)
+        contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
+        contract_address = hexlify(contract_address_byte).decode("utf-8")
+        contract = contracts.models.Contract(
+            source_code=source_code,
+            interface=interface,
+            contract_address=contract_address,
+            multisig_address=multisig_address_object,
+            color=1,
+            amount=0)
+        contract.save()
+        evm_input_code = ''
+        if 'function_inputs' in data:
+            function_inputs = data['function_inputs']
+            input_value = []
+            for i in function_inputs:
+                input_value.append(i['value'])
+            function = get_constructor_function(interface)
+            evm_input_code = make_evm_constructor_code(function, input_value)
 
-            code = json.dumps({'source_code': compiled_code + evm_input_code,
-                               'multisig_addr': multisig_address, 'to_addr': contract_address})
+        code = json.dumps({'source_code': compiled_code + evm_input_code,
+                           'multisig_address': multisig_address, 'contract_address': contract_address})
 
-            tx_hex = OSSclient.deploy_contract_raw_tx(
-                sender_address, multisig_address, code, CONTRACT_FEE)
-            data = {'raw_tx': tx_hex, 'contract_address': contract_address}
-            return response_utils.data_response(data)
-        except Exception as e:
-            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
+        tx_hex = OSSclient.deploy_contract_raw_tx(
+            sender_address, multisig_address, code, CONTRACT_FEE)
+        data = {'raw_tx': tx_hex, 'contract_address': contract_address}
+        return response_utils.data_response(data)
 
 
 def _handle_payment_parameter_error(form):

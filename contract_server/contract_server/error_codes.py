@@ -2,6 +2,7 @@ ERROR_CODE = {
     # A SmartContract
     'contract_not_found_error': 'A000',
     'function_not_found_error': 'A001',
+    'multisig_address_not_found_error': 'A002',
 
     # E Solidity
     'compiled_error': 'E000',
