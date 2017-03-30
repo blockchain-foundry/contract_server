@@ -591,6 +591,14 @@ class DeployContract(APIView):
         interface = json.dumps(interface)
         return byte_code, interface
 
+    def _hash_op_return(self, tx_hex):
+        vouts = deserialize(tx_hex)['outs']
+        for vout in vouts:
+            if vout['color'] == 0:
+                print(vout['script'])
+                return hash(vout['script']) % (2**31)
+        raise Exception('tx_format_error') 
+
     def post(self, request, multisig_address, format=None):
         serializer = contracts.serializers.ContractSerializer(data=request.data)
         if serializer.is_valid():
@@ -619,16 +627,17 @@ class DeployContract(APIView):
             }
             return JsonResponse(response, status=httplib.BAD_REQUEST)
         nonce = get_nonce(multisig_address, sender_address)
+        nonce = nonce if nonce else 0
         contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
         contract_address = hexlify(contract_address_byte).decode("utf-8")
         contract = contracts.models.Contract(
             source_code=source_code,
             interface=interface,
-            contract_address=contract_address,
             multisig_address=multisig_address_object,
+            sender_evm_address=wallet_address_to_evm(sender_address),
+            sender_nonce_predicted=nonce,
             color=1,
             amount=0)
-        contract.save()
         evm_input_code = ''
         if 'function_inputs' in data:
             function_inputs = ast.literal_eval(data['function_inputs'])
@@ -643,6 +652,8 @@ class DeployContract(APIView):
 
         tx_hex = OSSclient.deploy_contract_raw_tx(
             sender_address, multisig_address, code, CONTRACT_FEE)
+        contract.hash_op_return=self._hash_op_return(tx_hex)
+        contract.save()
         data = {'raw_tx': tx_hex, 'contract_address': contract_address}
         return response_utils.data_response(data)
 

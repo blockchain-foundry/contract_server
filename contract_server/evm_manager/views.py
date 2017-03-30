@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
-from contracts.models import MultisigAddress
+from contracts.models import MultisigAddress, Contract
 from evm_manager.models import StateInfo
 from evm_manager import deploy_contract_utils
 from gcoinbackend import core as gcoincore
@@ -81,7 +81,21 @@ class CheckUpdate(APIView):
         except Exception as e:
             response = error_response(code=httplib.INTERNAL_SERVER_ERROR, message=str(e))
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
-
+        contract_address = None
+        try:
+            if contract_server_completed:
+                contract_address = Contract.models.get(
+                    multisig_address__address=multisig_address,
+                    tx_hash_init=tx_hash
+                ).contract_address
+        except ObjectDoesNotExist as e:
+            print(e)
+            pass
+        except Exception as e:
+            print(e)
+            response = error_response(code=httplib.INTERNAL_SERVER_ERROR, message=str(e))
+            return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
+            
         try:
             multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
             m, oracles = multisig_address_object.least_sign_number, multisig_address_object.oracles.all()
@@ -94,7 +108,10 @@ class CheckUpdate(APIView):
                         counter += 1
                 except Exception as e:
                     pass
-            response = std_response(completed=counter, total=len(oracles), min_completed_needed=m, contract_server_completed=contract_server_completed)
+            if contract_address:
+                response = std_response(completed=counter, total=len(oracles), min_completed_needed=m, contract_server_completed=contract_server_completed, contract_address=contract_address)
+            else:
+                response = std_response(completed=counter, total=len(oracles), min_completed_needed=m, contract_server_completed=contract_server_completed)
             return JsonResponse(response, status=httplib.OK)
         except ObjectDoesNotExist as e:
             response = error_response(code=httplib.BAD_REQUEST, message='multisig address not found on server')
