@@ -17,6 +17,188 @@ except ImportError:
     import httplib
 
 
+class ContractFunctionViewTest(TestCase):
+
+    def setUp(self):
+        # mock contract
+        self.multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
+        self.multisig_script = '51210224015f5f489cf8c7d558ed306daa23448a69c645aaa835981189699a143a4f5751ae'
+        self.multisig_address_object = MultisigAddress.objects.create(
+            address=self.multisig_address,
+            script=self.multisig_script,
+            least_sign_number=1
+        )
+        self.contract_address = '5025114d3ddd53a5629739f917b5e00743cf9753'
+        self.source_code = 'contract AttributeLookup { \
+            event AttributesSet(address indexed _sender, uint _timestamp); \
+            mapping(int => int) public attributeLookupMap; \
+            function setAttributes(int index, int value) { \
+            attributeLookupMap[index] = value; AttributesSet(msg.sender, now); } \
+            function getAttributes(int index) constant returns(int) { \
+            return attributeLookupMap[index]; } }'
+        self.interface = '[{"outputs": [{"name": "", "type": "int256"}], "id": 1, \
+            "inputs": [{"name": "index", "type": "int256"}], \
+            "constant": true, "payable": false, "name": "getAttributes", \
+            "type": "function"}, {"outputs": [], "id": 2, \
+            "inputs": [{"name": "index", "type": "int256"}, \
+            {"name": "value", "type": "int256"}], \
+            "constant": false, "payable": false, "name": "setAttributes", \
+            "type": "function"}, {"outputs": [{"name": "", "type": "int256"}], \
+            "id": 3, "inputs": [{"name": "", "type": "int256"}], "constant": true, \
+            "payable": false, "name": "attributeLookupMap", "type": "function"}, \
+            {"id": 4, "inputs": [{"indexed": true, "name": "_sender", "type": "address"}, \
+            {"indexed": false, "name": "_timestamp", "type": "uint256"}], \
+            "name": "AttributesSet", "type": "event", "anonymous": false}]'
+        self.contract = contracts.models.Contract.objects.create(
+            source_code=self.source_code,
+            interface=self.interface,
+            contract_address=self.contract_address,
+            multisig_address=self.multisig_address_object,
+            color=1,
+            amount=0
+        )
+
+        self.url = '/smart-contract/multisig-addresses/' + self.multisig_address + '/contracts/'\
+            + self.contract_address + '/function/'
+
+        function_inputs = [
+            {
+                'name': 'index',
+                'type': 'int',
+                'value': 1
+            }
+        ]
+
+        self.sample_form = {
+            'sender_address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
+            'amount': 1,
+            'color': 1,
+            'function_name': 'getAttributes',
+            'function_inputs': str(function_inputs)
+        }
+
+    def fake_operate_contract_raw_tx(self, from_address, to_address, amount, color_id, compiled_code, contract_fee):
+        return 'fake tx hex'
+
+    def fake_call_constant_function(sender_addr, multisig_addr, byte_code, value, to_addr):
+        return {
+            'out': 'fake contstant call result',
+        }
+
+    def fake_decode_evm_output(interface, function_name, out):
+        return {
+            'function_outputs': 'fake funciton output'
+        }
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_make_non_constant_function_call_tx(self):
+        self.sample_form['function_name'] = 'setAttributes'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    @mock.patch("contracts.views._call_constant_function", fake_call_constant_function)
+    @mock.patch("contracts.views.decode_evm_output", fake_decode_evm_output)
+    def test_make_constant_function_call_tx(self):
+        # Need more tests in detail.
+        self.sample_form['function_name'] = 'getAttributes'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_make_non_exist_function_call_tx(self):
+        self.sample_form['function_name'] = 'non_exist_function_name'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_post_with_non_exist_multisig_address(self):
+        # non exist multisig
+        self.url = '/smart-contract/multisig-addresses/339AXdNwaLddddPw8mkwbnJnY8CetBbUP4/\
+            contracts/123/function/'
+        self.sample_form['function_name'] = 'non_exist_function_name'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_FOUND)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_post_with_wrong_api_version(self):
+        # non exist multisig
+        self.url = '/contracts/339AXdNwaLddddPw8mkwbnJnY8CetBbUP4/'
+        self.sample_form['apiVersion'] = 'wrong_api'
+        response = self.client.post(self.url, self.sample_form)
+        json_data = json.loads(response.content.decode('utf-8'))
+        self.assertEqual(json_data['errors'][0]['message'], 'Wrong api version')
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
+
+    def test_miss_field_form(self):
+        required_field = ['function_name', 'function_inputs', 'sender_address', 'color', 'amount']
+        for field in required_field:
+            miss_field_params = dict(self.sample_form)
+            del miss_field_params[field]
+            response = self.client.post(self.url, miss_field_params)
+            self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+
+class DeployContractViewTest(TestCase):
+
+    def setUp(self):
+        self.multisig_address = "3QNNj5LFwt4fD9y8kQsMFibrELih1FCUZM"
+        self.multisig_script = "51210243cdd388d600f1202ac13c70bb7bf93b80ff6a20bc39760dc389ecf8ef9f000251ae"
+        MultisigAddress.objects.create(
+            address=self.multisig_address,
+            script=self.multisig_script,
+            least_sign_number=1
+        )
+
+        self.url = '/smart-contract/multisig-addresses/' + self.multisig_address + '/contracts/'
+        with open('./contracts/test_files/test_source_code', 'r') as source_code_file:
+            source_code = source_code_file.read().replace('\n', '')
+
+        self.sample_form = {
+            'source_code': source_code,
+            'sender_address': '1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq',
+            "contract_name": "abc",
+            "conditions": "[]"
+        }
+
+    def fake_deploy_contract_raw_tx(self, address, multisig_addr, code, CONTRACT_FEE):
+        tx_hex = "fake tx hex"
+        return tx_hex
+
+    def fake_compile_code_and_interface(self, source_code, contract_name):
+        with open('./contracts/test_files/test_binary', 'r') as test_binary_code_file:
+            test_binary_code = test_binary_code_file.read().replace('\n', '')
+        with open('./contracts/test_files/test_interface', 'r') as test_abi_file:
+            test_interface = test_abi_file.read().replace('\n', '')
+        return test_binary_code, test_interface
+
+    def fake_get_nonce(multisig_address, sender_address):
+        return 1
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.deploy_contract_raw_tx", fake_deploy_contract_raw_tx)
+    @mock.patch("contracts.views.DeployContract._compile_code_and_interface", fake_compile_code_and_interface)
+    @mock.patch("contracts.views.get_nonce", fake_get_nonce)
+    def test_create_contract(self):
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+
+    def test_miss_field_form(self):
+        required_field = ['source_code', 'sender_address', 'contract_name']
+        for field in required_field:
+            miss_field_params = dict(self.sample_form)
+            del miss_field_params[field]
+            response = self.client.post(self.url, miss_field_params)
+            self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+    def test_wrong_code(self):
+        required_field = ['source_code', 'contract_name']
+        for field in required_field:
+            wrong_field_params = dict(self.sample_form)
+            wrong_field_params[field] = 'wrong'
+            response = self.client.post(self.url, wrong_field_params)
+            self.assertNotEqual(response.status_code, httplib.OK)
+
+
 class ContractFuncTest(TestCase):
 
     def setUp(self):

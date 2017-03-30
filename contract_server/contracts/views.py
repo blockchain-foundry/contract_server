@@ -596,7 +596,7 @@ class DeployContract(APIView):
         if serializer.is_valid():
             data = serializer.data
         else:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors), ERROR_CODE['form_error'])
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors), ERROR_CODE['form_invalid_error'])
 
         contract_name = data['contract_name']
         sender_address = data['sender_address']
@@ -604,7 +604,7 @@ class DeployContract(APIView):
         source_code = data['source_code']
         try:
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-        except Compiled_error as e:
+        except Exception as e:
             response = {
                 'code:': ERROR_CODE['compiled_error'],
                 'message': str(e)
@@ -631,7 +631,7 @@ class DeployContract(APIView):
         contract.save()
         evm_input_code = ''
         if 'function_inputs' in data:
-            function_inputs = data['function_inputs']
+            function_inputs = ast.literal_eval(data['function_inputs'])
             input_value = []
             for i in function_inputs:
                 input_value.append(i['value'])
@@ -854,7 +854,7 @@ class ContractFunction(APIView):
         if serializer.is_valid():
             data = serializer.data
         else:
-            response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'form invalid')
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'form invalid')
         sender_address = data['sender_address']
         function_name = data['function_name']
         function_inputs = ast.literal_eval(data['function_inputs'])

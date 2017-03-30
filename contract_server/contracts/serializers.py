@@ -17,6 +17,7 @@ class ContractSerializer(serializers.Serializer):
     sender_address = serializers.CharField()
     source_code = serializers.CharField()
     contract_name = serializers.CharField()
+    function_inputs = serializers.CharField(required=False)
     conditions = serializers.CharField(required=False)
 
 
