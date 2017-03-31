@@ -1,5 +1,6 @@
 from django.db import models
 from oracles.models import Oracle
+import hashlib
 
 
 class MultisigAddress(models.Model):
@@ -26,6 +27,10 @@ class Contract(models.Model):
     sender_evm_address = models.CharField(max_length=100, blank=True, default='')
     sender_nonce_predicted = models.IntegerField(default=-1)
     is_deployed = models.BooleanField(default=False)
+
+    @classmethod
+    def make_hash_op_return(cls, op_return):
+        return int(hashlib.sha1(op_return.encode('utf-8')).hexdigest(), 16) % (2 ** 31)
 
     class Meta:
         ordering = ('created',)

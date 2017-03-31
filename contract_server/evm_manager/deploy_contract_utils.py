@@ -8,6 +8,7 @@ import time
 from threading import Lock
 from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm
+from .contract_server_utils import set_contract_address
 from .models import StateInfo
 import logging
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
@@ -197,6 +198,8 @@ def deploy_to_evm(sender_addr, multisig_address, byte_code, value, is_deploy, co
         if state.latest_tx_hash == ex_tx_hash:
             try:
                 check_call(command, shell=True)
+                if is_deploy:
+                    set_contract_address(multisig_address, contract_address, sender_hex, tx)
                 inc_nonce(contract_path, wallet_address_to_evm(sender_addr))
                 state.latest_tx_hash = tx_hash
                 state.latest_tx_time = _time
