@@ -274,7 +274,7 @@ def apply_deploy_contract(multisig_address, source_code, contract_name, function
     print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
     print(">>> Mining transaction....")
 
-    return contract_address, tx_hash
+    return tx_hash
 
 
 def apply_transaction_call_contract(multisig_address, contract_address, function_name, function_inputs, sender_address, privkey):
@@ -327,7 +327,11 @@ def apply_call_constant_contract(multisig_address, contract_address, function_na
 
 
 def apply_check_state(multisig_address, tx_hash):
-    """Return constant output (function_outputs)
+    """Check if state is updated
+
+    Returns:
+        is_updated: is state updated
+        contract_address: deployed address
     """
     print('\n[Check state] {} @{}'.format(tx_hash, multisig_address))
 
@@ -342,9 +346,13 @@ def apply_check_state(multisig_address, tx_hash):
         print(">>> [{}/{}] {} of {} oracle(s) confirmed and contract_server_completed:{} for {}".format(
             completed, min_completed_needed, completed, total, contract_server_completed, tx_hash))
         if min_completed_needed <= completed and contract_server_completed is True:
-            return True
+            if ("contract_address" in data_response):
+                contract_address = data_response["contract_address"]
+                return True, contract_address
+            else:
+                return True, ""
         elif counter > timeout_count:
-            return False
+            return False, ""
         else:
             counter += 1
             time.sleep(5)

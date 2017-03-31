@@ -28,13 +28,13 @@ def test_deploy_multi_contracts_script():
             "type": "int256",
             "value": "1234"
         }])
-    contract_address, tx_hash = action.apply_deploy_contract(
+    tx_hash = action.apply_deploy_contract(
         multisig_address=multisig_address,
         source_code=source_code, contract_name=contract_name,
         function_inputs=function_inputs,
         sender_address=owner_address, privkey=owner_privkey)
 
-    action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
+    is_updated, contract_address = action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
 
     """
     Call First Contract (constant)
@@ -62,13 +62,13 @@ def test_deploy_multi_contracts_script():
             "type": "string",
             "value": "SubContract constructor"
         }])
-    contract_address2, tx_hash = action.apply_deploy_contract(
+    tx_hash = action.apply_deploy_contract(
         multisig_address=multisig_address,
         source_code=source_code, contract_name=contract_name,
         function_inputs=function_inputs,
         sender_address=owner_address, privkey=owner_privkey)
 
-    action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
+    is_updated, contract_address2 = action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
 
     """
     Call Second Contract (constant)
@@ -103,27 +103,9 @@ def test_deploy_multi_contracts_script():
         function_name=function_name, function_inputs=function_inputs,
         sender_address=owner_address)
     print('>>> function_outputs:{}'.format(function_outputs))
-    # Constant Function Call
-    # function_name = 'greet'
-    # function_inputs = str([])
-    # from_address = owner_address
-    # deploy_address = second_multisig_address
-    # function_outputs = apply_call_constant_sub_contract(multisig_address, deploy_address, function_name, function_inputs, from_address)
-    # print('>>> function_outputs:{}'.format(function_outputs))
-    #
-    # # Transaciton Call
-    # apply_transaction_call_sub_contract(
-    #     multisig_address=multisig_address,
-    #     deploy_address=second_multisig_address,
-    #     function_name='setgreeter',
-    #     function_inputs='[{"name": "_greeting", "type": "string", "value":"Hello World"}]',
-    #     from_address=owner_address,
-    #     privkey=owner_privkey)
-    # print('>>> Wait 60s.....')
-    # time.sleep(60)
 
     """
-    Deploy 5 more Contracts
+    Deploy 2 more Contracts
     """
     counter = 0
     while(counter < 5):
@@ -138,13 +120,13 @@ def test_deploy_multi_contracts_script():
                 "type": "string",
                 "value": "SubContract constructor"
             }])
-        contract_address, tx_hash = action.apply_deploy_contract(
+        tx_hash = action.apply_deploy_contract(
             multisig_address=multisig_address,
             source_code=source_code, contract_name=contract_name,
             function_inputs=function_inputs,
             sender_address=owner_address, privkey=owner_privkey)
 
-        action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
+        is_updated, contract_address = action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
 
     print('[END] test_multi_contracts')
 

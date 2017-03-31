@@ -60,13 +60,13 @@ def deploy_registry_contract(multisig_address):
             "type": "address",
             "value": "0000000000000000000000000000000000000001"
         }])
-    contract_address, tx_hash = action.apply_deploy_contract(
+    tx_hash = action.apply_deploy_contract(
         multisig_address=multisig_address,
         source_code=source_code, contract_name=contract_name,
         function_inputs=function_inputs,
         sender_address=owner_address, privkey=owner_privkey)
 
-    action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
+    is_updated, contract_address = action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
     print('[END] deploy_registry_contract')
     return contract_address
 
@@ -80,13 +80,13 @@ def deploy_proxy_contract(multisig_address, contract_name):
     source_code = api_helper.loadContract(contract_file)
     contract_name = contract_name
     function_inputs = str([])
-    contract_address, tx_hash = action.apply_deploy_contract(
+    tx_hash = action.apply_deploy_contract(
         multisig_address=multisig_address,
         source_code=source_code, contract_name=contract_name,
         function_inputs=function_inputs,
         sender_address=owner_address, privkey=owner_privkey)
 
-    action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
+    is_updated, contract_address = action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
     print('[END] deploy_proxy_contract: {}'.format(contract_name))
     return contract_address
 
