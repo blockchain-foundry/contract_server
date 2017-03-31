@@ -921,7 +921,7 @@ class Bind(BaseFormView, CsrfExemptMixin):
             original_contract_address = form.cleaned_data['original_contract_address']
 
             try:
-                original_contract = contracts.models.Contract.objects.get(contract_address=original_contract_address, multisig_address__address=multisig_address)
+                original_contract = contracts.models.Contract.objects.get(contract_address=original_contract_address, multisig_address__address=multisig_address, is_deployed=True)
             except Exception as e:
                 # Todo
                 return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
@@ -933,7 +933,9 @@ class Bind(BaseFormView, CsrfExemptMixin):
                     amount=original_contract.amount,
                     interface=original_contract.interface,
                     contract_address=new_contract_address,
-                    multisig_address=original_contract.multisig_address
+                    multisig_address=original_contract.multisig_address,
+                    is_deployed=True,
+                    hash_op_return=original_contract.hash_op_return
                 )
 
                 if created:

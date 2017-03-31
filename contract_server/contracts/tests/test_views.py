@@ -576,7 +576,8 @@ class ContractBindTest(TestCase):
             amount=self.amount,
             interface=self.interface,
             contract_address=self.contract_address,
-            multisig_address=self.multisig_address
+            multisig_address=self.multisig_address,
+            is_deployed=True,
             )
         self.url = '/smart-contract/multisig-addresses/' + self.address + '/bind/'
 
