@@ -596,7 +596,7 @@ class DeployContract(APIView):
         for vout in vouts:
             if vout['color'] == 0:
                 print(vout['script'])
-                return hash(vout['script']) % (2**31)
+                return contracts.models.Contract.make_hash_op_return(vout['script'])
         raise Exception('tx_format_error') 
 
     def post(self, request, multisig_address, format=None):

@@ -84,14 +84,16 @@ class CheckUpdate(APIView):
         contract_address = None
         try:
             if contract_server_completed:
-                contract_address = Contract.models.get(
+                contract_address = Contract.objects.get(
                     multisig_address__address=multisig_address,
-                    tx_hash_init=tx_hash
+                    tx_hash_init=tx_hash,
+                    is_deployed=True
                 ).contract_address
         except ObjectDoesNotExist as e:
             print(e)
             pass
         except Exception as e:
+
             print(e)
             response = error_response(code=httplib.INTERNAL_SERVER_ERROR, message=str(e))
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
