@@ -879,8 +879,8 @@ class ContractFunction(APIView):
 
             code = json.dumps({
                 "function_inputs_hash": evm_input_code,
-                "multisig_addr": multisig_address,
-                "to_addr": contract_address
+                "multisig_address": multisig_address,
+                "contract_address": contract_address
             })
 
             if not is_constant:
