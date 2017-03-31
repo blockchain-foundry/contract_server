@@ -20,20 +20,27 @@ from example.conf import (owner_address, owner_privkey, owner_pubkey,
 from example.utils.encode_function_data import encode_function_data
 from example.utils import action
 from example.utils import api_helper
-
-user1_address = owner_address
-user1_privkey = owner_privkey
-user1_evmAddr = api_helper.wallet_address_to_evm_address(owner_address)
+import gcoin
 
 user2_address = "15QzWKknjaT3m3R2TgpbieEGZVT4R7VjvN"
 user2_privkey = "L2CWz4fw6LieNcnhorx63ZtnryBKJaKysaohcacYW6SybPP4FzBL"
-user2_evmAddr = "14f896224568dcf07c3034250d942b1a4114a88b"
+user2_evmAddr = api_helper.wallet_address_to_evm_address(user2_address)
 
-user3_address = "158tHLs4G5nzwbkDPz4jnUqm9PfECYJ5Zh"
-user3_privkey = "KxxoZP52apTUBDjKjZ8Zpn6jzhjacrbsCezcJRJDhaw3dP3GwPXM"
-user3_evmAddr = "5a22ff4d00eb319cb1009a4a3c4e6f6baaad0955"
-
+users = []
 current_event = ""
+
+
+def generate_users():
+    for x in range(1, 11):
+        priv = gcoin.sha256("user" + str(x))
+        addr = gcoin.pubtoaddr(gcoin.privtopub(priv))
+        evm_address = api_helper.wallet_address_to_evm_address(addr)
+        user = {
+            "gcoin_address": addr,
+            "privkey": priv,
+            "evm_address": evm_address
+        }
+        users.append(user)
 
 
 def watch_event(multisig_address, contract_address, event_name, conditions):
@@ -43,7 +50,8 @@ def watch_event(multisig_address, contract_address, event_name, conditions):
 
 def call_identity_factory(
         multisig_address, identity_factory_address,
-        userKey, delegates, longTimeLock, shortTimeLock):
+        delegates, longTimeLock, shortTimeLock,
+        user):
     """
     Call IdentityFactory.CreateProxyWithControllerAndRecovery(
         address userKey,
@@ -51,6 +59,7 @@ def call_identity_factory(
         uint longTimeLock,
         uint shortTimeLock)
     """
+    userKey = user['evm_address']
     print('[START] call_identity_factory CreateProxyWithControllerAndRecovery({}, {}, {}, {})'.format(userKey, delegates, longTimeLock, shortTimeLock))
 
     event_name = "IdentityCreated"
@@ -74,7 +83,7 @@ def call_identity_factory(
     tx_hash = action.apply_transaction_call_contract(
         multisig_address=multisig_address, contract_address=identity_factory_address,
         function_name=function_name, function_inputs=function_inputs,
-        sender_address=owner_address, privkey=owner_privkey)
+        sender_address=user["gcoin_address"], privkey=user["privkey"])
 
     action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
 
@@ -92,23 +101,25 @@ def call_identity_factory(
     return controller_address, proxy_address, recovery_address
 
 
-if __name__ == '__main__':
-    print("[START] Creat vPort account")
-    multisig_address = '3AzSoAKnekjmWox74FrzRH5tiWjAo29Jem'
-    registry_address = 'ce444cb8ee20e79030e48175331bb8dd2dcb7249'
-    controller_address = '823a859e21671074fe844bf44399985e8b8be99f'
-    proxy_address = 'bdbc27691db039e665148dedce85b8d1c162ecd7'
-    recovery_address = '50cd8a99e2557b30046bfa8160843d9e4ccb3bc8'
-    identity_factory_address = '3300f5d521dc76f8a5e99d848bc4ae91a209f7c5'
+def new_account(user):
 
-    userKey = user1_evmAddr
+    print("[START] Creat vPort account")
+    multisig_address = '3J2fJondfkDa9eVYN4m7HUr2vs3NusNdWv'
+    registry_address = 'c6ecb4ce7ddd2acf03eaf8f85b884de95e5be4f0'
+    controller_address = '718f770a52ac1926302f42d99637cc96634fcf6c'
+    proxy_address = '5c96b5a9cdd080d009a5f9b39233bb852a1d0604'
+    recovery_address = '2f5816810f255cb57e3a9e5ef92a5a5deda15ea5'
+    identity_factory_address = '4f8c35f1ca068863047fcdb4a3c4f82f565aadb8'
+
+    # userKey = user['evm_address']
     delegates = [user2_evmAddr]
     longTimeLock = 0
     shortTimeLock = 0
 
     new_controller_address, new_proxy_address, new_recovery_address = call_identity_factory(
         multisig_address, identity_factory_address,
-        userKey, delegates, longTimeLock, shortTimeLock)
+        delegates, longTimeLock, shortTimeLock,
+        user)
     is_success = action.apply_bind_contract(multisig_address, new_controller_address, controller_address)
     if is_success is False:
         raise
@@ -127,3 +138,62 @@ if __name__ == '__main__':
     print("    identity_factory_address = '{}'".format(identity_factory_address))
 
     print("[END] vPort account is created!")
+
+    return new_controller_address, new_proxy_address, new_recovery_address
+
+
+def maxtime(self, ts):
+    global MAXTIME
+    if ts > MAXTIME:
+        MAXTIME = ts
+
+
+def mintime(self, ts):
+    global MINTIME
+    if ts < MINTIME:
+        MINTIME = ts
+
+
+def main():
+    print("User " + sys.argv[1])
+    user_id = int(sys.argv[1])
+
+    generate_users()
+    print(users[user_id])
+
+    counter = 1
+    testing_times = 10
+    testing_logs = []
+    time_spans = []
+
+    while(counter <= testing_times):
+        print("========= Round {} ========".format(counter))
+
+        start_time = time.time()
+        new_controller_address, new_proxy_address, new_recovery_address = new_account(users[user_id])
+        time_span = time.time() - start_time
+
+        testing_log = {
+            "new_controller_address": new_controller_address,
+            "new_proxy_address": new_proxy_address,
+            "new_recovery_address": new_recovery_address,
+            "time_span": time_span
+        }
+        time_spans.append(time_span)
+        testing_logs.append(testing_log)
+        counter += 1
+        print("time_span: {}".format(time_span))
+
+    time_total = 0
+    for x in range(0, testing_times):
+        time_total += time_spans[x]
+
+    print("testing_logs: {}".format(testing_logs))
+    print("time_spans: {}".format(time_spans))
+
+    print("\ntotal time: {}".format(time_total))
+    print("average time span: %0.3f" % (time_total / testing_times))
+
+
+if __name__ == '__main__':
+    main()

@@ -192,7 +192,7 @@ def apply_get_contract_status(multisig_address):
 
 
 # @accepts(str, str, str)
-def apply_watch_event(multisig_address, contract_address, event_name):
+def apply_watch_event(multisig_address, contract_address, event_name, conditions=""):
     """Apply watching event
 
     Args:
@@ -203,11 +203,12 @@ def apply_watch_event(multisig_address, contract_address, event_name):
     Returns:
         event
     """
-    print('\n[Watching Event] name:{} @{}/{}'.format(event_name, multisig_address, contract_address))
+    print('\n[Watching Event] name:{} @ {} / {} ; conditions: {}'.format(event_name, multisig_address, contract_address, conditions))
     data = {
         'multisig_address': multisig_address,
         'event_name': event_name,
-        'contract_address': contract_address
+        'contract_address': contract_address,
+        'conditions': conditions
     }
 
     response_data = api_helper.watch_event(data)

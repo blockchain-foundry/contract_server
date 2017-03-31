@@ -23,8 +23,11 @@ def _search_watch(logs):
     for log in logs:
         for watch in watches:
             if log['address'] == watch.contract.contract_address:
-                _decode_log(log, watch)
-                matching_watch_list.append(watch.id)
+                result = _decode_log(log, watch)
+                if _is_conditions_matching(watch.conditions_list, result["args"]):
+                    watch.args = json.dumps(result["args"])
+                    watch.save()
+                    matching_watch_list.append(watch.id)
     return matching_watch_list
 
 
@@ -75,9 +78,6 @@ def _decode_log(log, watch):
         item = evm_abi_utils.wrap_decoded_data(item)
         result.append(item)
 
-    watch.args = json.dumps(result)
-    watch.save()
-
     return {"args": result}
 
 
@@ -99,3 +99,24 @@ def check_watch(tx_hash, multisig_address):
         logs = content['logs']
 
     return _search_watch(logs)
+
+
+def _is_condition_matching(condition, arg):
+    if (condition["name"] == arg["name"] and
+            condition["type"] == arg["type"] and
+            condition["value"] == arg["value"]):
+        return True
+    elif (
+            condition["name"] != arg["name"] or
+            condition["type"] != arg["type"]):
+        return True
+    else:
+        return False
+
+
+def _is_conditions_matching(conditions_list, args):
+    for x in conditions_list:
+        for y in args:
+            if not _is_condition_matching(x, y):
+                return False
+    return True

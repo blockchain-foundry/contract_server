@@ -51,7 +51,14 @@ class StateLogUtilsTest(TestCase):
 
         Watch.objects.create(
             event_name=EVENT_NAME,
-            contract=contract
+            contract=contract,
+            conditions=str([{"value": "hello world", "type": "string", "name": "event_string"}])
+        )
+
+        Watch.objects.create(
+            event_name=EVENT_NAME,
+            contract=contract,
+            conditions=str([{"value": "NOT MATCHING", "type": "string", "name": "event_string"}])
         )
 
     def test_decode_logs(self):
@@ -86,3 +93,63 @@ class StateLogUtilsTest(TestCase):
             f.write(logs_str)
         matching_watch_list = state_log_utils.check_watch(tx_hash, self.multisig_address)
         self.assertEqual(len(matching_watch_list), 2)
+
+    def test_is_condition_matching(self):
+        condition = {
+            "name": "condition",
+            "type": "uint256",
+            "value": 1
+        }
+        arg = {
+            "name": "condition",
+            "type": "uint256",
+            "value": 1
+        }
+        is_match = state_log_utils._is_condition_matching(condition, arg)
+        self.assertTrue(is_match)
+
+        condition = {
+            "name": "not_this_condition",
+            "type": "uint256",
+            "value": 1
+        }
+        is_match = state_log_utils._is_condition_matching(condition, arg)
+        self.assertTrue(is_match)
+
+        condition = {
+            "name": "condition",
+            "type": "uint256",
+            "value": 2
+        }
+        is_match = state_log_utils._is_condition_matching(condition, arg)
+        self.assertFalse(is_match)
+
+    def test_is_conditions_matching(self):
+        conditions_list = [
+            {
+                "name": "condition1",
+                "type": "uint256",
+                "value": 1
+            },
+            {
+                "name": "condition2",
+                "type": "string",
+                "value": "hello"
+            }
+        ]
+
+        args = [
+            {
+                "name": "condition1",
+                "type": "uint256",
+                "value": 1
+            },
+            {
+                "name": "condition2",
+                "type": "string",
+                "value": "hello"
+            }
+        ]
+
+        is_match = state_log_utils._is_conditions_matching(conditions_list, args)
+        self.assertTrue(is_match)
