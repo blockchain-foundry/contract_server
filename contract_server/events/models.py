@@ -33,8 +33,8 @@ class Watch(models.Model):
     event_name = models.CharField(max_length=200)
     args = models.CharField(max_length=5000, blank=True, default="")
     is_closed = models.BooleanField(default=False)
-    # multisig_contract = models.ForeignKey(Contract, related_name='watch', blank=True, null=True)
     contract = models.ForeignKey(Contract, related_name='watch', blank=True, null=True)
+    conditions = models.CharField(max_length=5000, blank=True, default="")
 
     objects = WatchManager()
 
@@ -66,6 +66,13 @@ class Watch(models.Model):
         """
         interface = self._get_event_by_name(self.contract.interface)
         return interface
+
+    @property
+    def conditions_list(self):
+        conditions_list = []
+        if self.conditions != "":
+            conditions_list = json.loads(self.conditions.replace("'", '"'))
+        return conditions_list
 
     def _get_event_by_name(self, interface):
         """
