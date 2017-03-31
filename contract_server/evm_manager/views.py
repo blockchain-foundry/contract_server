@@ -44,7 +44,7 @@ def check_state(multisig_address, tx_hash):
     if latest_tx_hash == no_data:
         return False
 
-    if multisig_address != deploy_contract_utils.get_multisig_addr(tx_hash):
+    if multisig_address != deploy_contract_utils.get_multisig_address(tx_hash):
         return False
 
     try:
