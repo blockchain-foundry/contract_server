@@ -2,6 +2,7 @@ from django.db import models
 from oracles.models import Oracle
 import hashlib
 
+
 class MultisigAddress(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     address = models.CharField(max_length=100, blank=True, default='')
@@ -29,8 +30,6 @@ class Contract(models.Model):
 
     @classmethod
     def make_hash_op_return(cls, op_return):
-        print("*********")
-        print(op_return)
         return int(hashlib.sha1(op_return.encode('utf-8')).hexdigest(), 16) % (2 ** 31)
 
     class Meta:

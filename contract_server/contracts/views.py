@@ -595,9 +595,8 @@ class DeployContract(APIView):
         vouts = deserialize(tx_hex)['outs']
         for vout in vouts:
             if vout['color'] == 0:
-                print(vout['script'])
                 return contracts.models.Contract.make_hash_op_return(vout['script'])
-        raise Exception('tx_format_error') 
+        raise Exception('tx_format_error')
 
     def post(self, request, multisig_address, format=None):
         serializer = contracts.serializers.ContractSerializer(data=request.data)
@@ -652,7 +651,7 @@ class DeployContract(APIView):
 
         tx_hex = OSSclient.deploy_contract_raw_tx(
             sender_address, multisig_address, code, CONTRACT_FEE)
-        contract.hash_op_return=self._hash_op_return(tx_hex)
+        contract.hash_op_return = self._hash_op_return(tx_hex)
         contract.save()
         data = {'raw_tx': tx_hex, 'contract_address': contract_address}
         return response_utils.data_response(data)

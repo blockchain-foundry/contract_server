@@ -93,11 +93,9 @@ class CheckUpdate(APIView):
             print(e)
             pass
         except Exception as e:
-
-            print(e)
             response = error_response(code=httplib.INTERNAL_SERVER_ERROR, message=str(e))
             return JsonResponse(response, status=httplib.INTERNAL_SERVER_ERROR)
-            
+
         try:
             multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
             m, oracles = multisig_address_object.least_sign_number, multisig_address_object.oracles.all()

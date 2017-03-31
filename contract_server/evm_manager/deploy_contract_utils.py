@@ -233,10 +233,6 @@ def deploy_contracts(tx_hash):
         else:
             return False
 
-    state, created = StateInfo.objects.get_or_create(multisig_address=multisig_address)
-    state.latest_tx_hash = ''
-    state.latest_tx_time = ''
-    state.save()
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
 
