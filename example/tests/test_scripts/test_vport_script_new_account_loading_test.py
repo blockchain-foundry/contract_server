@@ -48,6 +48,7 @@ def watch_event(multisig_address, contract_address, event_name, conditions):
     response_data = action.apply_watch_event(multisig_address, contract_address, event_name, conditions)
     current_event = response_data['event']
 
+
 def call_identity_factory(
         multisig_address, identity_factory_address,
         delegates, longTimeLock, shortTimeLock,
@@ -87,8 +88,10 @@ def call_identity_factory(
 
     action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
 
+    global current_event
     t1.join()
     event = current_event
+    current_event = ""
     for item in event['args']:
         if item['name'] == 'controller':
             controller_address = item['value']
@@ -96,20 +99,20 @@ def call_identity_factory(
             proxy_address = item['value']
         elif item['name'] == 'recoveryQuorum':
             recovery_address = item['value']
-    print('[END] call_identity_factory CreateProxyWithControllerAndRecovery({}, {}, {}, {})'.format(userKey, delegates, longTimeLock, shortTimeLock))
-
+    print("\n>>>> event: {}".format(event))
+    print('\n[END] call_identity_factory CreateProxyWithControllerAndRecovery({}, {}, {}, {})'.format(userKey, delegates, longTimeLock, shortTimeLock))
     return controller_address, proxy_address, recovery_address
 
 
 def new_account(user):
 
     print("[START] Creat vPort account")
-    multisig_address = '3J2fJondfkDa9eVYN4m7HUr2vs3NusNdWv'
-    registry_address = 'c6ecb4ce7ddd2acf03eaf8f85b884de95e5be4f0'
-    controller_address = '718f770a52ac1926302f42d99637cc96634fcf6c'
-    proxy_address = '5c96b5a9cdd080d009a5f9b39233bb852a1d0604'
-    recovery_address = '2f5816810f255cb57e3a9e5ef92a5a5deda15ea5'
-    identity_factory_address = '4f8c35f1ca068863047fcdb4a3c4f82f565aadb8'
+    multisig_address = '3NEJRoycQNdu71ZyZrESSade8p7QD4TnuJ'
+    registry_address = 'ce444cb8ee20e79030e48175331bb8dd2dcb7249'
+    controller_address = '823a859e21671074fe844bf44399985e8b8be99f'
+    proxy_address = 'bdbc27691db039e665148dedce85b8d1c162ecd7'
+    recovery_address = '50cd8a99e2557b30046bfa8160843d9e4ccb3bc8'
+    identity_factory_address = '3300f5d521dc76f8a5e99d848bc4ae91a209f7c5'
 
     # userKey = user['evm_address']
     delegates = [user2_evmAddr]

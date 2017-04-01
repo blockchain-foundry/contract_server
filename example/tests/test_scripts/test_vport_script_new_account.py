@@ -77,8 +77,9 @@ def call_identity_factory(
         sender_address=owner_address, privkey=owner_privkey)
 
     action.apply_check_state(multisig_address=multisig_address, tx_hash=tx_hash)
-
     t1.join()
+
+    global current_event
     event = current_event
     for item in event['args']:
         if item['name'] == 'controller':
@@ -87,14 +88,17 @@ def call_identity_factory(
             proxy_address = item['value']
         elif item['name'] == 'recoveryQuorum':
             recovery_address = item['value']
-    print('[END] call_identity_factory CreateProxyWithControllerAndRecovery({}, {}, {}, {})'.format(userKey, delegates, longTimeLock, shortTimeLock))
+
+    print("\n>>>> event: {}".format(event))
+
+    print('\n[END] call_identity_factory CreateProxyWithControllerAndRecovery({}, {}, {}, {})'.format(userKey, delegates, longTimeLock, shortTimeLock))
 
     return controller_address, proxy_address, recovery_address
 
 
 if __name__ == '__main__':
     print("[START] Creat vPort account")
-    multisig_address = '3AzSoAKnekjmWox74FrzRH5tiWjAo29Jem'
+    multisig_address = '3NEJRoycQNdu71ZyZrESSade8p7QD4TnuJ'
     registry_address = 'ce444cb8ee20e79030e48175331bb8dd2dcb7249'
     controller_address = '823a859e21671074fe844bf44399985e8b8be99f'
     proxy_address = 'bdbc27691db039e665148dedce85b8d1c162ecd7'

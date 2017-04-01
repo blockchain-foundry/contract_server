@@ -254,9 +254,7 @@ def apply_deploy_contract(multisig_address, source_code, contract_name, function
         "contract_name": contract_name
     }
     data_response = api_helper.create_contract(multisig_address, data)
-    contract_address = data_response['contract_address']
     print('>>> raw_tx is created')
-    print('>>> contract_address: {}'.format(contract_address))
 
     # 2. Broadcast the transaction
     raw_tx = data_response['raw_tx']
