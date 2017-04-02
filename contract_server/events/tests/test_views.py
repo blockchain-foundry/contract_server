@@ -63,6 +63,15 @@ class WatchCase(TestCase):
             'event_name': 'AttributesSet2'
         }
 
+        self.sample_form_condition = {
+            'multisig_address': '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4',
+            'contract_address': '0000000000000000000000000000000000000157',
+            'event_name': 'AttributesSet2',
+            'conditions': str(
+                [{"value": "hello world", "type": "string", "name": "event_string"}]
+            )
+        }
+
     def fake_wait_for_notification(watch_id):
         args = [{"value": "hello world", "type": "string", "name": "event_string", "indexed": True}]
         event = {
@@ -112,4 +121,9 @@ class WatchCase(TestCase):
     @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
     def test_watch_event_success(self):
         self.response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(self.response.status_code, httplib.OK)
+
+    @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)
+    def test_watch_event_success_condition(self):
+        self.response = self.client.post(self.url, self.sample_form_condition)
         self.assertEqual(self.response.status_code, httplib.OK)

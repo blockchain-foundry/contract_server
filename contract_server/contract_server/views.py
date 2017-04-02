@@ -7,7 +7,6 @@ from rest_framework.views import APIView
 from evm_manager import deploy_contract_utils
 from .decorators import handle_uncaught_exception
 from .forms import NotifyForm
-from events import state_log_utils
 
 
 class NewTxNotified(APIView):
@@ -30,12 +29,6 @@ class NewTxNotified(APIView):
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)
-        else:
-            try:
-                multisig_address = deploy_contract_utils.get_multisig_address(tx_hash)
-                state_log_utils.check_watch(tx_hash, multisig_address)
-            except Exception as e:
-                print(e)
         # response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return JsonResponse(response, status=httplib.OK)
@@ -70,11 +63,6 @@ class AddressNotified(APIView):
         if completed is False:
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return JsonResponse(response, status=httplib.OK)
-        else:
-            try:
-                state_log_utils.check_watch(tx_hash, multisig_address)
-            except Exception as e:
-                print(e)
 
         # response = clear_evm_accouts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash

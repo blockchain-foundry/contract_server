@@ -47,11 +47,13 @@ class ModelWatchTestCase(TestCase):
             source_code=contract_source_code,
             color=1,
             amount=0,
-            interface=contract_interface)
+            interface=contract_interface,
+        )
 
         Watch.objects.create(
             event_name=EVENT_NAME,
-            contract=contract
+            contract=contract,
+            conditions='[ {"name": "_sender", "type:": "address", "value": "4f8c35f1ca068863047fcdb4a3c4f82f565aadb8"}]'
         )
 
     def test_hashed_event_name(self):
@@ -84,3 +86,7 @@ class ModelWatchTestCase(TestCase):
     def test_contract_address(self):
         watch = Watch.objects.get(event_name=EVENT_NAME)
         self.assertEqual(watch.contract.contract_address, "0000000000000000000000000000000000000157")
+
+    def test_conditions_list(self):
+        watch = Watch.objects.get(event_name=EVENT_NAME)
+        self.assertEqual(watch.conditions_list[0]["value"], "4f8c35f1ca068863047fcdb4a3c4f82f565aadb8")

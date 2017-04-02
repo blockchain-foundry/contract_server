@@ -653,7 +653,7 @@ class DeployContract(APIView):
             sender_address, multisig_address, code, CONTRACT_FEE)
         contract.hash_op_return = self._hash_op_return(tx_hex)
         contract.save()
-        data = {'raw_tx': tx_hex, 'contract_address': contract_address}
+        data = {'raw_tx': tx_hex}
         return response_utils.data_response(data)
 
 

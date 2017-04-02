@@ -1,4 +1,5 @@
 import json
+import sha3
 from eth_abi import abi
 from contracts import evm_abi_utils
 from events.models import Watch
@@ -22,9 +23,12 @@ def _search_watch(logs):
     matching_watch_list = []
     for log in logs:
         for watch in watches:
-            if log['address'] == watch.contract.contract_address:
-                _decode_log(log, watch)
-                matching_watch_list.append(watch.id)
+            if log['address'] == watch.contract.contract_address and _check_event_interface(watch, log["topics"][0]):
+                result = _decode_log(log, watch)
+                if _is_conditions_matching(watch.conditions_list, result["args"]):
+                    watch.args = json.dumps(result["args"])
+                    watch.save()
+                    matching_watch_list.append(watch.id)
     return matching_watch_list
 
 
@@ -75,9 +79,6 @@ def _decode_log(log, watch):
         item = evm_abi_utils.wrap_decoded_data(item)
         result.append(item)
 
-    watch.args = json.dumps(result)
-    watch.save()
-
     return {"args": result}
 
 
@@ -99,3 +100,35 @@ def check_watch(tx_hash, multisig_address):
         logs = content['logs']
 
     return _search_watch(logs)
+
+
+def _is_condition_matching(condition, arg):
+    if (condition["name"] == arg["name"] and
+            condition["type"] == arg["type"] and
+            condition["value"] == arg["value"]):
+        return True
+    elif (
+            condition["name"] != arg["name"] or
+            condition["type"] != arg["type"]):
+        return True
+    else:
+        return False
+
+
+def _is_conditions_matching(conditions_list, args):
+    for x in conditions_list:
+        for y in args:
+            if not _is_condition_matching(x, y):
+                return False
+    return True
+
+
+def _check_event_interface(watch, topic_0):
+    inputs_type = []
+    for i in watch.interface["inputs"]:
+        inputs_type.append(i["type"])
+    event_interface = watch.event_name + "(" + ",".join(inputs_type) + ")"
+    k = sha3.keccak_256()
+    k.update(event_interface.encode())
+    hashed_event_interface = k.hexdigest()
+    return topic_0 == "0x" + hashed_event_interface

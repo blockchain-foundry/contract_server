@@ -11,6 +11,7 @@ from .utils import wallet_address_to_evm
 from .contract_server_utils import set_contract_address
 from .models import StateInfo
 import logging
+from events import state_log_utils
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 CONTRACT_FEE_COLOR = 1
@@ -246,6 +247,9 @@ def deploy_contracts(tx_hash):
         completed = deploy_single_tx(tx['hash'], latest_tx_hash, multisig_address)
         if completed is False:
             return False
+        else:
+            state_log_utils.check_watch(tx['hash'], multisig_address)
+
         latest_tx_hash = tx['hash']
 
 

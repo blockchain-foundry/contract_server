@@ -12,7 +12,7 @@ from contracts.models import Contract
 from .exceptions import (GetStateFromOracleError, WatchCallbackTimeoutError,
                          WatchKeyNotFoundError, ContractNotFoundError)
 
-from .forms import WatchForm
+from .serializers import CreateWatchSerializer
 from contract_server import response_utils
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,8 @@ def wait_for_notification(watch_id):
 
 
 class Watches(APIView):
+    serializer_class = CreateWatchSerializer
+
     @handle_uncaught_exception
     def get(self, request, watch_id):
         """Get specific Watch object by id
@@ -107,14 +109,14 @@ class Watches(APIView):
         except Exception as e:
             return False, None
 
-    def _process_watch_event(self, multisig_address, event_name, contract_address):
+    def _process_watch_event(self, multisig_address, event_name, contract_address, conditions=""):
         """Process new event watching subscription and wait for event triggered
 
         Args:
             multisig_address: the multisig_address of state
             event_name: event name
             contract_address: the receiver address for subcontract
-
+            conditions: event filter conditions
         Returns:
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
@@ -130,6 +132,7 @@ class Watches(APIView):
             watch = Watch.objects.create(
                 event_name=event_name,
                 contract=contract,
+                conditions=conditions
             )
             watch.save()
             # logger.debug('saving watch: id={}, event_name={}'.format(watch.id, watch.event_name))
@@ -153,7 +156,7 @@ class Watches(APIView):
         except Exception as e:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
-    @handle_uncaught_exception
+    # @handle_uncaught_exception
     def post(self, request):
         """Create new event watching subscription and wait for event triggered
 
@@ -166,19 +169,22 @@ class Watches(APIView):
             event: the new action result in event.args and event.name
             watch_id: the id of Watch object
         """
-        # Form validation
-        form = WatchForm(request.POST)
+        serializer = self.serializer_class(data=request.data)
 
-        # Form validation
-        if form.is_valid():
-            multisig_address = form.cleaned_data['multisig_address']
-            event_name = form.cleaned_data['event_name']
-            contract_address = form.cleaned_data['contract_address']
+        if serializer.is_valid(raise_exception=False):
+            data = serializer.data
 
+            multisig_address = data['multisig_address']
+            event_name = data['event_name']
+            contract_address = data['contract_address']
+            if 'conditions' in data:
+                conditions = data['conditions']
+            else:
+                conditions = ""
             return self._process_watch_event(
                 multisig_address=multisig_address,
                 event_name=event_name,
-                contract_address=contract_address
-            )
+                contract_address=contract_address,
+                conditions=conditions)
         else:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, form.errors)
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
