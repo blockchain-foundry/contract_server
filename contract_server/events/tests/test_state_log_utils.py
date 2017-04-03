@@ -81,7 +81,7 @@ class StateLogUtilsTest(TestCase):
         self.assertEqual(event['args'], expect_event['args'])
 
     def test_search_watch(self):
-        matching_watch_list = state_log_utils._search_watch(self.logs)
+        matching_watch_list = state_log_utils._search_watch(self.logs, "3By64hdBQ6cYh34ucqW6Dsv9ctiuX2krcn")
 
         self.assertEqual(len(matching_watch_list), 2)
 

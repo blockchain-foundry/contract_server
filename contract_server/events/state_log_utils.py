@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _search_watch(logs):
+def _search_watch(logs, multisig_address):
     """Search for matching watches of logs
 
     Args:
@@ -23,7 +23,11 @@ def _search_watch(logs):
     matching_watch_list = []
     for log in logs:
         for watch in watches:
-            if log['address'] == watch.contract.contract_address and _check_event_interface(watch, log["topics"][0]):
+            if (
+                watch.contract.multisig_address.address == multisig_address and
+                log['address'] == watch.contract.contract_address and
+                _check_event_interface(watch, log["topics"][0])
+            ):
                 result = _decode_log(log, watch)
                 if _is_conditions_matching(watch.conditions_list, result["args"]):
                     watch.args = json.dumps(result["args"])
@@ -99,7 +103,7 @@ def check_watch(tx_hash, multisig_address):
         content = json.loads(content_str)
         logs = content['logs']
 
-    return _search_watch(logs)
+    return _search_watch(logs, multisig_address)
 
 
 def _is_condition_matching(condition, arg):
