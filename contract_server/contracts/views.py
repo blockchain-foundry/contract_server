@@ -23,7 +23,7 @@ from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function,  make_evm_input_code)
 
-from contract_server.decorators import handle_uncaught_exception
+from contract_server.decorators import handle_uncaught_exception, handle_apiversion, handle_apiversion_apiview
 from contract_server import response_utils
 
 from .models import Contract, MultisigAddress
@@ -117,6 +117,7 @@ class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
     http_method_names = ['post']
     form_class = WithdrawFromContractForm
 
+    @handle_apiversion
     def form_valid(self, form):
         response = {}
         multisig_address = form.cleaned_data['multisig_address']
@@ -187,6 +188,7 @@ class DeployContract(APIView):
                 return Contract.make_hash_op_return(vout['script'])
         raise Exception('tx_format_error')
 
+    @handle_apiversion_apiview
     def post(self, request, multisig_address, format=None):
         serializer = ContractSerializer(data=request.data)
         if serializer.is_valid():
@@ -360,6 +362,7 @@ class MultisigAddressesView(APIView):
             requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
+    @handle_apiversion_apiview
     def post(self, request):
         """Create MultisigAddress
 
@@ -448,6 +451,7 @@ class MultisigAddressesView(APIView):
 class ContractFunction(APIView):
 
     @handle_uncaught_exception
+    @handle_apiversion_apiview
     def post(self, request, multisig_address, contract_address, format=None):
         serializer = ContractFunctionSerializer(data=request.data)
         if serializer.is_valid():
@@ -503,6 +507,7 @@ class ContractFunction(APIView):
 
 class Bind(BaseFormView, CsrfExemptMixin):
     @handle_uncaught_exception
+    @handle_apiversion_apiview
     def post(self, request, multisig_address):
 
         form = BindForm(request.POST)
