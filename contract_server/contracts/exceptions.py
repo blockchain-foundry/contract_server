@@ -16,3 +16,15 @@ class SubscribeAddrsssNotificationError(Exception):
 
 class OracleMultisigAddressError(Exception):
     pass
+
+
+class MultisigNotFoundError(Exception):
+    pass
+
+
+class ContractNotFoundError(Exception):
+    pass
+
+
+class OssError(Exception):
+    pass
