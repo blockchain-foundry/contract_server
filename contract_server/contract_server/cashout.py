@@ -118,11 +118,10 @@ def send_cashout_tx(signed_tx, multisig_address):
 
 def sign(raw_tx, multisig_address):
     try:
-        multisig_address_object = MultisigAddress.objects.get(multisig_address=multisig_address)
-    except MultisigAddress.DoesNotExist as e:
+        multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+    except Exception as e:
         raise e
     oracles = multisig_address_object.oracles.all()
-
     # multisig sign
     # calculate counts of inputs
     tx_inputs = deserialize(raw_tx)['ins']
@@ -130,11 +129,11 @@ def sign(raw_tx, multisig_address):
         sigs = []
         for oracle in oracles:
             data = {
-                'tx': raw_tx,
+                'raw_tx': raw_tx,
                 'multisig_address': multisig_address,
-                'user_address': multisig_address,
-                'color_id': "1",
-                'amount': "0",
+                'sender_address': multisig_address,
+                'color': "1",
+                'amount': 0,
                 'script': multisig_address_object.script,
                 'input_index': i,
             }
