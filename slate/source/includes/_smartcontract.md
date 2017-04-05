@@ -91,7 +91,7 @@ conditions       | array    | F        | array of oraclize conditions
 → condition_type | string   | F        | type of condition
 → receiver_addr  | string   | F        | receiver address
 → color          | string   | F        | color of condition
-function_inputs  | string   | F        | inputs of constructor function
+function_inputs  | array    | F        | inputs of constructor function
 → name           | string   | T        | name of parameter
 → type           | string   | T        | type of parameter
 → value          | **type** | T        | value of parameter
@@ -169,7 +169,7 @@ Field           | Type     | Required | Description
 --------------- | -------- | -------- | ---------------
 sender_address  | string   | T        | sender address
 function_name   | string   | T        | function name
-function_inputs | string   | T        | function input list
+function_inputs | array    | T        | function input list
 → name          | string   | T        | name of parameter
 → type          | string   | T        | type of parameter
 → value         | **type** | T        | value of parameter
