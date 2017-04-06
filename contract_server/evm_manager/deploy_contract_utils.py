@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from binascii import unhexlify
-from subprocess import check_call
+from binascii import hexlify, unhexlify
+from subprocess import check_call, PIPE, STDOUT, Popen
+import base58
 import json
 import os
 import time
@@ -12,6 +13,7 @@ from .contract_server_utils import set_contract_address
 from .models import StateInfo
 import logging
 from events import state_log_utils
+from gcoin import hash160
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 CONTRACT_FEE_COLOR = 1
@@ -383,3 +385,34 @@ def make_multisig_address_file(multisig_address):
     except Exception as e:
         logger.debug(e)
         raise(e)
+
+
+def call_constant_function(sender_addr, multisig_address, byte_code, value, to_addr):
+    EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
+    if to_addr == multisig_address:
+        multisig_hex = base58.b58decode(multisig_address)
+        multisig_hex = hexlify(multisig_hex)
+        multisig_hex = "0x" + hash160(multisig_hex)
+    else:
+        multisig_hex = to_addr
+    sender_hex = base58.b58decode(sender_addr)
+    sender_hex = hexlify(sender_hex)
+    sender_hex = "0x" + hash160(sender_hex)
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + \
+        '/../states/' + multisig_address
+    print("Contract path: ", contract_path)
+
+    command = '{EVM_PATH} --sender {sender_hex} --fund {value} --value {value} \
+        --write {contract_path} --input {byte_code} --receiver {multisig_hex} --read {contract_path}'.format(
+        EVM_PATH=EVM_PATH, sender_hex=sender_hex, value=value, contract_path=contract_path, byte_code=byte_code, multisig_hex=multisig_hex)
+    p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    stdout, stderr = p.communicate()
+    print("stdout: ", stdout)
+    print("stderr: ", stderr)
+
+    if p.returncode != 0:
+        print(stderr)
+        err_msg = "{}. Code: {}".format(stderr, p.returncode)
+        raise Exception(err_msg)
+
+    return {'out': stdout.decode().split()[-1]}

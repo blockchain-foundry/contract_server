@@ -1,11 +1,8 @@
 import ast
-import base58
 import json
-import os
 import logging
 import requests
 from binascii import hexlify
-from subprocess import PIPE, STDOUT, Popen
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -18,7 +15,7 @@ from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from rest_framework.views import APIView, status
 from rest_framework.pagination import LimitOffsetPagination
 
-from gcoin import hash160, scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
+from gcoin import scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function,  make_evm_input_code)
@@ -261,37 +258,6 @@ def _handle_payment_parameter_error(form):
     return {'errors': errors}
 
 
-def _call_constant_function(sender_addr, multisig_addr, byte_code, value, to_addr):
-    EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    if to_addr == multisig_addr:
-        multisig_hex = base58.b58decode(multisig_addr)
-        multisig_hex = hexlify(multisig_hex)
-        multisig_hex = "0x" + hash160(multisig_hex)
-    else:
-        multisig_hex = to_addr
-    sender_hex = base58.b58decode(sender_addr)
-    sender_hex = hexlify(sender_hex)
-    sender_hex = "0x" + hash160(sender_hex)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + \
-        '/../../oracle/states/' + multisig_addr
-    print("Contract path: ", contract_path)
-
-    command = '{EVM_PATH} --sender {sender_hex} --fund {value} --value {value} \
-        --write {contract_path} --input {byte_code} --receiver {multisig_hex} --read {contract_path}'.format(
-        EVM_PATH=EVM_PATH, sender_hex=sender_hex, value=value, contract_path=contract_path, byte_code=byte_code, multisig_hex=multisig_hex)
-    p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
-    stdout, stderr = p.communicate()
-    print("stdout: ", stdout)
-    print("stderr: ", stderr)
-
-    if p.returncode != 0:
-        print(stderr)
-        err_msg = "{}. Code: {}".format(stderr, p.returncode)
-        raise Exception(err_msg)
-
-    return {'out': stdout.decode().split()[-1]}
-
-
 class MultisigAddressesView(APIView):
     """
     BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
@@ -491,7 +457,7 @@ class ContractFunction(APIView):
                     sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
                 data = {'raw_tx': tx_hex}
             else:
-                data = _call_constant_function(
+                data = deploy_contract_utils.call_constant_function(
                     sender_address, multisig_address, evm_input_code, amount, contract_address)
                 out = data['out']
                 function_outputs = decode_evm_output(contract.interface, function_name, out)
