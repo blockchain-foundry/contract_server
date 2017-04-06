@@ -5,11 +5,11 @@ from subprocess import check_call, PIPE, STDOUT, Popen
 import base58
 import json
 import os
-import time
 from threading import Lock
 from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm
 from .contract_server_utils import set_contract_address
+from .decorators import retry
 from .models import StateInfo
 import logging
 from events import state_log_utils
@@ -21,6 +21,7 @@ CONTRACT_FEE_AMOUNT = 100000000
 LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 logger = logging.getLogger(__name__)
+MAX_RETRY = 10
 
 
 def get_lock(filename):
@@ -28,21 +29,25 @@ def get_lock(filename):
     return LOCKS[index]
 
 
+@retry(MAX_RETRY)
 def get_tx_info(tx_hash):
     tx = gcoincore.get_tx(tx_hash)
     return tx
 
 
+@retry(MAX_RETRY)
 def get_block_info(block_hash):
     block = gcoincore.get_block_by_hash(block_hash)
     return block
 
 
+@retry(MAX_RETRY)
 def get_latest_blocks():
     blocks = gcoincore.get_latest_blocks()
     return blocks
 
 
+@retry(MAX_RETRY)
 def get_sender_addr(txid, vout):
     try:
         tx = gcoincore.get_tx(txid)
@@ -51,20 +56,37 @@ def get_sender_addr(txid, vout):
         print("[ERROR] getting sender address")
 
 
+@retry(MAX_RETRY)
 def get_address_balance(address, color):
     balance = gcoincore.get_address_balance(address, color)
     return balance
 
 
+@retry(MAX_RETRY)
 def get_license_info(color):
     info = gcoincore.get_license_info(color)
     return info
 
 
-def get_multisig_address(tx_hash):
-    try:
-        tx = get_tx_info(tx_hash)
+@retry(MAX_RETRY)
+def get_txs_by_address(multisig_address, since, included=None):
+    txs = gcoincore.get_txs_by_address(multisig_address, since=since).get('txs')
+    if included is None:
+        return txs
+    else:
+        for tx in txs:
+            if tx.get('hash') == included:
+                return txs
+        return None
 
+
+def get_multisig_address(tx_hash):
+    tx = get_tx_info(tx_hash)
+    return get_multisig_address_with_tx(tx)
+
+
+def get_multisig_address_with_tx(tx):
+    try:
         if tx['type'] == 'CONTRACT':
             multisig_address = None
             for vout in tx['vout']:
@@ -92,18 +114,9 @@ def get_unexecuted_txs(multisig_address, tx_hash, _time):
     if int(_time) < int(latest_tx_time):
         return [], latest_tx_hash
     try:
-        txs = gcoincore.get_txs_by_address(multisig_address, since=latest_tx_time).get('txs')
-        tx_found = False
-        retry_count = 0
-        while tx_found is False:
-            txs = gcoincore.get_txs_by_address(multisig_address, since=latest_tx_time).get('txs')
-            for tx in txs:
-                if tx.get('hash') == tx_hash:
-                    tx_found = True
-            time.sleep(3)
-            retry_count += 1
-            print("get_txs_by_address retry_count: {}".format(retry_count))
-
+        txs = get_txs_by_address(multisig_address, since=latest_tx_time, included=tx_hash)
+        if txs is None:
+            raise Exception('txs not found')
         txs = txs[::-1]
         if latest_tx_time == '0':
             return txs, latest_tx_hash
@@ -223,18 +236,9 @@ def deploy_contracts(tx_hash):
         Using thread doesn't help due to the fact that rpc getrawtransaction
         locks cs_main, which blocks other operations requiring cs_main lock.
     """
-    multisig_address = None
-    retry_count = 0
-    while(True):
-        multisig_address = get_multisig_address(tx_hash)
-        if multisig_address is not None:
-            break
-        elif multisig_address is None and retry_count < 20:
-            time.sleep(3)
-            retry_count += 1
-            print("get_multisig_address retry_count:{}".format(retry_count))
-        else:
-            return False
+    multisig_address = get_multisig_address(tx_hash)
+    if multisig_address is None:
+        return False
 
     tx = get_tx_info(tx_hash)
     _time = tx['blocktime']
@@ -257,7 +261,7 @@ def deploy_contracts(tx_hash):
 
 def _log(status, typ, tx_hash, message):
     s = '{:7s}: {:9s}{:65s}- {}'
-    print(s.format(status, typ, tx_hash, message))
+    logger.debug(s.format(status, typ, tx_hash, message))
 
 
 def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):

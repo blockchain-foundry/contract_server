@@ -147,6 +147,10 @@ LOGGING = {
             'format': "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
             'datefmt': "%d/%b/%Y %H:%M:%S"
         },
+        'state_log': {
+            'format': "[%(asctime)s][%(filename)13s:%(lineno)s] Thread-%(thread)d %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
     },
     'handlers': {
         'file': {
@@ -154,6 +158,12 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': LOG_DIR + 'django.log',
             'formatter': 'verbose'
+        },
+        'state_log_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR, 'state.log'),
+            'formatter': 'state_log',
         },
         'mail_admins': {
             'level': 'ERROR',
@@ -193,7 +203,7 @@ LOGGING = {
             'level': 'DEBUG',
         },
         'evm_manager': {
-            'handlers': ['file', 'mail_admins'],
+            'handlers': ['file', 'mail_admins', 'state_log_file'],
             'level': 'DEBUG',
         },
         'events': {
