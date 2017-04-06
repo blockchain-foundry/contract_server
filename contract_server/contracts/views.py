@@ -448,7 +448,45 @@ class MultisigAddressesView(APIView):
         return response_utils.data_response(data)
 
 
+class ContractAddressList(APIView):
+    def get(self, request, multisig_address, contract_address, format=None):
+        data = []
+        try:
+            contract_address_list = contracts.models.Contract.objects.filter(multisig_address__address=multisig_address, contract_address=contract_address)
+        except contracts.models.Contract.DoesNotExist:
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
+        for contract in contract_address_list:
+            interface = contract.interface
+            interface = json.loads(interface.replace("'", '"'))
+            sender_nonce_predicted = contract.sender_nonce_predicted
+            tx_hash_init = contract.tx_hash_init
+            hash_op_return = contract.hash_op_return
+            sender_evm_address = contract.sender_evm_address
+            is_deployed = contract.is_deployed
+            data.append({'interface': interface,
+                         'tx_hash_init': tx_hash_init,
+                         'hash_op_return': hash_op_return,
+                         'sender_evm_address': sender_evm_address,
+                         'sender_nonce_predicted': sender_nonce_predicted,
+                         'is_deployed': is_deployed})
+        return response_utils.data_response(data)
+
+
 class ContractFunction(APIView):
+
+    def get(self, request, multisig_address, contract_address, format=None):
+        data = {}
+        try:
+            contract = contracts.models.Contract.objects.get(multisig_address__address=multisig_address, contract_address=contract_address, is_deployed=True)
+        except contracts.models.Contract.DoesNotExist:
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
+        except Exception as e:
+            return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e) + 'There are multiple deployed contract with a same contract address', )
+
+        function_list, event_list = get_abi_list(contract.interface)
+        data['function_list'] = function_list
+        data['event_list'] = event_list
+        return response_utils.data_response(data)
 
     @handle_uncaught_exception
     @handle_apiversion_apiview
