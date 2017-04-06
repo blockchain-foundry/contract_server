@@ -21,7 +21,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from gcoin import hash160, scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
-                            get_constructor_function,  make_evm_input_code)
+                            get_constructor_function,  make_evm_input_code, get_abi_list)
 
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion, handle_apiversion_apiview
 from contract_server import response_utils
@@ -452,8 +452,8 @@ class ContractAddressList(APIView):
     def get(self, request, multisig_address, contract_address, format=None):
         data = []
         try:
-            contract_address_list = contracts.models.Contract.objects.filter(multisig_address__address=multisig_address, contract_address=contract_address)
-        except contracts.models.Contract.DoesNotExist:
+            contract_address_list = Contract.objects.filter(multisig_address__address=multisig_address, contract_address=contract_address)
+        except Contract.DoesNotExist:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
         for contract in contract_address_list:
             interface = contract.interface
@@ -477,8 +477,8 @@ class ContractFunction(APIView):
     def get(self, request, multisig_address, contract_address, format=None):
         data = {}
         try:
-            contract = contracts.models.Contract.objects.get(multisig_address__address=multisig_address, contract_address=contract_address, is_deployed=True)
-        except contracts.models.Contract.DoesNotExist:
+            contract = Contract.objects.get(multisig_address__address=multisig_address, contract_address=contract_address, is_deployed=True)
+        except Contract.DoesNotExist:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
         except Exception as e:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e) + 'There are multiple deployed contract with a same contract address', )
