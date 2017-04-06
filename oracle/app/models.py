@@ -10,7 +10,7 @@ from django.db import models
 #       ordering = ('created',)
 
 class Keystore(models.Model):
-    public_key = models.CharField(max_length=100)
+    public_key = models.CharField(max_length=200)
     private_key = models.CharField(max_length=100)
 
 
@@ -35,7 +35,7 @@ class ProposalOraclizeLink(models.Model):
 
 class Proposal(models.Model):
     source_code = models.TextField()
-    public_key = models.CharField(max_length=100)
+    public_key = models.CharField(max_length=200)
     multisig_address = models.CharField(max_length=100, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     address = models.CharField(max_length=100)
