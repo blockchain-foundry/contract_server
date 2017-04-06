@@ -4,7 +4,7 @@ DEBUG = False
 
 DATABASES = {
     'default': {
-        'NAME': 'contract_server',
+        'NAME': '<CONTRACT_SERVER_DB>',
         'ENGINE': 'django.db.backends.mysql',
         'HOST': '<MYSQL_HOST>',
         'PORT': '<MYSQL_PORT>',

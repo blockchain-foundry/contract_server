@@ -1,6 +1,7 @@
 language: python
 python:
   - "3.5"
+services: mysql
 env:
   - DJANGO=1.8
 install:
@@ -8,9 +9,22 @@ install:
   - pip install flake8
   - pip install -r requirements.txt
 before_script:
+  - mysql -e 'create database contract_server;'
+  - mysql -e 'create database oracle;'
+  - sed -i 's/<CONTRACT_SERVER_DB>/contract_server/g' ./contract_server/contract_server/settings/base.py
+  - sed -i 's/<MYSQL_HOST>/127.0.0.1/g' ./contract_server/contract_server/settings/base.py
+  - sed -i 's/<MYSQL_PORT>/3306/g' ./contract_server/contract_server/settings/base.py
+  - sed -i 's/<MYSQL_USER>/root/g' ./contract_server/contract_server/settings/base.py
+  - sed -i 's/<MYSQL_PASSWORD>//g' ./contract_server/contract_server/settings/base.py
+  - sed -i 's/<CONTRACT_SERVER_SETTING_PATH>/contract_server.settings.production/g' ./contract_server/manage.py
+  - sed -i 's/<ORACLE_DB>/oracle/g' ./oracle/oracle/settings/base.py
+  - sed -i 's/<MYSQL_HOST>/127.0.0.1/g' ./oracle/oracle/settings/base.py
+  - sed -i 's/<MYSQL_PORT>/3306/g' ./oracle/oracle/settings/base.py
+  - sed -i 's/<MYSQL_USER>/root/g' ./oracle/oracle/settings/base.py
+  - sed -i 's/<MYSQL_PASSWORD>//g' ./oracle/oracle/settings/base.py
+  - sed -i 's/<ORACLE_SETTING_PATH>/oracle.settings.production/g' ./oracle/manage.py
   - pep8 --exclude=migrations --ignore=E123,E133,E226,E241,E242,E402,E501,W503 ./contract_server/ ./oracle/
   - flake8 --exclude=migrations,settings,__init__.py --ignore=E123,E133,E226,E241,E242,E402,E501,W503 ./contract_server/ ./oracle/
-
 script:
   - cd ./contract_server
   - ./manage.py test
