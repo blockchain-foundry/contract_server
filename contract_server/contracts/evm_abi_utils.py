@@ -16,7 +16,9 @@ def get_abi_list(interface):
         if i['type'] == 'function':
             function_list.append({
                 'name': i['name'],
-                'inputs': i['inputs']
+                'inputs': i['inputs'],
+                'outputs': i['outputs'],
+                'type': i['type']
             })
         elif i['type'] == 'event':
             event_list.append({
