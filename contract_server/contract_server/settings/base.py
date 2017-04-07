@@ -84,6 +84,22 @@ GCOIN_BACKEND_SETTINGS = {
     'KEY_STORE_CLASS': None
 }
 
+# Database
+# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
+DATABASES = {
+    'default': {
+        'NAME': '<CONTRACT_SERVER_DB>',
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': '<MYSQL_HOST>',
+        'PORT': '<MYSQL_PORT>',
+        'USER': '<MYSQL_USER>',
+        'PASSWORD': '<MYSQL_PASSWORD>',
+        'OPTIONS': {
+            'autocommit': True,
+        },
+    }
+}
+
 # Password validation
 # https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
 
