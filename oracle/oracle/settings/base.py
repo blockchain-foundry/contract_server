@@ -33,6 +33,23 @@ GCOIN_BACKEND_SETTINGS = {
     'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
 }
 
+# Database
+# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'NAME': '<ORACLE_DB>',
+        'ENGINE': 'django.db.backends.mysql',
+        'HOST': '<MYSQL_HOST>',
+        'PORT': '<MYSQL_PORT>',
+        'USER': '<MYSQL_USER>',
+        'PASSWORD': '<MYSQL_PASSWORD>',
+        'OPTIONS': {
+            'autocommit': True,
+        },
+    }
+}
+
 
 # Application definition
 
@@ -76,17 +93,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'oracle.wsgi.application'
-
-
-# Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
 
 
 # Password validation
