@@ -48,7 +48,7 @@ def get_latest_blocks():
 
 
 @retry(MAX_RETRY)
-def get_sender_addr(txid, vout):
+def get_sender_address(txid, vout):
     try:
         tx = gcoincore.get_tx(txid)
         return tx['vout'][vout]['scriptPubKey']['addresses'][0]
@@ -97,7 +97,7 @@ def get_multisig_address_with_tx(tx):
                     multisig_address = data.get('multisig_address')
             return multisig_address
         elif tx['type'] == 'NORMAL':
-            sender_address = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
+            sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
             if sender_address[0] == '3':
                 return sender_address
             else:
@@ -131,13 +131,12 @@ def get_unexecuted_txs(multisig_address, tx_hash, _time):
 def get_contracts_info(tx):
     """
     orginal  get_sender_addr_and_multisig_addr_and_bytecode_and_value(tx):
-    return (sender_addr, multisig_address, bytecode, value)
+    return (sender_address, multisig_address, bytecode, value)
     value is in json type
     """
-    sender_addr = None
     multisig_address = None
     bytecode = None
-    sender_addr = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
+    sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
     value = {}
     is_deploy = True
     blocktime = tx['blocktime']
@@ -174,25 +173,25 @@ def get_contracts_info(tx):
     except Exception as e:
         print("ERROR finding address")
     value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
-    if multisig_address is None or bytecode is None or sender_addr is None:
+    if multisig_address is None or bytecode is None or sender_address is None:
         raise ValueError(
             "Contract tx %s not valid." % tx['txid']
         )
     for v in value:
         value[v] = str(value[v] / 100000000)
-    return sender_addr, multisig_address, contract_address, bytecode, json.dumps(value), is_deploy, blocktime
+    return sender_address, multisig_address, contract_address, bytecode, json.dumps(value), is_deploy, blocktime
 
 
-def deploy_to_evm(sender_addr, multisig_address, byte_code, value, is_deploy, contract_address, tx_hash, ex_tx_hash):
+def deploy_to_evm(sender_address, multisig_address, byte_code, value, is_deploy, contract_address, tx_hash, ex_tx_hash):
     '''
-    sender_addr : who deploy the contract
+    sender_address : who deploy the contract
     multisig_address : the address to be deploy the contract
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
 
-    sender_hex = "0x" + wallet_address_to_evm(sender_addr)
+    sender_hex = "0x" + wallet_address_to_evm(sender_address)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
     log_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address + "_" + tx_hash + "_log"
     print("Contract path: ", contract_path)
@@ -216,7 +215,7 @@ def deploy_to_evm(sender_addr, multisig_address, byte_code, value, is_deploy, co
                 check_call(command, shell=True)
                 if is_deploy:
                     set_contract_address(multisig_address, contract_address, sender_hex, tx)
-                inc_nonce(contract_path, wallet_address_to_evm(sender_addr))
+                inc_nonce(contract_path, wallet_address_to_evm(sender_address))
                 state.latest_tx_hash = tx_hash
                 state.latest_tx_time = _time
                 state.save()
@@ -269,14 +268,14 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):
     _time = tx['blocktime']
     if tx['type'] == 'CONTRACT':
         try:
-            sender_addr, multisig_address, to_address, bytecode, value, is_deploy, blocktime = get_contracts_info(
+            sender_address, multisig_address, to_address, bytecode, value, is_deploy, blocktime = get_contracts_info(
                 tx)
         except Exception as e:
             _log('Failed', 'CONTRACT', tx_hash, 'Decode tx error')
             return False
         try:
             completed, status, message = deploy_to_evm(
-                sender_addr, multisig_address, bytecode, value, is_deploy, to_address, tx_hash, ex_tx_hash)
+                sender_address, multisig_address, bytecode, value, is_deploy, to_address, tx_hash, ex_tx_hash)
             _log(status, tx['type'], tx_hash, message)
             return completed
         except Exception as e:
@@ -285,7 +284,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):
 
     elif tx['type'] == 'NORMAL':
         try:
-            sender_address = get_sender_addr(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
+            sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
             if sender_address[0] == '1':
                 lock = get_lock(multisig_address)
                 with lock:
