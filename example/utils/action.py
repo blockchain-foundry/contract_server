@@ -227,7 +227,7 @@ def apply_create_multisig_address(sender_address, min_successes):
         multisig_address
     """
     print("api_helper.getOracleList():{}".format(api_helper.getOracleList()))
-    oracles = api_helper.getOracleList().get('oracles')
+    oracles = api_helper.getOracleList()["data"].get('oracles')
     print('\n[Create MultisigAddress] sender_address:{}, min_successes:{}, oracles:{}'.format(
         sender_address, min_successes, oracles))
     data = {

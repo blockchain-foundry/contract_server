@@ -96,7 +96,7 @@ class ContractFunctionViewTest(TestCase):
         self.assertEqual(response.status_code, httplib.OK)
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
-    @mock.patch("contracts.views._call_constant_function", fake_call_constant_function)
+    @mock.patch("evm_manager.deploy_contract_utils.call_constant_function", fake_call_constant_function)
     @mock.patch("contracts.views.decode_evm_output", fake_decode_evm_output)
     def test_make_constant_function_call_tx(self):
         # Need more tests in detail.
