@@ -10,6 +10,7 @@ toc_footers:
 includes:
   - notation
   - smartcontract
+  - oracle
   - events
   - states
   - errors
@@ -20,4 +21,6 @@ search: true
 
 # Introduction
 
-### Version: `0.3.0`
+### Version: `1.0.0`
+
+In this document, the information will be packed in the key data. The error message will be packed in the key error if there is error happended.
