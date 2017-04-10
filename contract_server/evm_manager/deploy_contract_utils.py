@@ -7,7 +7,7 @@ import json
 import os
 from threading import Lock
 from gcoinbackend import core as gcoincore
-from .utils import wallet_address_to_evm
+from .utils import wallet_address_to_evm, get_tx_info, get_sender_address, get_multisig_address
 from .contract_server_utils import set_contract_address
 from .decorators import retry
 from .models import StateInfo
@@ -48,15 +48,6 @@ def get_latest_blocks():
 
 
 @retry(MAX_RETRY)
-def get_sender_address(txid, vout):
-    try:
-        tx = gcoincore.get_tx(txid)
-        return tx['vout'][vout]['scriptPubKey']['addresses'][0]
-    except Exception as e:
-        print("[ERROR] getting sender address")
-
-
-@retry(MAX_RETRY)
 def get_address_balance(address, color):
     balance = gcoincore.get_address_balance(address, color)
     return balance
@@ -77,33 +68,6 @@ def get_txs_by_address(multisig_address, since, included=None):
         for tx in txs:
             if tx.get('hash') == included:
                 return txs
-        return None
-
-
-def get_multisig_address(tx_hash):
-    tx = get_tx(tx_hash)
-    return get_multisig_address_with_tx(tx)
-
-
-def get_multisig_address_with_tx(tx):
-    try:
-        if tx['type'] == 'CONTRACT':
-            multisig_address = None
-            for vout in tx['vout']:
-                if vout['scriptPubKey']['type'] == 'nulldata':
-                    # 'OP_RETURN 3636......'
-                    bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
-                    data = json.loads(bytecode.decode('utf-8'))
-                    multisig_address = data.get('multisig_address')
-            return multisig_address
-        elif tx['type'] == 'NORMAL':
-            sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
-            if sender_address[0] == '3':
-                return sender_address
-            else:
-                return None
-    except Exception as e:
-        logger.debug("Exception:{}".format(str(e)))
         return None
 
 
@@ -136,7 +100,7 @@ def get_contracts_info(tx):
     """
     multisig_address = None
     bytecode = None
-    sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
+    sender_address = get_sender_address(tx)
     value = {}
     is_deploy = True
     blocktime = tx['blocktime']
@@ -284,7 +248,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):
 
     elif tx['type'] == 'NORMAL':
         try:
-            sender_address = get_sender_address(tx['vin'][0]['txid'], tx['vin'][0]['vout'])
+            sender_address = get_sender_address(tx)
             if sender_address[0] == '1':
                 lock = get_lock(multisig_address)
                 with lock:
