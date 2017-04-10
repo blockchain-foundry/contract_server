@@ -13,11 +13,10 @@ import json
 import base58
 import rlp
 from rlp.utils import decode_hex, ascii_chr
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from gcoin import hash160
 from .decorators import retry
 from gcoinbackend import core as gcoincore
-from binascii import unhexlify
 
 
 def is_numeric(x):
@@ -60,6 +59,12 @@ def mk_contract_address(sender, nonce):
         nonce = 0
     return sha3(rlp.encode([normalize_address(sender), nonce]))[12:]
 
+
+def make_contract_address(multisig_address, sender_address)
+    nonce = get_nonce(multisig_address, sender_address)
+    nonce = nonce if nonce else 0
+    contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
+    contract_address = hexlify(contract_address_byte).decode("utf-8")
 
 def normalize_address(x, allow_blank=False):
     if is_numeric(x):
@@ -162,15 +167,18 @@ def _process_op_return(tx):
             multisig_address = data.get('multisig_address')
             if data.get('source_code'):
                 is_deploy = True
+                contract_address = None
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
-                bytecode = data.get('function_inputs_hash')
                 is_deploy = False
+                contract_address = data.get('contract_address')
+                bytecode = data.get('function_inputs_hash')
     data = {}
     data['hex'] = op_return
     data['bytecode'] = bytecode
     data['is_deploy'] = is_deploy
-    data['multisig_adress'] = multisig_address
+    data['multisig_address'] = multisig_address
+    data['contract_address'] = contract_address
     return data
 
 

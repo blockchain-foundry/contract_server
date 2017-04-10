@@ -92,67 +92,63 @@ def get_unexecuted_txs(multisig_address, tx_hash, _time):
         raise(e)
 
 
-def get_contracts_info(tx):
+def get_contract_info(tx):
     """
     orginal  get_sender_addr_and_multisig_addr_and_bytecode_and_value(tx):
     return (sender_address, multisig_address, bytecode, value)
     value is in json type
     """
-    multisig_address = None
-    bytecode = None
     sender_address = get_sender_address(tx)
+    tx_info = get_tx_info(tx)
+    time = tx_info['time']
+    tx_hash = tx_info['hash']
+    bytecode = tx_info['op_return']['bytecode']
+    is_deploy = tx_info['op_return']['is_deploy']
+    multisig_address = tx_info['op_return']['multisig_address']
+    contract_address = tx_info['op_return']['contract_address']
+
     value = {}
-    is_deploy = True
-    blocktime = tx['blocktime']
-
-    for vout in tx['vout']:
-        if vout['scriptPubKey']['type'] == 'nulldata':
-            # 'OP_RETURN 3636......'
-            bytecode = unhexlify(vout['scriptPubKey']['asm'][10:])
-            data = json.loads(bytecode.decode('utf-8'))
-            multisig_address = data.get('multisig_address')
-            if data.get('contract_address'):
-                contract_address = data.get('contract_address')
-            else:
-                contract_address = multisig_address
-            if data.get('source_code'):
-                bytecode = data.get('source_code')
-            elif data.get('function_inputs_hash'):
-                bytecode = data.get('function_inputs_hash')
-                is_deploy = False
-            else:
-                raise ValueError("Contract OP RETURN is not valid")
-
-    # In order to collect all value send to the multisig, I have to iterate it twice.
     try:
-        for vout in tx['vout']:
-            if (vout['scriptPubKey']['type'] == 'scripthash' and
-                    vout['scriptPubKey']['addresses'][0] == multisig_address):
-                if value.get(vout['color']) is None:
-                    value[vout['color']] = int(vout['value'])
-                else:
-                    value[vout['color']] += int(vout['value'])
-                    # for color in value:
-                    # value[color] = str(value[color])
+        for vout in tx_info['vouts']:
+            if (vout['address'] == multisig_address):
+                value[vout['color']] = value.get(vout['color'], 0) + int(vout['amount'])
     except Exception as e:
         print("ERROR finding address")
     value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
-    if multisig_address is None or bytecode is None or sender_address is None:
-        raise ValueError(
-            "Contract tx %s not valid." % tx['txid']
-        )
     for v in value:
         value[v] = str(value[v] / 100000000)
-    return sender_address, multisig_address, contract_address, bytecode, json.dumps(value), is_deploy, blocktime
+
+    if multisig_address is None or bytecode is None or sender_address is None:
+        raise ValueError("Contract tx %s not valid." % tx_info.get('hash'))
+
+    data = {}
+    data['time'] = time
+    data['hash'] = tx_hash
+    data['amount'] = json.dumps(value)
+    data['bytecode'] = bytecode
+    data['is_deploy'] = is_deploy
+    data['sender_address'] = sender_address
+    data['multisig_address'] = multisig_address
+    data['contract_address'] = contract_address
+    return data
 
 
-def deploy_to_evm(sender_address, multisig_address, byte_code, value, is_deploy, contract_address, tx_hash, ex_tx_hash):
+def deploy_to_evm(tx, ex_tx_hash):
     '''
     sender_address : who deploy the contract
     multisig_address : the address to be deploy the contract
     byte_code : contract code
     value : value in json '{[color1]:[value1], [color2]:[value2]}'
     '''
+    contract_info = get_contract_info(tx)
+    time = contract_info['time']
+    tx_hash = contract_info['hash']
+    value = contract_info['amount']
+    bytecode = contract_info['bytecode']
+    is_deploy = contract_info['is_deploy']
+    sender_address = contract_info['sender_address']
+    multisig_address = contract_info['multisig_address']
+    contract_address = contract_info['contract_address']
     EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
 
     sender_hex = "0x" + wallet_address_to_evm(sender_address)
@@ -232,14 +228,7 @@ def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):
     _time = tx['blocktime']
     if tx['type'] == 'CONTRACT':
         try:
-            sender_address, multisig_address, to_address, bytecode, value, is_deploy, blocktime = get_contracts_info(
-                tx)
-        except Exception as e:
-            _log('Failed', 'CONTRACT', tx_hash, 'Decode tx error')
-            return False
-        try:
-            completed, status, message = deploy_to_evm(
-                sender_address, multisig_address, bytecode, value, is_deploy, to_address, tx_hash, ex_tx_hash)
+            completed, status, message = deploy_to_evm(tx, ex_tx_hash)
             _log(status, tx['type'], tx_hash, message)
             return completed
         except Exception as e:
