@@ -15,6 +15,9 @@ import rlp
 from rlp.utils import decode_hex, ascii_chr
 from binascii import hexlify
 from gcoin import hash160
+from .decorators import retry
+from gcoinbackend import core as gcoincore
+from binascii import unhexlify
 
 
 def is_numeric(x):
@@ -100,14 +103,22 @@ def get_nonce(multisig_address, sender_address):
             return content['accounts'][sender_evm_address]['nonce']
 
 
-def process_tx(tx):
+def get_tx_info(tx_or_tx_hash):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     tx_hash = tx.get('txid') or tx.get('hash')
     typ = tx.get('type')
     time = int(tx.get('time'))
     vins = _process_vins(tx)
     vouts = _process_vouts(tx)
     op_return = None if typ == 'NORMAL' else _process_op_return(tx)
-    return tx_hash, typ, time, vins, vouts, op_return
+    data = {}
+    data['hash'] = tx_hash
+    data['type'] = typ
+    data['time'] = time
+    data['vins'] = vins
+    data['vouts'] = vouts
+    data['op_return'] = op_return
+    return data
 
 
 def _process_vouts(tx):
@@ -144,7 +155,50 @@ def _process_op_return(tx):
     vouts = tx.get('vout') or tx.get('vouts')
     for vout in vouts:
         if int(vout['color']) == 0:
-            if isinstance(vout['scriptPubkey'], str):
-                return vout['scriptPubkey'][8:]
-            else:
-                return vout['scriptPubkey']['asm'][10:]
+            op_return = vout['scriptPubkey'][8:] if isinstance(vout['scriptPubkey'], str) else \
+                vout['scriptPubkey']['asm'][10:]
+            data = unhexlify(op_return)
+            data = json.loads(data.decode('utf-8'))
+            multisig_address = data.get('multisig_address')
+            if data.get('source_code'):
+                is_deploy = True
+                bytecode = data.get('source_code')
+            elif data.get('function_inputs_hash'):
+                bytecode = data.get('function_inputs_hash')
+                is_deploy = False
+    data = {}
+    data['hex'] = op_return
+    data['bytecode'] = bytecode
+    data['is_deploy'] = is_deploy
+    data['multisig_adress'] = multisig_address
+    return data
+
+
+@retry(MAX_RETRY)
+def get_tx(tx_hash):
+    tx = gcoincore.get_tx(tx_hash)
+    return tx
+
+
+def get_sender_address(tx_or_hash):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    if tx.get('vins') is not None:
+        return tx.get('vins')[0].get('address')
+    else:
+        vins = _process_vins(tx)
+        last_tx = get_tx(vins[0]['address'])
+        address = _process_vouts(last_tx)[vins[0]['vout']]['address']
+        return address
+
+
+def get_multisig_address(tx_or_hash):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    if tx.get('type') == 'NORMAL':
+        sender_address = get_sender_address(tx) 
+        multisig_address = sender_address if sender_address[0] == '3' else None
+        return multisig_address
+    elif tx.get('type') == 'CONTRACT':
+        multisig_address = _process_op_return(tx).get('multisig_address')
+        return multisig_addrss
+    else:
+        return None
