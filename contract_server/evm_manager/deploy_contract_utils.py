@@ -30,7 +30,7 @@ def get_lock(filename):
 
 
 @retry(MAX_RETRY)
-def get_tx_info(tx_hash):
+def get_tx(tx_hash):
     tx = gcoincore.get_tx(tx_hash)
     return tx
 
@@ -81,7 +81,7 @@ def get_txs_by_address(multisig_address, since, included=None):
 
 
 def get_multisig_address(tx_hash):
-    tx = get_tx_info(tx_hash)
+    tx = get_tx(tx_hash)
     return get_multisig_address_with_tx(tx)
 
 
@@ -195,7 +195,7 @@ def deploy_to_evm(sender_address, multisig_address, byte_code, value, is_deploy,
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
     log_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address + "_" + tx_hash + "_log"
     print("Contract path: ", contract_path)
-    tx = get_tx_info(tx_hash)
+    tx = get_tx(tx_hash)
     _time = tx['blocktime']
     if is_deploy:
         command = EVM_PATH + " --sender " + sender_hex + " --fund " + "'" + value + "'" + " --value " + "'" + value + "'" + \
@@ -239,7 +239,7 @@ def deploy_contracts(tx_hash):
     if multisig_address is None:
         return False
 
-    tx = get_tx_info(tx_hash)
+    tx = get_tx(tx_hash)
     _time = tx['blocktime']
 
     try:
@@ -264,7 +264,7 @@ def _log(status, typ, tx_hash, message):
 
 
 def deploy_single_tx(tx_hash, ex_tx_hash, multisig_address):
-    tx = get_tx_info(tx_hash)
+    tx = get_tx(tx_hash)
     _time = tx['blocktime']
     if tx['type'] == 'CONTRACT':
         try:
