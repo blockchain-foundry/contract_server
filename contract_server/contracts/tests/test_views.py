@@ -2,7 +2,7 @@ import json
 import mock
 
 from django.test import TestCase
-
+from django.conf import settings
 from contracts.exceptions import Multisig_error
 from contract_server import ERROR_CODE
 from contracts.models import Contract, MultisigAddress
@@ -240,7 +240,7 @@ class WithdrawFromContractTest(TestCase):
             "user_address": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
             "colors": '[1]',
             "amounts": '[1]',
-            "apiVersion": "0.3.0"
+            "apiVersion": settings.API_VERSION
         }
 
     def fake_create_multisig_payment(from_address, to_address, color_id, amount):
@@ -396,7 +396,7 @@ class ContractBindTest(TestCase):
         self.sample_form = {
             'new_contract_address': 'a76c04b0cf9adfdf012222347c18c9445a8fa6f2',
             'original_contract_address': 'a75c04b0cf9adfdf012222347c18c9445a8fa6f2',
-            'apiVersion': '0.3.0'
+            'apiVersion': settings.API_VERSION
         }
 
     def test_wrong_apiversion(self):

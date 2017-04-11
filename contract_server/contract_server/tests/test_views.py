@@ -1,6 +1,7 @@
 import json
 import mock
 from django.test import TestCase
+from django.conf import settings
 
 try:
     import http.client as httplib
@@ -16,7 +17,7 @@ class AddressNotifiedCase(TestCase):
             "tx_hash": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
             "subscription_id": '1',
             "notification_id": '2',
-            "apiVersion": '0.3.0',
+            "apiVersion": settings.API_VERSION,
         }
 
     def fake_clear_evm_accouts(multisig_address):
