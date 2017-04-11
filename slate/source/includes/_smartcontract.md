@@ -91,7 +91,7 @@ conditions       | array    | F        | array of oraclize conditions
 → condition_type | string   | F        | type of condition
 → receiver_addr  | string   | F        | receiver address
 → color          | string   | F        | color of condition
-function_inputs  | string   | F        | inputs of constructor function
+function_inputs  | array    | F        | inputs of constructor function
 → name           | string   | T        | name of parameter
 → type           | string   | T        | type of parameter
 → value          | **type** | T        | value of parameter
@@ -102,6 +102,86 @@ Field  | Type    | Description
 ------ | ------- | -------------
 raw_tx | string  | raw transaction
 
+
+## Get information of the contract object 
+
+### Description
+Get the detailed information of the contract.
+
+> Sample Response
+
+```js
+{
+  "data": [
+    {
+      "interface": [
+        {
+          "constant": false,
+          "outputs": [],
+          "type": "function",
+          "name": "setgreeter",
+          "inputs": [
+            {
+              "type": "string",
+              "name": "_greeting"
+            }
+          ],
+          "payable": false
+        },
+        {
+          "constant": true,
+          "outputs": [
+            {
+              "type": "string",
+              "name": ""
+            }
+          ],
+          "type": "function",
+          "name": "greet",
+          "inputs": [],
+          "payable": false
+        },
+        {
+          "type": "constructor",
+          "inputs": [
+            {
+              "type": "string",
+              "name": "_greeting"
+            }
+          ],
+          "payable": false
+        }
+      ],
+      "sender_nonce_predicted": 0,
+      "tx_hash_init": "473f03bd780a5ebe3a32f2be918678ddb9990617f60041a560b18f62d65ca7e5",
+      "hash_op_return": 2033423023,
+      "is_deployed": true,
+      "sender_evm_address": "8b82b02cabca8eb30f1f79394ad9f2188ddfbf5c"
+    }
+  ]
+}
+```
+### HTTP Request
+
+`GET http://<CONTRACT_SERVER_URL>/smart-contract/multisig-addresses/[:multisig_address]/contracts/[:contract_address]/`
+
+
+### Return Value
+
+Field                  | Type     | Description
+---------------------- | -------- | --------------------
+interface              | list     | abi
+-> constant            | boolean  | constant function or not
+-> outputs             | list     | output varaible
+-> type                | string   | function or event
+-> name                | string   | name of item
+-> inputs              | list     | input variable
+-> payable             | list     | payable or not
+sender_nonce_predicted | int      | for  confirm contract address is double-deployed or not
+tx_hash_init           | string   | transaction hash id
+hash_op_return         | int      | hash of the `OP_RETURN`
+is_deployed            | boolean  | if the contract is deployed or not
+sender_evm_address     | string   | sender address in evm environment
 
 ## Call function
 
@@ -169,7 +249,7 @@ Field           | Type     | Required | Description
 --------------- | -------- | -------- | ---------------
 sender_address  | string   | T        | sender address
 function_name   | string   | T        | function name
-function_inputs | string   | T        | function input list
+function_inputs | array    | T        | function input list
 → name          | string   | T        | name of parameter
 → type          | string   | T        | type of parameter
 → value         | **type** | T        | value of parameter
@@ -192,7 +272,67 @@ Field           | Type     | Description
 --------------- | -------- | ---------------
 raw_tx          | string   | raw transaction
 
+## Get contract abi
 
+### Description
+Get the function_list and event_list of the contract.
+
+> Sample Response
+
+```js
+{
+  "data": {
+    "event_list": [],
+    "function_list": [
+      {
+        "outputs": [],
+        "type": "function",
+        "name": "setgreeter",
+        "inputs": [
+          {
+            "type": "string",
+            "name": "_greeting"
+          }
+        ]
+      },
+      {
+        "outputs": [
+          {
+            "type": "string",
+            "name": ""
+          }
+        ],
+        "type": "function",
+        "name": "greet",
+        "inputs": []
+      }
+    ]
+  }
+}
+```
+### HTTP Request
+
+`GET http://<CONTRACT_SERVER_URL>/smart-contract/multisig-addresses/[:multisig_address]/contracts/[:contract_address]/function/`
+
+
+### Return Value
+
+Field         | Type    | Description
+------------- | ------- | -------------
+event_list    | list    | event abi
+-> type       | string  | event
+-> name       | string  | name
+-> inputs     | list    | inputs variable
+---> type     | string  | type of inputs variable
+---> name     | string  | name of inputs variable
+function_list | list    | function abi
+-> type       | string  | constructor or function
+-> name       | string  | name of function
+-> inputs     | list    | input variable
+---> type     | string  | type of input variable
+---> name     | string  | name of input variable
+-> outputs    | list    | output variable
+---> type     | string  | type of output variable
 
 ## Bind contract interface
 
