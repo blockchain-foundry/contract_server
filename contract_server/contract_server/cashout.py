@@ -47,7 +47,7 @@ def get_surplus(contract_balance, accounts):
             key, value = process_key_value_type(key, value)
             surplus[key] = surplus.get(key, process_value_type(0)) - value
     fee_color, fee_amount = process_key_value_type(TX_FEE_COLOR, TX_FEE)
-    surplus[fee_color] -= fee_amount
+    surplus[fee_color] = surplus.get(fee_color, 0) - fee_amount
     return surplus
 
 
