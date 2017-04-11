@@ -168,20 +168,20 @@ Get the detailed information of the contract.
 
 ### Return Value
 
-Field  | Type    | Description
------- | ------- | -------------
-interface | list  | abi
--> constant | boolean  | constant function or not
--> outputs | list  | output varaible
--> type | string  | function or event
--> name | string  | name of item
--> inputs | list  | input variable
--> payable | list  | payable or not
-sender_nonce_predicted| int  | for  confirm contract address is double-deployed or not
-tx_hash_init| string  | transaction hash id
-hash_op_return| int  | hash of the `OP_RETURN`
-is_deployed| boolean  | if the contract is deployed or not
-sender_evm_address| string  | sender address in evm environment
+Field                  | Type     | Description
+---------------------- | -------- | --------------------
+interface              | list     | abi
+-> constant            | boolean  | constant function or not
+-> outputs             | list     | output varaible
+-> type                | string   | function or event
+-> name                | string   | name of item
+-> inputs              | list     | input variable
+-> payable             | list     | payable or not
+sender_nonce_predicted | int      | for  confirm contract address is double-deployed or not
+tx_hash_init           | string   | transaction hash id
+hash_op_return         | int      | hash of the `OP_RETURN`
+is_deployed            | boolean  | if the contract is deployed or not
+sender_evm_address     | string   | sender address in evm environment
 
 ## Call function
 
@@ -317,19 +317,22 @@ Get the function_list and event_list of the contract.
 
 ### Return Value
 
-Field  | Type    | Description
------- | ------- | -------------
-event_list | list  | event abi
--> outputs | list  | output variable
--> type | list  | function or event
--> name | list  | name
--> inputs | list  | input variable
-function_list| list  | function abi
--> outputs | list  | output variable
--> type | list  | function or event
--> name | list  | name
--> inputs | list  | input variable
-
+Field         | Type    | Description
+------------- | ------- | -------------
+event_list    | list    | event abi
+-> type       | string  | event
+-> name       | string  | name
+-> inputs     | list    | inputs variable
+---> type     | string  | type of inputs variable
+---> name     | string  | name of inputs variable
+function_list | list    | function abi
+-> type       | string  | constructor or function
+-> name       | string  | name of function
+-> inputs     | list    | input variable
+---> type     | string  | type of input variable
+---> name     | string  | name of input variable
+-> outputs    | list    | output variable
+---> type     | string  | type of output variable
 
 ## Bind contract interface
 
