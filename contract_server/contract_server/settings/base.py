@@ -24,7 +24,7 @@ SECRET_KEY = '+4hliv57!%_ue20+wl%**y%twqjov$!jon8d5qr+*8w-9l^agv'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-API_VERSION = "0.3.0"
+API_VERSION = "1.0.0"
 
 ALLOWED_HOSTS = []
 
