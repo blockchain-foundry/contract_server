@@ -148,7 +148,7 @@ LOGGING = {
             'datefmt': "%d/%b/%Y %H:%M:%S"
         },
         'state_log': {
-            'format': "[%(asctime)s][%(filename)13s:%(lineno)s] Thread-%(thread)d %(message)s",
+            'format': "[%(asctime)s] %(threadName)s %(message)s",
             'datefmt': "%d/%b/%Y %H:%M:%S"
         },
     },
