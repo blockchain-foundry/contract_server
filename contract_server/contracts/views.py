@@ -182,7 +182,8 @@ class DeployContract(APIView):
         vouts = deserialize(tx_hex)['outs']
         for vout in vouts:
             if vout['color'] == 0:
-                return Contract.make_hash_op_return(vout['script'])
+                begin = vout['script'].find('7d')
+                return Contract.make_hash_op_return(vout['script'][begin:])
         raise Exception('tx_format_error')
 
     @handle_apiversion_apiview
