@@ -8,7 +8,7 @@ def set_contract_address(multisig_address, contract_address, sender_evm_address,
         multisig_address__address=multisig_address,
         sender_evm_address=sender_evm_address,
         hash_op_return=Contract.make_hash_op_return(op_return_hex),
-        is_deployed = False
+        is_deployed=False
     )[0]
     c.contract_address = contract_address
     c.tx_hash_init = tx_hash

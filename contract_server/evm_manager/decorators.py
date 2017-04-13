@@ -10,6 +10,7 @@ LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 logger = logging.getLogger(__name__)
 
+
 def handle_exception(func):
     """
     This decorator catches all exception that thrown by the view_func,
@@ -23,6 +24,7 @@ def handle_exception(func):
             logger.error(traceback.format_exc())
             return False
     return wrapper
+
 
 def retry(max_retry):
     """
@@ -45,7 +47,6 @@ def retry(max_retry):
                         raise e
         return wrapper2
     return wrapper1
-
 
 
 def write_lock(func):
@@ -79,8 +80,7 @@ def read_lock(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         tx_info, ex_tx_hash, multisig_address = args[0], args[1], args[2]
-        tx_hash, _time = tx_info['hash'], tx_info['time']
-        contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+        tx_hash = tx_info['hash']
         lock = _get_lock(multisig_address)
         with lock:
             state, created = StateInfo.objects.get_or_create(multisig_address=multisig_address)
@@ -96,4 +96,3 @@ def read_lock(func):
 def _get_lock(filename):
     index = abs(hash(str(filename))) % LOCK_POOL_SIZE
     return LOCKS[index]
-

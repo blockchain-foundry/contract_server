@@ -20,6 +20,7 @@ from .decorators import retry
 from gcoinbackend import core as gcoincore
 from .exceptions import TxNotFoundError
 
+
 def is_numeric(x):
     return isinstance(x, int)
 
@@ -133,7 +134,7 @@ def _process_vouts(tx):
     tx = copy.deepcopy(tx)
     vouts = (tx.get('vout') or tx.get('vouts'))
     for vout in vouts:
-        vout['address'] = vout.get('address') 
+        vout['address'] = vout.get('address')
         vout['address'] = vout['address'] if vout['address'] is not None else \
             (vout.get('scriptPubKey').get('addresses') or '')
         vout['address'] = vout['address'] if isinstance(vout['address'], str) else vout['address'][0]
@@ -167,7 +168,6 @@ def _process_vins(tx):
 
 def _process_op_return(tx):
     vouts = tx.get('vout') or tx.get('vouts')
-    tt = get_tx(tx['hash'])
     for vout in vouts:
         if int(vout['color']) == 0:
             op_return = vout['scriptPubKey'] if isinstance(vout['scriptPubKey'], str) else \
@@ -216,7 +216,7 @@ def get_sender_address(tx_or_hash):
 def get_multisig_address(tx_or_hash):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     if tx.get('type') == 'NORMAL':
-        sender_address = get_sender_address(tx) 
+        sender_address = get_sender_address(tx)
         multisig_address = sender_address if sender_address[0] == '3' else None
         return multisig_address
     elif tx.get('type') == 'CONTRACT':

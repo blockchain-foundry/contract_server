@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from binascii import hexlify, unhexlify
+from binascii import hexlify
 from subprocess import check_call, PIPE, STDOUT, Popen
 import base58
 import json
@@ -8,12 +8,12 @@ import os
 from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm, get_tx_info, get_sender_address, get_multisig_address, make_contract_address
 from .contract_server_utils import set_contract_address, unset_all_contract_addresses
-from .decorators import retry, read_lock, write_lock, handle_exception
+from .decorators import retry, write_lock, handle_exception
 from .models import StateInfo
 import logging
 from events import state_log_utils
 from gcoin import hash160
-from .exceptions import TxNotFoundError, DoubleSpendingError
+from .exceptions import TxNotFoundError, DoubleSpendingError, UnsupportedTxTypeError
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
 CONTRACT_FEE_COLOR = 1
@@ -31,15 +31,16 @@ def deploy_contracts(tx_hash):
     """
 
     logger.info('---------- Start  updating ----------')
-    logger.info('/notify/'+ tx_hash )
+    logger.info('/notify/' + tx_hash)
 
     tx = get_tx(tx_hash)
     multisig_address = get_multisig_address(tx)
-    
-    rebuild_state_file(multisig_address)
+
+    if tx['type'] == 'NORMAL' and multisig_address is None:
+        raise UnsupportedTxTypeError
 
     txs, latest_tx_hash = get_unexecuted_txs(multisig_address, tx_hash, tx['time'])
-    
+
     logger.info('Start : The latest updated tx of ' + multisig_address + ' is ' + (latest_tx_hash or 'None'))
     logger.info(str(len(txs)) + ' non-updated txs are found')
 
@@ -64,7 +65,7 @@ def deploy_single_tx(tx, ex_tx_hash, multisig_address):
         update_cashout_type(tx_info, ex_tx_hash, multisig_address)
     else:
         update_other_type(tx_info, ex_tx_hash, multisig_address)
-            
+
 
 def update_contract_type(tx_info, ex_tx_hash, multisig_address, sender_address):
     command, contract_address, is_deploy = get_command(tx_info, sender_address)
@@ -101,7 +102,7 @@ def write_state_cashout_type(tx_info, ex_tx_hash, multisig_address):
 
 @write_lock
 def write_state_other_type(tx_info, ex_tx_hash, multisig_address):
-    logger.info('Ignored: non-contract & non-cashout type ' + tx_hash)
+    logger.info('Ignored: non-contract & non-cashout type ' + tx_info['hash'])
 
 
 @retry(MAX_RETRY)
@@ -299,5 +300,3 @@ def rebuild_state_file(multisig_address):
     state.latest_tx_time = ''
     state.save()
     unset_all_contract_addresses(multisig_address)
-
-

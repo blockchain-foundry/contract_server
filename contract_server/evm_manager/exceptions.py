@@ -16,3 +16,7 @@ class TxNotFoundError(Exception):
 
 class DoubleSpendingError(Exception):
     pass
+
+
+class UnsupportedTxTypeError(Exception):
+    pass
