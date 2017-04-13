@@ -12,12 +12,13 @@ import os
 import json
 import base58
 import rlp
+import copy
 from rlp.utils import decode_hex, ascii_chr
 from binascii import hexlify, unhexlify
 from gcoin import hash160
 from .decorators import retry
 from gcoinbackend import core as gcoincore
-
+from .exceptions import TxNotFoundError
 
 def is_numeric(x):
     return isinstance(x, int)
@@ -60,11 +61,13 @@ def mk_contract_address(sender, nonce):
     return sha3(rlp.encode([normalize_address(sender), nonce]))[12:]
 
 
-def make_contract_address(multisig_address, sender_address)
+def make_contract_address(multisig_address, sender_address):
     nonce = get_nonce(multisig_address, sender_address)
     nonce = nonce if nonce else 0
     contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
     contract_address = hexlify(contract_address_byte).decode("utf-8")
+    return contract_address
+
 
 def normalize_address(x, allow_blank=False):
     if is_numeric(x):
@@ -108,7 +111,7 @@ def get_nonce(multisig_address, sender_address):
             return content['accounts'][sender_evm_address]['nonce']
 
 
-def get_tx_info(tx_or_tx_hash):
+def get_tx_info(tx_or_hash):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     tx_hash = tx.get('txid') or tx.get('hash')
     typ = tx.get('type')
@@ -127,11 +130,16 @@ def get_tx_info(tx_or_tx_hash):
 
 
 def _process_vouts(tx):
-    vouts = tx.get('vout') or tx.get('vouts')
+    tx = copy.deepcopy(tx)
+    vouts = (tx.get('vout') or tx.get('vouts'))
     for vout in vouts:
-        vout['address'] = vout.get('scriptPubKey').get('addresses') or vout.get('address') or ''
+        vout['address'] = vout.get('address') 
+        vout['address'] = vout['address'] if vout['address'] is not None else \
+            (vout.get('scriptPubKey').get('addresses') or '')
         vout['address'] = vout['address'] if isinstance(vout['address'], str) else vout['address'][0]
-        vout['amount'] = int(vout.get('value') or vout.get('amount'))
+
+        vout['amount'] = vout.get('value') if vout.get('value') is not None else vout.get('amount')
+        vout['amount'] = int(vout['amount'])
         vout['color'] = int(vout['color'])
         vout['n'] = int(vout['n'])
         del vout['scriptPubKey']
@@ -143,9 +151,10 @@ def _process_vouts(tx):
 
 
 def _process_vins(tx):
+    tx = copy.deepcopy(tx)
     vins = tx.get('vin') or tx.get('vins')
     for vin in vins:
-        vin['vout'] = int(vin.get['vout'])
+        vin['vout'] = int(vin.get('vout'))
         vin['tx_hash'] = vin.get('txid') or vin.get('tx_id')
         delete_field = ['txid', 'tx_id', 'address', 'color', 'amount', 'scriptSig', 'sequence']
         for field in delete_field:
@@ -158,12 +167,15 @@ def _process_vins(tx):
 
 def _process_op_return(tx):
     vouts = tx.get('vout') or tx.get('vouts')
+    tt = get_tx(tx['hash'])
     for vout in vouts:
         if int(vout['color']) == 0:
-            op_return = vout['scriptPubkey'][8:] if isinstance(vout['scriptPubkey'], str) else \
-                vout['scriptPubkey']['asm'][10:]
-            data = unhexlify(op_return)
-            data = json.loads(data.decode('utf-8'))
+            op_return = vout['scriptPubKey'] if isinstance(vout['scriptPubKey'], str) else \
+                vout['scriptPubKey']['asm'][10:]
+            begin = op_return.find('7b')
+            data = unhexlify(op_return[begin:])
+            data = data.decode('utf-8')
+            data = json.loads(data)
             multisig_address = data.get('multisig_address')
             if data.get('source_code'):
                 is_deploy = True
@@ -182,9 +194,11 @@ def _process_op_return(tx):
     return data
 
 
-@retry(MAX_RETRY)
+@retry(10)
 def get_tx(tx_hash):
     tx = gcoincore.get_tx(tx_hash)
+    if tx is None:
+        raise TxNotFoundError
     return tx
 
 
@@ -194,7 +208,7 @@ def get_sender_address(tx_or_hash):
         return tx.get('vins')[0].get('address')
     else:
         vins = _process_vins(tx)
-        last_tx = get_tx(vins[0]['address'])
+        last_tx = get_tx(vins[0]['tx_hash'])
         address = _process_vouts(last_tx)[vins[0]['vout']]['address']
         return address
 
@@ -207,6 +221,6 @@ def get_multisig_address(tx_or_hash):
         return multisig_address
     elif tx.get('type') == 'CONTRACT':
         multisig_address = _process_op_return(tx).get('multisig_address')
-        return multisig_addrss
+        return multisig_address
     else:
         return None
