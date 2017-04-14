@@ -48,7 +48,7 @@ def check_state(multisig_address, tx_hash):
         return False
 
     try:
-        tx = deploy_contract_utils.get_tx_info(tx_hash)
+        tx = deploy_contract_utils.get_tx(tx_hash)
         _time = tx['blocktime']
     except Exception as e:
         print("error: " + str(e))
