@@ -46,7 +46,7 @@ class AddressNotifiedCase(TestCase):
 
     @mock.patch("evm_manager.deploy_contract_utils.deploy_contracts", fake_deploy_contracts)
     @mock.patch("events.state_log_utils.check_watch", fake_check_watch)
-    @mock.patch("contract_server.cashout.clear_evm_accouts", fake_clear_evm_accouts)
+    @mock.patch("contract_server.views.clear_evm_accouts", fake_clear_evm_accouts)
     def test_address_notified_success(self):
         self.response = self.client.post(self.url, self.sample_form)
         json_data = json.loads(self.response.content.decode('utf-8'))

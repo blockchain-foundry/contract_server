@@ -20,7 +20,7 @@ from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function,  make_evm_input_code, get_abi_list)
 
-from contract_server.decorators import handle_uncaught_exception, handle_apiversion, handle_apiversion_apiview
+from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
 from contract_server import response_utils
 
 from .models import Contract, MultisigAddress
@@ -32,9 +32,9 @@ from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddre
 
 from .config import CONTRACT_FEE
 from .exceptions import Multisig_error, SubscribeAddrsssNotificationError, OracleMultisigAddressError, MultisigNotFoundError, ContractNotFoundError, OssError
-from .forms import WithdrawFromContractForm, BindForm
+from .forms import BindForm
 
-from contract_server import ERROR_CODE, error_response, data_response
+from contract_server import ERROR_CODE, data_response
 from contract_server.mixins import CsrfExemptMixin
 
 from solc import compile_source
@@ -108,56 +108,6 @@ def get_callback_url(request, multisig_address):
         '/addressnotify/' + multisig_address
     callback_url = ''.join(callback_url.split())
     return callback_url
-
-
-class WithdrawFromContract(BaseFormView, CsrfExemptMixin):
-    http_method_names = ['post']
-    form_class = WithdrawFromContractForm
-
-    @handle_apiversion
-    def form_valid(self, form):
-        response = {}
-        multisig_address = form.cleaned_data['multisig_address']
-        user_address = form.cleaned_data['user_address']
-        colors = form.cleaned_data['colors']
-        amounts = form.cleaned_data['amounts']
-
-        # create payment for each color and store the results
-        # in tx list or error list
-        txs = []
-        errors = []
-        for color_id, amount in zip(colors, amounts):
-            color_id = int(color_id)
-            amount = int(amount)
-            if amount == 0:  # it will always show color = 0 at evm
-                continue
-            try:
-                r = create_multisig_payment(multisig_address, user_address, color_id, amount)
-            except MultisigNotFoundError:
-                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'multisig_address_not_found_error', ERROR_CODE['multisig_address_not_found_error'])
-            except ContractNotFoundError:
-                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'contract_not_found_error', ERROR_CODE['contract_not_found_error'])
-            except OssError:
-                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'create_payment_error', ERROR_CODE['create_payment_error'])
-            except Exception as e:
-                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
-
-            tx_id = r.get('tx_id')
-
-            if tx_id is None:
-                errors.append({color_id: r})
-                continue
-            txs.append(tx_id)
-
-        response['txs'] = txs
-        response['error'] = errors
-
-        if txs:
-            return data_response(response)
-        return error_response(httplib.BAD_REQUEST, 'no_txs', ERROR_CODE['no_txs_error'])
-
-    def form_invalid(self, form):
-        return error_response(httplib.BAD_REQUEST, form.errors, ERROR_CODE['invalid_form_error'])
 
 
 class ContractList(View):

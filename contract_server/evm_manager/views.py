@@ -90,7 +90,6 @@ class CheckUpdate(APIView):
                     is_deployed=True
                 ).contract_address
         except ObjectDoesNotExist as e:
-            print(e)
             pass
         except Exception as e:
             response = error_response(code=httplib.INTERNAL_SERVER_ERROR, message=str(e))
