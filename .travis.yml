@@ -1,10 +1,19 @@
+sudo: required
+dist: trusty
 language: python
 python:
-  - "3.5"
+  - "3.4"
+go:
+  - "1.7"
 services: mysql
 env:
   - DJANGO=1.8
 install:
+  - export GOPATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace:$GOPATH"
+  - export PATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace/bin:$PATH"
+  - go version
+  - cd ./go-ethereum/ ; make evm
+  - cd ..
   - pip install pep8
   - pip install flake8
   - pip install -r requirements.txt
