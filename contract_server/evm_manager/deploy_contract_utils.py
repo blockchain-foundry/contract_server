@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from binascii import hexlify
 from subprocess import check_call, PIPE, STDOUT, Popen
-import base58
 import json
 import os
 from gcoinbackend import core as gcoincore
@@ -12,10 +10,13 @@ from .decorators import retry, write_lock, handle_exception
 from .models import StateInfo
 import logging
 from events import state_log_utils
-from gcoin import hash160
 from .exceptions import TxNotFoundError, DoubleSpendingError, UnsupportedTxTypeError
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
 
+THIS_FILE_PATH = os.path.dirname(os.path.abspath(__file__))
+CONTRACT_PATH_FORMAT = THIS_FILE_PATH + '/../states/{multisig_address}'
+EVM_LOG_PATH_FORMAT = THIS_FILE_PATH + '/../states/{multisig_address}_{tx_hash}_log'
+EVM_PATH = THIS_FILE_PATH + '/../../go-ethereum/build/bin/evm'
 CONTRACT_FEE_COLOR = 1
 CONTRACT_FEE_AMOUNT = 100000000
 logger = logging.getLogger(__name__)
@@ -35,7 +36,6 @@ def deploy_contracts(tx_hash):
 
     tx = get_tx(tx_hash)
     multisig_address = get_multisig_address(tx)
-
     if tx['type'] == 'NORMAL' and multisig_address is None:
         raise UnsupportedTxTypeError
 
@@ -82,7 +82,7 @@ def update_other_type(tx_info, ex_tx_hash, multisig_address):
 
 @write_lock
 def write_state_contract_type(tx_info, ex_tx_hash, multisig_address, sender_address, command, contract_address, is_deploy):
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
     check_call(command, shell=True)
     sender_evm_address = wallet_address_to_evm(sender_address)
     inc_nonce(contract_path, sender_evm_address)
@@ -92,7 +92,7 @@ def write_state_contract_type(tx_info, ex_tx_hash, multisig_address, sender_addr
 
 @write_lock
 def write_state_cashout_type(tx_info, ex_tx_hash, multisig_address):
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
     with open(contract_path, 'r') as f:
         content = json.load(f)
     content = get_remaining_money(content, tx_info, multisig_address)
@@ -174,15 +174,14 @@ def get_command(tx_info, sender_address):
     is_deploy = tx_info['op_return']['is_deploy']
     multisig_address = tx_info['op_return']['multisig_address']
     contract_address = tx_info['op_return']['contract_address']
-    amount = get_amount(tx_info, multisig_address)
-    EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    sender_hex = "0x" + wallet_address_to_evm(sender_address)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
-    log_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address + "_" + tx_hash + "_log"
+    value = get_value(tx_info, multisig_address)
+    sender_hex = wallet_address_to_evm(sender_address)
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
+    log_path = EVM_LOG_PATH_FORMAT.format(multisig_address=multisig_address, tx_hash=tx_hash)
     command = EVM_PATH + \
         " --sender " + sender_hex + \
-        " --fund " + "'" + amount + "'" + \
-        " --value " + "'" + amount + "'" + \
+        " --fund " + "'" + value + "'" + \
+        " --value " + "'" + value + "'" + \
         " --write " + contract_path + \
         " --read " + contract_path + \
         " --time " + str(_time) + \
@@ -225,15 +224,15 @@ def get_remaining_money(content, tx_info, multisig_address):
     return content
 
 
-def get_amount(tx_info, multisig_address):
-    amount = {}
+def get_value(tx_info, multisig_address):
+    value = {}
     for vout in tx_info['vouts']:
         if(vout['address'] == multisig_address):
-            amount[vout['color']] = amount.get(vout['color'], 0) + int(vout['amount'])
-    amount[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
-    for v in amount:
-        amount[v] = str(amount[v] / 100000000)
-    return json.dumps(amount)
+            value[vout['color']] = value.get(vout['color'], 0) + int(vout['amount'])
+    value[CONTRACT_FEE_COLOR] -= CONTRACT_FEE_AMOUNT
+    for v in value:
+        value[v] = str(value[v] / 100000000)
+    return json.dumps(value)
 
 
 def inc_nonce(contract_path, sender_evm_addr):
@@ -248,8 +247,7 @@ def inc_nonce(contract_path, sender_evm_addr):
 
 def make_multisig_address_file(multisig_address):
     try:
-        EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-        contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+        contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
         if not os.path.exists(contract_path):
             command = EVM_PATH + " --deploy " " --write " + contract_path
             check_call(command, shell=True)
@@ -259,24 +257,16 @@ def make_multisig_address_file(multisig_address):
         raise(e)
 
 
-def call_constant_function(sender_addr, multisig_address, byte_code, value, to_addr):
-    EVM_PATH = os.path.dirname(os.path.abspath(__file__)) + '/../../go-ethereum/build/bin/evm'
-    if to_addr == multisig_address:
-        multisig_hex = base58.b58decode(multisig_address)
-        multisig_hex = hexlify(multisig_hex)
-        multisig_hex = "0x" + hash160(multisig_hex)
-    else:
-        multisig_hex = to_addr
-    sender_hex = base58.b58decode(sender_addr)
-    sender_hex = hexlify(sender_hex)
-    sender_hex = "0x" + hash160(sender_hex)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + \
-        '/../states/' + multisig_address
+def call_constant_function(sender_address, multisig_address, byte_code, value, contract_address):
+    if contract_address == multisig_address:
+        contract_address = wallet_address_to_evm(contract_address)
+    sender_evm_address = wallet_address_to_evm(sender_address)
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
     print("Contract path: ", contract_path)
 
-    command = '{EVM_PATH} --sender {sender_hex} --fund {value} --value {value} \
-        --write {contract_path} --input {byte_code} --receiver {multisig_hex} --read {contract_path}'.format(
-        EVM_PATH=EVM_PATH, sender_hex=sender_hex, value=value, contract_path=contract_path, byte_code=byte_code, multisig_hex=multisig_hex)
+    command = '{EVM_PATH} --sender {sender_evm_address} --fund {value} --value {value} \
+        --write {contract_path} --input {byte_code} --receiver {contract_address} --read {contract_path}'.format(
+        EVM_PATH=EVM_PATH, sender_evm_address=sender_evm_address, value=value, contract_path=contract_path, byte_code=byte_code, contract_address=contract_address)
     p = Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     stdout, stderr = p.communicate()
     print("stdout: ", stdout)
@@ -292,7 +282,7 @@ def call_constant_function(sender_addr, multisig_address, byte_code, value, to_a
 
 def rebuild_state_file(multisig_address):
     make_multisig_address_file(multisig_address)
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
     os.remove(contract_path)
     make_multisig_address_file(multisig_address)
     state, created = StateInfo.objects.get_or_create(multisig_address=multisig_address)
