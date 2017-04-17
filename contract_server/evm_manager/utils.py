@@ -138,7 +138,6 @@ def _process_vouts(tx):
         vout['address'] = vout['address'] if vout['address'] is not None else \
             (vout.get('scriptPubKey').get('addresses') or '')
         vout['address'] = vout['address'] if isinstance(vout['address'], str) else vout['address'][0]
-
         vout['amount'] = vout.get('value') if vout.get('value') is not None else vout.get('amount')
         vout['amount'] = int(vout['amount'])
         vout['color'] = int(vout['color'])
@@ -156,7 +155,7 @@ def _process_vins(tx):
     vins = tx.get('vin') or tx.get('vins')
     for vin in vins:
         vin['vout'] = int(vin.get('vout'))
-        vin['tx_hash'] = vin.get('txid') or vin.get('tx_id')
+        vin['tx_hash'] = vin.get('txid') or vin.get('tx_id') or vin.get('tx_hash')
         delete_field = ['txid', 'tx_id', 'address', 'color', 'amount', 'scriptSig', 'sequence']
         for field in delete_field:
             try:
@@ -204,8 +203,9 @@ def get_tx(tx_hash):
 
 def get_sender_address(tx_or_hash):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
-    if tx.get('vins') is not None:
-        return tx.get('vins')[0].get('address')
+    vins = tx.get('vin') or tx.get('vins')
+    if vins[0].get('address') is not None:
+        return vins[0].get('address')
     else:
         vins = _process_vins(tx)
         last_tx = get_tx(vins[0]['tx_hash'])
