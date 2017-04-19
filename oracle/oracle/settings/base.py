@@ -132,3 +132,64 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# loggin related settings
+LOG_DIR = BASE_DIR + '/../../log/'
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': "[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+        'state_log': {
+            'format': "[%(asctime)s] %(threadName)s %(message)s",
+            'datefmt': "%d/%b/%Y %H:%M:%S"
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': LOG_DIR + 'django.log',
+            'formatter': 'verbose'
+        },
+        'state_log_file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR, 'oracle_evm_manager.log'),
+            'formatter': 'state_log',
+
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler'
+        }
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'propagate': True,
+            'level': 'DEBUG',
+        },
+        'django.request': {
+            'handlers': ['file'],
+            'propagate': False,
+            'level': 'DEBUG',
+        },
+        'django.db.backends': {
+            'handlers': ['file'],
+            'propagate': False,
+            'level': 'WARNING',
+        },
+        'django_crontab': {
+            'handlers': ['file', 'mail_admins'],
+            'level': 'DEBUG',
+        },
+        'evm_manager': {
+            'handlers': ['file', 'mail_admins', 'state_log_file'],
+            'level': 'DEBUG',
+        }
+    }
+}
