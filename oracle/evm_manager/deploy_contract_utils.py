@@ -32,7 +32,7 @@ MAX_RETRY = 10
 
 
 @handle_exception
-def deploy_contracts(tx_hash):
+def deploy_contracts(tx_hash, rebuild=False):
     """
         May be slow when one block contains seas of transactions.
         Using thread doesn't help due to the fact that rpc getrawtransaction
@@ -46,7 +46,8 @@ def deploy_contracts(tx_hash):
     multisig_address = get_multisig_address(tx)
     if tx['type'] == 'NORMAL' and multisig_address is None:
         raise UnsupportedTxTypeError
-    rebuild_state_file(multisig_address)
+    if rebuild:
+        rebuild_state_file(multisig_address)
     txs, latest_tx_hash = get_unexecuted_txs(multisig_address, tx_hash, tx['time'])
 
     logger.info('Start : The latest updated tx of ' + multisig_address + ' is ' + (latest_tx_hash or 'None'))
