@@ -162,7 +162,7 @@ LOGGING = {
         'state_log_file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(LOG_DIR, 'state.log'),
+            'filename': os.path.join(LOG_DIR, 'contract_evm_manager.log'),
             'formatter': 'state_log',
         },
         'mail_admins': {
