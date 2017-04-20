@@ -16,8 +16,8 @@ from rlp.utils import decode_hex, ascii_chr
 from binascii import hexlify, unhexlify
 from .decorators import retry
 from gcoinbackend import core as gcoincore
-from .exceptions import TxNotFoundError
 from gcoin import b58check_to_hex, hex_to_b58check
+from .exceptions import TxNotFoundError, TxUnconfirmedError
 
 
 def is_numeric(x):
@@ -115,6 +115,8 @@ def get_nonce(multisig_address, sender_address):
 def get_tx_info(tx_or_hash):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     tx_hash = tx.get('txid') or tx.get('hash')
+    blockhash = tx.get('blockhash') or tx.get('block_hash')
+    confirmations = tx.get('confirmations') or tx.get('confirmation')
     typ = tx.get('type')
     time = int(tx.get('time'))
     vins = _process_vins(tx)
@@ -126,7 +128,9 @@ def get_tx_info(tx_or_hash):
     data['time'] = time
     data['vins'] = vins
     data['vouts'] = vouts
+    data['blockhash'] = blockhash
     data['op_return'] = op_return
+    data['confirmations'] = confirmations
     return data
 
 
@@ -194,10 +198,13 @@ def _process_op_return(tx):
 
 
 @retry(10)
-def get_tx(tx_hash):
+def get_tx(tx_hash, confirmations=0):
     tx = gcoincore.get_tx(tx_hash)
     if tx is None:
         raise TxNotFoundError
+    tx_confirmations = tx.get('confirmations') or 0
+    if tx_confirmations < confirmations:
+        raise TxUnconfirmedError
     return tx
 
 

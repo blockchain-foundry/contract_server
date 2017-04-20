@@ -1,9 +1,10 @@
 from contracts.models import Contract
+from .utils import wallet_address_to_evm
 
 
-def set_contract_address(multisig_address, contract_address, sender_evm_address, tx_info):
+def set_contract_address(multisig_address, contract_address, sender_address, tx_info):
     op_return_hex, tx_hash = _get_op_return_hex_and_hash(tx_info)
-    sender_evm_address = sender_evm_address if sender_evm_address[:2] != '0x' else sender_evm_address[2:]
+    sender_evm_address = wallet_address_to_evm(sender_address)
     c = Contract.objects.filter(
         multisig_address__address=multisig_address,
         sender_evm_address=sender_evm_address,

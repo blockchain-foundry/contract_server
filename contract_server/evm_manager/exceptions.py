@@ -14,6 +14,10 @@ class TxNotFoundError(Exception):
     pass
 
 
+class TxUnconfirmedError(Exception):
+    pass
+
+
 class DoubleSpendingError(Exception):
     pass
 
