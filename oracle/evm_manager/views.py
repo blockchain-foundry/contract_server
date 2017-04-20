@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from gcoinbackend import core as gcoincore
-from .deploy_contract_utils import get_multisig_address, get_tx_info
+from .deploy_contract_utils import get_multisig_address
+from .utils import get_tx
 from .models import StateInfo
 try:
     import http.client as httplib
@@ -53,8 +54,8 @@ class CheckUpdate(APIView):
             if multisig_address != get_multisig_address(tx_hash):
                 return False
 
-            tx = get_tx_info(tx_hash)
-            _time = tx['blocktime']
+            tx = get_tx(tx_hash)
+            _time = tx['time']
             if int(_time) > int(latest_tx_time):
                 return False
             elif int(_time) < int(latest_tx_time):

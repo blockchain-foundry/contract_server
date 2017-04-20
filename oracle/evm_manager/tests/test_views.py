@@ -21,7 +21,7 @@ class CheckUpdateTestCase(TestCase):
         self.tx_hash_old = '091c6f6100000000000000000000000000000000000000000000000000000004'
         self.multisig_address = '3LP9zszUXKQQox6EwZZEMKbQ6323tqGLLH'
         self.wrong_addr = '3LP9zszUXKQQox6EwZZEMKbQ6323tqGLLHWRONG'
-        self.sample_tx = {'blocktime': 1000}
+        self.sample_tx = {'blocktime': 1000, 'time': 1000}
         self.sample_txs = {
             'txs': [
                 {'hash': '091c6f6100000000000000000000000000000000000000000000000000000003', 'time': 1000},
@@ -33,12 +33,12 @@ class CheckUpdateTestCase(TestCase):
     def tearDown(self):
         StateInfo.objects.all().delete()
 
-    @mock.patch('evm_manager.views.get_tx_info')
+    @mock.patch('evm_manager.views.get_tx')
     @mock.patch('evm_manager.views.get_multisig_address')
     @mock.patch('gcoinbackend.core.get_txs_by_address')
-    def test_check_update(self, mock_txs_by_address, mock_multisig_address, mock_tx_info):
+    def test_check_update(self, mock_txs_by_address, mock_multisig_address, mock_tx):
         mock_multisig_address.return_value = self.multisig_address
-        mock_tx_info.return_value = self.sample_tx
+        mock_tx.return_value = self.sample_tx
         mock_txs_by_address.return_value = self.sample_txs
 
         response = self.client.get(self.url.format(
@@ -56,12 +56,12 @@ class CheckUpdateTestCase(TestCase):
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data.get('data').get('completed'), False)
 
-    @mock.patch('evm_manager.views.get_tx_info')
+    @mock.patch('evm_manager.views.get_tx')
     @mock.patch('evm_manager.views.get_multisig_address')
     @mock.patch('gcoinbackend.core.get_txs_by_address')
-    def test_tx_hash_with_same_time(self, mock_txs_by_address, mock_multisig_address, mock_tx_info):
+    def test_tx_hash_with_same_time(self, mock_txs_by_address, mock_multisig_address, mock_tx):
         mock_multisig_address.return_value = self.multisig_address
-        mock_tx_info.return_value = self.sample_tx
+        mock_tx.return_value = self.sample_tx
         mock_txs_by_address.return_value = self.sample_txs
 
         response = self.client.get(self.url.format(
