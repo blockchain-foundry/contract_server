@@ -2,6 +2,7 @@ import logging
 import traceback
 import os
 import json
+import time
 from functools import wraps
 from django.db import transaction
 from .models import StateInfo
@@ -9,6 +10,7 @@ from threading import Lock
 LOCK_POOL_SIZE = 64
 LOCKS = [Lock() for i in range(LOCK_POOL_SIZE)]
 logger = logging.getLogger(__name__)
+RETRY_SLEEP_TIME = 1
 
 
 def handle_exception(func):
@@ -45,6 +47,7 @@ def retry(max_retry):
                     if i == last_loop:
                         logger.debug(func.__name__ + ' reach max_retry and raise exception: ' + str(e))
                         raise e
+                time.sleep(RETRY_SLEEP_TIME)
         return wrapper2
     return wrapper1
 
