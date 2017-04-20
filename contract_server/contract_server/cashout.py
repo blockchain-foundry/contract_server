@@ -4,8 +4,8 @@ from django.conf import settings
 
 from gcoinapi.client import GcoinAPIClient
 from gcoinbackend import core as gcoincore
-from contracts.models import MultisigAddress
-from evm_manager.utils import get_evm_balance
+from contracts.models import MultisigAddress, Contract
+from evm_manager.utils import get_evm_account_info, evm_address_to_wallet
 from gcoin import apply_multisignatures, deserialize
 
 OSS = GcoinAPIClient(settings.OSS_API_URL)
@@ -16,12 +16,31 @@ TX_FEE = 1
 RETRY = 1
 
 
-def clear_evm_accouts(multisig_address):
+def clear_evm_accounts(multisig_address):
     for i in range(RETRY):
+        contracts = Contract.objects.filter(multisig_address__address=multisig_address, is_deployed=True)
+
+        contract_addresses = [contract.contract_address for contract in contracts]
         contract_balance = gcoincore.get_address_balance(multisig_address)
-        addresses = get_participants(multisig_address)
-        accounts = [get_evm_balance(multisig_address, addr) for addr in addresses]
-        payouts = get_payouts_from_accounts(multisig_address, contract_balance, accounts, addresses)
+
+        balance_index = 1
+        address_index = 0
+
+        accounts = []
+        addresses = []
+        accounts_info = get_evm_account_info(multisig_address)
+        for account in accounts_info:
+            if account[address_index] not in contract_addresses:
+                max_value = 0
+                for key, value in account[balance_index].items():
+                    if int(value) > max_value:
+                        max_value = int(value)
+                if max_value > 0 and evm_address_to_wallet(account[address_index]):
+                    addresses.append(evm_address_to_wallet(account[address_index]))
+                    accounts.append(account)
+
+        accounts_balance = [account[balance_index] for account in accounts]
+        payouts = get_payouts_from_accounts(multisig_address, contract_balance, accounts_balance, addresses)
         if payouts == []:
             return {'payouts': payouts}
         raw_tx = gcoincore.prepare_general_raw_tx(payouts)

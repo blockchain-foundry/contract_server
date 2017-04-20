@@ -10,7 +10,7 @@ from contract_server import ERROR_CODE, error_response, data_response
 from .decorators import handle_uncaught_exception, handle_apiversion_apiview
 from .forms import NotifyForm
 
-from .cashout import clear_evm_accouts
+from .cashout import clear_evm_accounts
 
 
 class NewTxNotified(APIView):
@@ -35,7 +35,7 @@ class NewTxNotified(APIView):
             return data_response(response)
 
         multisig_address = deploy_contract_utils.get_multisig_address(tx_hash)
-        response = clear_evm_accouts(multisig_address)
+        response = clear_evm_accounts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return data_response(response)
 
@@ -71,6 +71,6 @@ class AddressNotified(APIView):
             response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
             return data_response(response)
 
-        response = clear_evm_accouts(multisig_address)
+        response = clear_evm_accounts(multisig_address)
         response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
         return data_response(response)

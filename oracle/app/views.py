@@ -247,7 +247,9 @@ class SignNew(CsrfExemptMixin, BaseFormView):
                     if output_address == multisig_address:
                         continue
                     output_evm_address = wallet_address_to_evm(output_address)
-                    account = content['accounts'][output_evm_address]
+                    account = None
+                    if output_evm_address in content['accounts']:
+                        account = content['accounts'][output_evm_address]
                     if not account:
                         response = {'error': 'Address not found'}
                         return JsonResponse(response, status=httplib.NOT_FOUND)
