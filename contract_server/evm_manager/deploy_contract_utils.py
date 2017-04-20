@@ -209,8 +209,9 @@ def get_remaining_money(content, tx_info, multisig_address):
         if output_address == multisig_address:
             continue
         output_evm_address = wallet_address_to_evm(output_address)
-        account = content['accounts'][output_evm_address]
-
+        account = None
+        if output_evm_address in content['accounts']:
+            account = content['accounts'][output_evm_address]
         if not account:
             raise DoubleSpendingError
         amount = account['balance'][str(output_color)]

@@ -5,9 +5,8 @@ import hashlib
 import json
 import re
 
-from binascii import hexlify
 from gcoin import (multisign, deserialize, pubtoaddr,
-                   privtopub, sha256, hash160, ripemd)
+                   privtopub, sha256, ripemd)
 
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
@@ -18,6 +17,7 @@ from rest_framework.views import APIView
 from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLink
 from app.serializers import ProposalSerializer
 from evm_manager import deploy_contract_utils
+from evm_manager.utils import wallet_address_to_evm
 from .forms import MultisigAddrFrom, ProposeForm, SignForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
@@ -57,13 +57,6 @@ def addressFromScriptPubKey(script_pub_key):
     hash3 = hashlib.sha256(hash2.digest())
     padded += hash3.digest()[:4]
     return base58.b58encode(padded)
-
-
-def wallet_address_to_evm(address):
-    address = base58.b58decode(address)
-    address = hexlify(address)
-    address = hash160(address)
-    return address
 
 
 class Proposes(CsrfExemptMixin, BaseFormView):
@@ -254,7 +247,9 @@ class SignNew(CsrfExemptMixin, BaseFormView):
                     if output_address == multisig_address:
                         continue
                     output_evm_address = wallet_address_to_evm(output_address)
-                    account = content['accounts'][output_evm_address]
+                    account = None
+                    if output_evm_address in content['accounts']:
+                        account = content['accounts'][output_evm_address]
                     if not account:
                         response = {'error': 'Address not found'}
                         return JsonResponse(response, status=httplib.NOT_FOUND)

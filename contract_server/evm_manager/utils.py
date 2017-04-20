@@ -10,15 +10,14 @@ except:
         return _sha3.keccak_256(x).digest()
 import os
 import json
-import base58
 import rlp
 import copy
 from rlp.utils import decode_hex, ascii_chr
 from binascii import hexlify, unhexlify
-from gcoin import hash160
 from .decorators import retry
 from gcoinbackend import core as gcoincore
 from .exceptions import TxNotFoundError
+from gcoin import b58check_to_hex, hex_to_b58check
 
 
 def is_numeric(x):
@@ -35,25 +34,26 @@ def to_string(value):
 
 
 def wallet_address_to_evm(address):
-    address = base58.b58decode(address)
-    address = hexlify(address)
-    address = hash160(address)
+    address = b58check_to_hex(address)
     return address
 
 
-def get_evm_balance(multisig_address, address):
-    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
+def evm_address_to_wallet(evm_address):
+    address = hex_to_b58check(evm_address)
+    return address
 
-    user_evm_address = wallet_address_to_evm(address)
+
+def get_evm_account_info(multisig_address):
+    contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
     try:
         with open(contract_path.format(multisig_address=multisig_address), 'r') as f:
             content = json.load(f)
-            account = content['accounts'][user_evm_address]
-            amount = account['balance']
-            return amount
+            accounts_info = []
+            for key, value in content['accounts'].items():
+                accounts_info.append([key, value['balance']])
+        return accounts_info
     except Exception as e:
         print(e)
-        return {}
 
 
 def mk_contract_address(sender, nonce):
