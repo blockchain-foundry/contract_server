@@ -6,8 +6,6 @@ import requests
 import time
 import json
 import sys
-from binascii import hexlify
-import base58
 from gcoin import *
 
 from pprint import pprint
@@ -126,10 +124,9 @@ def remove_comments(string):
 def wallet_address_to_evm_address(address):
     """Convert gcoin address to EVM address
     """
-    address = base58.b58decode(address)
-    address = hexlify(address)
-    address = hash160(address)
+    address = b58check_to_hex(address)
     return address
+
 
 def prefixed_wallet_address_to_evm_address(address):
     # add 0x prefix

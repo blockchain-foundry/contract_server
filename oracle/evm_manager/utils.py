@@ -10,11 +10,9 @@ except:
         return _sha3.keccak_256(x).digest()
 import os
 import json
-import base58
 import rlp
 from rlp.utils import decode_hex, ascii_chr
-from binascii import hexlify
-from gcoin import hash160
+from gcoin import b58check_to_hex, hex_to_b58check
 
 
 def is_numeric(x):
@@ -31,9 +29,12 @@ def to_string(value):
 
 
 def wallet_address_to_evm(address):
-    address = base58.b58decode(address)
-    address = hexlify(address)
-    address = hash160(address)
+    address = b58check_to_hex(address)
+    return address
+
+
+def evm_address_to_wallet(evm_address):
+    address = hex_to_b58check(evm_address)
     return address
 
 
