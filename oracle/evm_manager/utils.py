@@ -13,6 +13,7 @@ import json
 import rlp
 import copy
 from rlp.utils import decode_hex, ascii_chr
+from binascii import hexlify, unhexlify
 from gcoin import b58check_to_hex, hex_to_b58check
 from .decorators import retry
 from gcoinbackend import core as gcoincore
