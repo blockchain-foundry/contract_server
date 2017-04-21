@@ -5,13 +5,21 @@ import json
 import os
 from gcoinbackend import core as gcoincore
 from .utils import wallet_address_to_evm, get_tx_info, get_sender_address, get_multisig_address, make_contract_address
-from .contract_server_utils import set_contract_address, unset_all_contract_addresses
 from .decorators import retry, write_lock, handle_exception
 from .models import StateInfo
 import logging
-from events import state_log_utils
-from .exceptions import TxNotFoundError, DoubleSpendingError, UnsupportedTxTypeError
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "contract_server.settings")
+from .exceptions import TxNotFoundError, DoubleSpendingError, UnsupportedTxTypeError, TxUnconfirmedError
+try:
+    from events import state_log_utils
+    from .contract_server_utils import set_contract_address, unset_all_contract_addresses
+    IN_CONTRACT_SERVER = True
+except:
+    IN_CONTRACT_SERVER = False
+try:
+    from .oracle_server_utils import deploy_oraclize_contract, set_var_to_oraclize_contract
+    IN_ORACLE_SERVER = True
+except:
+    IN_ORACLE_SERVER = False
 
 THIS_FILE_PATH = os.path.dirname(os.path.abspath(__file__))
 CONTRACT_PATH_FORMAT = THIS_FILE_PATH + '/../states/{multisig_address}'
@@ -24,7 +32,7 @@ MAX_RETRY = 10
 
 
 @handle_exception
-def deploy_contracts(tx_hash):
+def deploy_contracts(tx_hash, rebuild=False):
     """
         May be slow when one block contains seas of transactions.
         Using thread doesn't help due to the fact that rpc getrawtransaction
@@ -38,7 +46,8 @@ def deploy_contracts(tx_hash):
     multisig_address = get_multisig_address(tx)
     if tx['type'] == 'NORMAL' and multisig_address is None:
         raise UnsupportedTxTypeError
-
+    if rebuild:
+        rebuild_state_file(multisig_address)
     txs, latest_tx_hash = get_unexecuted_txs(multisig_address, tx_hash, tx['time'])
 
     logger.info('Start : The latest updated tx of ' + multisig_address + ' is ' + (latest_tx_hash or 'None'))
@@ -48,7 +57,8 @@ def deploy_contracts(tx_hash):
         logger.info(str(i+1) + '/' + str(len(txs)) + ' updating tx: ' + tx['type'] + ' ' + tx['hash'])
         deploy_single_tx(tx, latest_tx_hash, multisig_address)
         if tx['type'] == 'CONTRACT':
-            state_log_utils.check_watch(tx['hash'], multisig_address)
+            if IN_CONTRACT_SERVER:
+                state_log_utils.check_watch(tx['hash'], multisig_address)
         latest_tx_hash = tx['hash']
 
     logger.info('Finish: The latest updated tx is ' + (latest_tx_hash or 'None'))
@@ -82,12 +92,18 @@ def update_other_type(tx_info, ex_tx_hash, multisig_address):
 
 @write_lock
 def write_state_contract_type(tx_info, ex_tx_hash, multisig_address, sender_address, command, contract_address, is_deploy):
-    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
-    check_call(command, shell=True)
-    sender_evm_address = wallet_address_to_evm(sender_address)
-    inc_nonce(contract_path, sender_evm_address)
     if is_deploy:
-        set_contract_address(multisig_address, contract_address, sender_evm_address, tx_info)
+        check_call(command, shell=True)
+        inc_nonce(multisig_address, sender_address)
+        if IN_ORACLE_SERVER:
+            deploy_oraclize_contract(multisig_address)
+        if IN_CONTRACT_SERVER:
+            set_contract_address(multisig_address, contract_address, sender_address, tx_info)
+    else:
+        if IN_ORACLE_SERVER:
+            set_var_to_oraclize_contract(multisig_address, tx_info)
+        check_call(command, shell=True)
+        inc_nonce(multisig_address, sender_address)
 
 
 @write_lock
@@ -106,10 +122,13 @@ def write_state_other_type(tx_info, ex_tx_hash, multisig_address):
 
 
 @retry(MAX_RETRY)
-def get_tx(tx_hash):
+def get_tx(tx_hash, confirmations=0):
     tx = gcoincore.get_tx(tx_hash)
     if tx is None:
         raise TxNotFoundError
+    tx_confirmations = tx.get('confirmations') or 0
+    if tx_confirmations < confirmations:
+        raise TxUnconfirmedError
     return tx
 
 
@@ -236,11 +255,13 @@ def get_value(tx_info, multisig_address):
     return json.dumps(value)
 
 
-def inc_nonce(contract_path, sender_evm_addr):
+def inc_nonce(multisig_address, sender_address):
+    sender_evm_address = wallet_address_to_evm(sender_address)
+    contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
     with open(contract_path, 'r') as f:
         content = json.load(f)
-        if sender_evm_addr in content['accounts']:
-            content['accounts'][sender_evm_addr]['nonce'] += 1
+        if sender_evm_address in content['accounts']:
+            content['accounts'][sender_evm_address]['nonce'] += 1
 
     with open(contract_path, 'w') as f:
         json.dump(content, f, indent=4, separators=(',', ': '))
@@ -290,4 +311,5 @@ def rebuild_state_file(multisig_address):
     state.latest_tx_hash = ''
     state.latest_tx_time = ''
     state.save()
-    unset_all_contract_addresses(multisig_address)
+    if IN_CONTRACT_SERVER:
+        unset_all_contract_addresses(multisig_address)
