@@ -11,48 +11,53 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+import environ
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
+
+# environ setting
+root = environ.Path(__file__) - 3  # three folder back
+env = environ.Env(DEBUG=(bool, False),)  # set default values and casting
+env.read_env(str(root.path('.env')))
+
+SERVER_CONFIG_ENV = env("SERVER_CONFIG_ENV")
+SECRET_KEY = env("SECRET_KEY")
+OSS_API_URL = env("OSS_API_URL")
+
+DATABASES = {
+    "default": {
+        "NAME": env("ORACLE_DB"),
+        "ENGINE": "django.db.backends.mysql",
+        "HOST": env("MYSQL_HOST"),
+        "PORT": env("MYSQL_PORT"),
+        "USER": env("MYSQL_USER"),
+        "PASSWORD": env("MYSQL_PASSWORD"),
+        "OPTIONS": {
+            "autocommit": True
+        }
+    }
+}
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '0@3q#z+j3$tetg)#8ryaf2)1vx(^jqk9r)rp+frzz8d$0shqky'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=["*"])
+if len(ALLOWED_HOSTS) == 0:
+    ALLOWED_HOSTS = ["*"]
 
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
-    'BASE_URL': 'http://oss2.diqi.us:8888',
+    'BASE_URL': OSS_API_URL,
     'KEY_STORE_CLASS': 'wallet.keystore.KeyStore'
 }
 
-# Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'NAME': '<ORACLE_DB>',
-        'ENGINE': 'django.db.backends.mysql',
-        'HOST': '<MYSQL_HOST>',
-        'PORT': '<MYSQL_PORT>',
-        'USER': '<MYSQL_USER>',
-        'PASSWORD': '<MYSQL_PASSWORD>',
-        'OPTIONS': {
-            'autocommit': True,
-        },
-    }
-}
-
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -134,7 +139,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # loggin related settings
-LOG_DIR = BASE_DIR + '/../../log/'
+LOG_DIR = env('LOG_PATH', default=BASE_DIR + '/../../log/')
+if len(LOG_DIR) == 0:
+    LOG_DIR = LOG_DIR = BASE_DIR + '/../../log/'
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

@@ -12,3 +12,8 @@ go-ethereum/build/_workspace/pkg/
 go-ethereum/build/bin/
 pygcointools/
 log/django.log
+
+
+# Environment setting
+contract_server/.env
+oracle/.env
