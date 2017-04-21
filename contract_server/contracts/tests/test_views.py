@@ -248,9 +248,6 @@ class MultisigAddressesViewTest(TestCase):
         callback_url = "http://172.18.250.12:7787/addressnotify/" + multisig_address
         return callback_url
 
-    def fake_make_multisig_address_file(self):
-        pass
-
     def test_get_oracle_list(self):
         oracle_list = [
             {"url": "http://52.197.157.107:5590", "name": "oss1"}
@@ -264,7 +261,6 @@ class MultisigAddressesViewTest(TestCase):
     @mock.patch("contracts.views.MultisigAddressesView._save_multisig_address", fake_save_multisig_address)
     @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     @mock.patch("contracts.views.get_callback_url", fake_get_callback_url)
-    @mock.patch("evm_manager.deploy_contract_utils.make_multisig_address_file", fake_make_multisig_address_file)
     def test_create_contract(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)
@@ -317,7 +313,7 @@ class ContractBindTest(TestCase):
             contract_address=self.contract_address,
             multisig_address=self.multisig_address,
             is_deployed=True,
-            )
+        )
         self.url = '/smart-contract/multisig-addresses/' + self.address + '/bind/'
 
         self.sample_form = {
