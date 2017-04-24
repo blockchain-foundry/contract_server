@@ -38,8 +38,8 @@ def wallet_address_to_evm(address):
     return address
 
 
-def evm_address_to_wallet(evm_address):
-    address = hex_to_b58check(evm_address)
+def evm_address_to_wallet(evm_address, magicbyte=0):
+    address = hex_to_b58check(evm_address, magicbyte=magicbyte)
     return address
 
 

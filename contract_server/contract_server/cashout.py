@@ -35,8 +35,8 @@ def clear_evm_accounts(multisig_address):
                 for key, value in account[balance_index].items():
                     if int(value) > max_value:
                         max_value = int(value)
-                if max_value > 0 and evm_address_to_wallet(account[address_index]):
-                    addresses.append(evm_address_to_wallet(account[address_index]))
+                if max_value > 0:
+                    addresses.append(evm_address_to_wallet(account[address_index], magicbyte=5))
                     accounts.append(account)
 
         accounts_balance = [account[balance_index] for account in accounts]
