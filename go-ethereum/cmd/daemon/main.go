@@ -168,9 +168,27 @@ func (t* VmDaemon) DeployContract(command TaskCommand, result *string) error{
 	return nil
 }
 
+func (t *VmDaemon) RemoveStates(Multisig string, result *string) error{
+	_, ok := StatePools[Multisig]
+	if ok {
+		delete(StatePools, Multisig)
+		return nil
+	}
+	*result = "The state does not exist"
+	return nil
+}
 
+func (t *VmDaemon) IncNonce(command NonceCommand, result *string) error{
+	states, ok := StatePools[command.Multisig]
+	if ok {
+		receiveradr := common.HexToAddress(command.Receiver)
+		account := states.statedb.GetStateObject(receiveradr)
+		account.SetNonce(account.Nonce() + 1)
+	}
+	return nil
+}
 
-func (t* VmDaemon) QueryStates(request QueryRequest, result *string) error{
+func (t *VmDaemon) QueryStates(request QueryRequest, result *string) error{
 	var states *StatePool
 	states, ok := StatePools[request.Multisig]
 	if !ok {
@@ -193,9 +211,10 @@ func ReadStateDB(statedb *state.StateDB,world state.World) {
 			statedb.SetState(address, common.HexToHash(storage_location), common.HexToHash(storage_value))
 			}
 		statedb.SetCode(address, common.Hex2Bytes(value.Code))
+		stateObject := statedb.GetOrNewStateObject(address)
 		for k,v := range value.Balance{
 			color,_ :=strconv.Atoi(k)
-			statedb.AddBalance(uint(color),address,common.Big(v))
+			stateObject.SetBalance(uint(color), common.Big(v))
 			}
 		statedb.SetNonce(address, value.Nonce)
 		}
@@ -205,6 +224,10 @@ func WriteState(statedb *state.StateDB, ) {
 
 }
 
+type NonceCommand struct{
+	Multisig string
+	Receiver string
+}
 type WriteCommand struct{
 	Multisig string
 	World state.World

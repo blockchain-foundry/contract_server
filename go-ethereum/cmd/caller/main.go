@@ -58,6 +58,14 @@ var (
 		Name : "writestate",
 		Usage : "write the state to the account in the multisig state",
 	}
+	RemoveFlag = cli.BoolFlag{
+		Name : "remove",
+		Usage : "Remove the multisig's state",
+	}
+	IncNonceFlag = cli.BoolFlag{
+		Name : "inc",
+		Usage : "Inc the receiver's nonce",
+	}
 )
 func NewApp(version, usage string) *cli.App {
 	app := cli.NewApp()
@@ -84,6 +92,8 @@ func init() {
 		InputFlag,
 		DumpFlag,
 		WriteStateFlag,
+		RemoveFlag,
+		IncNonceFlag,
 		}
 	app.Action = run
 }
@@ -99,6 +109,20 @@ func run(ctx *cli.Context) error {
 			}
 
 	client, err := rpc.DialHTTP("unix", endpoint)
+	if ctx.GlobalBool(RemoveFlag.Name) {
+		err = client.Call("VmDaemon.RemoveStates", ctx.GlobalString(MultisigAddressFlag.Name), &reply)
+		fmt.Println(reply)
+		return nil
+	}
+	if ctx.GlobalBool(RemoveFlag.Name) {
+		command := NonceCommand{
+			Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
+			Receiver : ctx.GlobalString(ReceiverFlag.Name),
+		}
+		err = client.Call("VmDaemon.IncNonce", command, &reply)
+		fmt.Println(reply)
+		return nil
+	}
 	if ctx.GlobalBool(DumpFlag.Name) {
 		query := QueryRequest{
 			Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
@@ -169,6 +193,11 @@ type TaskCommand struct{
 	Fund string
 	Multisig string
 	Deploy bool
+}
+
+type NonceCommand struct{
+	Multisig string
+	Receiver string
 }
 
 type QueryRequest struct{
