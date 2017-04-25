@@ -48,15 +48,22 @@ def clear_evm_accounts(multisig_address):
         before cashout.
         '''
         addresses.append(multisig_address)
-        balances = [gcoincore.get_address_balance(addr) for addr in addresses]
+        balances_before = {}
+        for address in addresses:
+            balance = gcoincore.get_address_balance(address)
+            balances_before[address] = balance
+
         signed_tx = sign(raw_tx, multisig_address)
         send_cashout_tx(signed_tx, multisig_address)
         '''
         after cashout.
         '''
-        balances1 = [gcoincore.get_address_balance(addr) for addr in addresses]
+        balances_after = {}
+        for address in addresses:
+            balance = gcoincore.get_address_balance(address)
+            balances_after[address] = balance
 
-        return {"addresses": addresses, "evm_accounts_of_addresses": accounts, "payouts": payouts, "before_balance": balances, "after_balance": balances1}
+        return {"addresses": addresses, "evm_accounts_of_addresses": accounts, "payouts": payouts, "balances_before": balances_before, "balances_after": balances_after}
 
 
 def get_surplus(contract_balance, accounts):
