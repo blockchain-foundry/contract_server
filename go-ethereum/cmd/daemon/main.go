@@ -129,7 +129,6 @@ func (self *StatePool) ExecTask(command TaskCommand){
 		receiver.SetCode(ret)
 		}
 	
-	fmt.Printf("Exec on %s OUTssss: 0x%x\n", command.Multisig, ret) 
 	self.statedb.Commit()
 	self.mutex.Unlock()
 }
@@ -140,7 +139,6 @@ func (t* VmDaemon) WriteStates(command WriteCommand, reply *string) error{
 		return errors.New("No stateFile")
 	}
 	states.mutex.Lock()
-	fmt.Println(command.World)
 	ReadStateDB(states.statedb, command.World)
 	states.statedb.Commit()
 	states.mutex.Unlock()
@@ -169,9 +167,12 @@ func (t* VmDaemon) DeployContract(command TaskCommand, result *string) error{
 }
 
 func (t *VmDaemon) RemoveStates(Multisig string, result *string) error{
-	_, ok := StatePools[Multisig]
+	states, ok := StatePools[Multisig]
 	if ok {
+		states.mutex.Lock()
 		delete(StatePools, Multisig)
+		states.mutex.Unlock()
+		*result = "remove " + Multisig
 		return nil
 	}
 	*result = "The state does not exist"
@@ -182,8 +183,14 @@ func (t *VmDaemon) IncNonce(command NonceCommand, result *string) error{
 	states, ok := StatePools[command.Multisig]
 	if ok {
 		receiveradr := common.HexToAddress(command.Receiver)
+		states.mutex.Lock()
 		account := states.statedb.GetStateObject(receiveradr)
 		account.SetNonce(account.Nonce() + 1)
+		states.statedb.Commit()
+		states.mutex.Unlock()
+		*result = "increase nonce of " + command.Receiver
+	}else {
+		*result = "cannot find states on " + command.Multisig
 	}
 	return nil
 }
@@ -218,10 +225,6 @@ func ReadStateDB(statedb *state.StateDB,world state.World) {
 			}
 		statedb.SetNonce(address, value.Nonce)
 		}
-}
-
-func WriteState(statedb *state.StateDB, ) {
-
 }
 
 type NonceCommand struct{
@@ -308,14 +311,7 @@ func (self *VMEnv) GasLimit() *big.Int         { return big.NewInt(1000000000) }
 func (self *VMEnv) VmType() vm.Type            { return vm.StdVmTy }
 func (self *VMEnv) Depth() int                 { return 0 }
 func (self *VMEnv) SetDepth(i int)             { self.depth = i }
-/*
-func (self *VMEnv) GetHash(n uint64) common.Hash {
-if self.block.Number().Cmp(big.NewInt(int64(n))) == 0 {
-return self.block.Hash()
-}
-return common.Hash{}
-}
-*/
+
 func (self *VMEnv) AddStructLog(log vm.StructLog) {
 	self.logs = append(self.logs, log)
 }

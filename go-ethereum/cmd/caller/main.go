@@ -104,9 +104,9 @@ func run(ctx *cli.Context) error {
 	if ctx.GlobalString(IPCPathFlag.Name) != "" {
 		endpoint = ctx.GlobalString(IPCPathFlag.Name)
 		} else {
-			fmt.Println("Return")
+			fmt.Println("ipc path is required")
 			return nil
-			}
+		}
 
 	client, err := rpc.DialHTTP("unix", endpoint)
 	if ctx.GlobalBool(RemoveFlag.Name) {
@@ -114,7 +114,7 @@ func run(ctx *cli.Context) error {
 		fmt.Println(reply)
 		return nil
 	}
-	if ctx.GlobalBool(RemoveFlag.Name) {
+	if ctx.GlobalBool(IncNonceFlag.Name) {
 		command := NonceCommand{
 			Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
 			Receiver : ctx.GlobalString(ReceiverFlag.Name),
@@ -162,7 +162,6 @@ func run(ctx *cli.Context) error {
 	if err != nil {
 		log.Fatal("dialing:", err)
 		}
-	fmt.Println(client)
 	err = client.Call("VmDaemon.DeployContract", task, &reply)
 	if err != nil {
 		log.Fatal("arith error:", err)

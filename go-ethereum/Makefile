@@ -20,12 +20,12 @@ geth:
 daemon:
 	build/env.sh go run build/ci.go install ./cmd/daemon
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/evm to start the evm."
+	@echo "Run \"$(GOBIN)/daemon to start the evm."
 
 caller:
 	build/env.sh go run build/ci.go install ./cmd/caller
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/evm to start the evm."
+	@echo "Run \"$(GOBIN)/caller to start the evm."
 
 evm:
 	build/env.sh go run build/ci.go install ./cmd/evm
