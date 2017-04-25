@@ -18,23 +18,23 @@ var (
 	app       *cli.App
 	IPCPathFlag = cli.StringFlag{
 		Name : "ipc",
-		Usage : "make-up fund for sender",
+		Usage : "FIFO path",
 		}
 	SenderFlag = cli.StringFlag{
 		Name : "sender",
-		Usage : "make-up fund for sender",
+		Usage : "sender address",
 		}
 	ReceiverFlag = cli.StringFlag{
 		Name : "receiver",
-		Usage : "make-up fund for sender",
+		Usage : "receiver address",
 		}
 	CodeFlag = cli.StringFlag{
 		Name : "code",
-		Usage : "make-up fund for sender",
+		Usage : "code to be deployed",
 		}
 	ValueFlag = cli.StringFlag{
 		Name : "value",
-		Usage : "make-up fund for sender",
+		Usage : "value to be sent",
 		}
 	FundFlag = cli.StringFlag{
 		Name : "fund",
@@ -46,17 +46,19 @@ var (
 		}
 	InputFlag = cli.StringFlag{
 		Name : "input",
-		Usage : "input",
+		Usage : "input code",
 		}
 	DeployFlag = cli.BoolFlag{
 		Name : "deploy",
+		Usage : "deploy contract",
 		}
 	DumpFlag = cli.BoolFlag{
 		Name : "dump",
+		Usage : "dump states from the specified multisig's state",
 	}
 	WriteStateFlag = cli.StringFlag{
 		Name : "writestate",
-		Usage : "write the state to the account in the multisig state",
+		Usage : "write the state to the account in the multisig's state",
 	}
 	RemoveFlag = cli.BoolFlag{
 		Name : "remove",
