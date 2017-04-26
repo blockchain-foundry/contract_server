@@ -72,6 +72,11 @@ var (
 		Name : "return",
 		Usage : "will be an synchronous call",
 	}
+	WriteLogFlag = cli.StringFlag{
+		Name:  "writelog",
+		Usage: "wrtie logs to a file",
+	}
+	
 )
 func NewApp(version, usage string) *cli.App {
 	app := cli.NewApp()
@@ -101,6 +106,7 @@ func init() {
 		RemoveFlag,
 		IncNonceFlag,
 		ReturnFlag,
+		WriteLogFlag,
 		}
 	app.Action = run
 }
@@ -119,6 +125,14 @@ func run(ctx *cli.Context) error {
 	if ctx.GlobalBool(RemoveFlag.Name) {
 		err = client.Call("VmDaemon.RemoveStates", ctx.GlobalString(MultisigAddressFlag.Name), &reply)
 		fmt.Println(reply)
+		return nil
+	}
+	if ctx.GlobalString(WriteLogFlag.Name) != "" {
+		command := LogCommand{
+			Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
+			Path : ctx.GlobalString(WriteLogFlag.Name),
+		}
+		err = client.Call("VmDaemon.WriteLog", command, &reply)
 		return nil
 	}
 	if ctx.GlobalBool(IncNonceFlag.Name) {
@@ -212,4 +226,9 @@ type NonceCommand struct{
 type QueryRequest struct{
 	Multisig string
 	Account string
+}
+
+type LogCommand struct{
+	Multisig string
+	Path string
 }

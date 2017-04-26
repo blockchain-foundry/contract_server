@@ -173,6 +173,23 @@ func (t* VmDaemon) DeployContract(command TaskCommand, result *string) error{
 	return nil
 }
 
+func (t* VmDaemon) WriteLog(command LogCommand, result *string) error{
+	//write logs to a [filename]
+	states, ok := StatePools[command.Multisig]
+	if ok{
+		f, err := os.OpenFile(command.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return err
+		}
+		states.statedb.Commit()
+		logs := states.statedb.GcoinGetLogs()
+		f.WriteString(logs)
+	} else{
+		return errors.New("not found")
+	}
+	return nil
+}
+
 func (t *VmDaemon) RemoveStates(Multisig string, result *string) error{
 	states, ok := StatePools[Multisig]
 	if ok {
@@ -246,6 +263,11 @@ type WriteCommand struct{
 type QueryRequest struct{
 	Multisig string
 	Account string
+}
+
+type LogCommand struct{
+	Multisig string
+	Path string
 }
 
 type StatePool struct{
