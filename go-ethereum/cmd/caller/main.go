@@ -68,6 +68,10 @@ var (
 		Name : "inc",
 		Usage : "Inc the receiver's nonce",
 	}
+	ReturnFlag = cli.BoolFlag{
+		Name : "return",
+		Usage : "will be an synchronous call",
+	}
 )
 func NewApp(version, usage string) *cli.App {
 	app := cli.NewApp()
@@ -96,6 +100,7 @@ func init() {
 		WriteStateFlag,
 		RemoveFlag,
 		IncNonceFlag,
+		ReturnFlag,
 		}
 	app.Action = run
 }
@@ -159,14 +164,16 @@ func run(ctx *cli.Context) error {
 		Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
 		Deploy : ctx.GlobalBool(DeployFlag.Name),
 		Input : ctx.GlobalString(InputFlag.Name),
-		}
-	
+		SyncCall : ctx.GlobalBool(ReturnFlag.Name),
+	}
 	if err != nil {
 		log.Fatal("dialing:", err)
 		}
 	err = client.Call("VmDaemon.DeployContract", task, &reply)
+	fmt.Println(reply)
+
 	if err != nil {
-		log.Fatal("arith error:", err)
+		log.Fatal("error:", err)
 	}
 	return nil
 }
@@ -194,6 +201,7 @@ type TaskCommand struct{
 	Fund string
 	Multisig string
 	Deploy bool
+	SyncCall bool
 }
 
 type NonceCommand struct{

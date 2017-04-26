@@ -87,7 +87,7 @@ func main(){
 
 type VmDaemon int
 
-func (self *StatePool) ExecTask(command TaskCommand){
+func (self *StatePool) ExecTask(command TaskCommand) []byte{
 	
 	var sender, receiver vm.ContractRef
 
@@ -128,14 +128,15 @@ func (self *StatePool) ExecTask(command TaskCommand){
 	if command.Deploy{
 		receiver.SetCode(ret)
 		}
-	
 	self.statedb.Commit()
 	self.mutex.Unlock()
+	return ret
 }
 
 func (t* VmDaemon) WriteStates(command WriteCommand, reply *string) error{
 	states, ok := StatePools[command.Multisig]
 	if !ok{
+	*reply = "No stateFile"
 		return errors.New("No stateFile")
 	}
 	states.mutex.Lock()
@@ -159,10 +160,16 @@ func (t* VmDaemon) DeployContract(command TaskCommand, result *string) error{
 			}
 		StatePools[command.Multisig] = states
 		}
-	go func(){
+	if command.SyncCall {
 		states.mutex.Lock()
-		states.ExecTask(command)
-	}()
+		ret := states.ExecTask(command)
+		*result = fmt.Sprintf("%x", ret)
+	} else{
+		go func(){
+			states.mutex.Lock()
+			states.ExecTask(command)
+		}()
+	}
 	return nil
 }
 
@@ -257,6 +264,7 @@ type TaskCommand struct{
 	Fund string
 	Multisig string
 	Deploy bool
+	SyncCall bool
 }
 
 type VMEnv struct {
