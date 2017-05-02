@@ -44,6 +44,10 @@ var (
 		Name : "multisig",
 		Usage : "multisig",
 		}
+	TimeFlag = cli.StringFlag{
+		Name : "time",
+		Usage : "Time on the block",
+	}
 	InputFlag = cli.StringFlag{
 		Name : "input",
 		Usage : "input code",
@@ -100,6 +104,7 @@ func init() {
 		ValueFlag,
 		FundFlag,
 		CodeFlag,
+		TimeFlag,
 		InputFlag,
 		DumpFlag,
 		WriteStateFlag,
@@ -176,8 +181,10 @@ func run(ctx *cli.Context) error {
 		Value : ctx.GlobalString(ValueFlag.Name),
 		Fund : ctx.GlobalString(FundFlag.Name),
 		Multisig : ctx.GlobalString(MultisigAddressFlag.Name),
-		Deploy : ctx.GlobalBool(DeployFlag.Name),
 		Input : ctx.GlobalString(InputFlag.Name),
+		Time : ctx.GlobalString(TimeFlag.Name),
+		Deploy : ctx.GlobalBool(DeployFlag.Name),
+		
 		SyncCall : ctx.GlobalBool(ReturnFlag.Name),
 	}
 	if err != nil {
@@ -214,6 +221,7 @@ type TaskCommand struct{
 	Value string
 	Fund string
 	Multisig string
+	Time string
 	Deploy bool
 	SyncCall bool
 }

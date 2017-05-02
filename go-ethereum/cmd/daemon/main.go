@@ -109,7 +109,7 @@ func (self *StatePool) ExecTask(command TaskCommand) []byte{
 	for k, v := range fundbalance{
 		self.vmenv.state.AddBalance(k, sender.Address(), v)
 		}
-
+	self.vmenv.SetTime(common.Big(command.Time))
 	self.vmenv.state.Commit()
 	ret, err := self.vmenv.Call(
 		sender,
@@ -151,14 +151,14 @@ func (t* VmDaemon) DeployContract(command TaskCommand, result *string) error{
 	if !ok {
 		db, _ := ethdb.NewMemDatabase()
 		statedb, _ := state.New(common.Hash{}, db)
-		MyTime := big.NewInt(0)
+		MyTime := common.Big(command.Time)
 		env := NewEnv(statedb, vm.Config{ Debug: true}, MyTime)
 		states = &StatePool{
 			vmenv: env,
 			statedb: statedb,
 			}
 		StatePools[command.Multisig] = states
-		}
+	}
 	if command.SyncCall {
 		states.mutex.Lock()
 		ret := states.ExecTask(command)
@@ -284,6 +284,7 @@ type TaskCommand struct{
 	Value string
 	Fund string
 	Multisig string
+	Time string
 	Deploy bool
 	SyncCall bool
 }
@@ -323,6 +324,9 @@ func NewEnv(state *state.StateDB, cfg vm.Config, myTime *big.Int) *VMEnv {
 //func (ruleSet) IsHomestead(*big.Int) bool { return true }
 //set all IsHomestead to be true
 
+func (self *VMEnv) SetTime(time *big.Int) {
+	self.time = time
+}
 func (self *VMEnv) MarkCodeHash(common.Hash)   {}
 //func (self *VMEnv) RuleSet() vm.RuleSet        { return ruleSet{} }
 func (self *VMEnv) Vm() vm.Vm                  { return self.evm }
