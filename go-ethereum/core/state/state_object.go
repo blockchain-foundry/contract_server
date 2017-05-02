@@ -248,6 +248,10 @@ func (self *StateObject) Code() []byte {
 	return self.code
 }
 
+func (self *StateObject) GetCode() []byte {
+	return self.code
+}
+
 func (self *StateObject) SetCode(code []byte) {
 	self.code = code
 	self.codeHash = crypto.Keccak256(code)

@@ -29,6 +29,7 @@ type ContractRef interface {
 	Value() map[uint]*big.Int
 	SetCode([]byte)
 	ForEachStorage(callback func(key, value common.Hash) bool)
+	GetCode() []byte
 }
 
 // Contract represents an ethereum contract in the state database. It contains
@@ -141,6 +142,12 @@ func (c *Contract) Address() common.Address {
 func (c *Contract) Value() map[uint]*big.Int {
 	// suppose this is only called when someone is interested in the information of the contract
 	return c.value
+}
+
+// Code returns the contracts code
+func (c *Contract) GetCode() []byte {
+	// suppose this is only called when someone is interested in the information of the contract
+	return c.Code
 }
 
 // SetCode sets the code to the contract

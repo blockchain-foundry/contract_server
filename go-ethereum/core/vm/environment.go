@@ -124,4 +124,5 @@ type Account interface {
 	SetCode([]byte)
 	ForEachStorage(cb func(key, value common.Hash) bool)
 	Value() map[uint]*big.Int
+	GetCode() []byte
 }

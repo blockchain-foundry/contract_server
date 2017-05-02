@@ -81,8 +81,6 @@ func main(){
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 		}
-
-
 }
 
 type VmDaemon int
@@ -104,8 +102,9 @@ func (self *StatePool) ExecTask(command TaskCommand) []byte{
 		} else {
 			receiver = self.statedb.CreateAccount(receiveradr)
 			}
-	receiver.SetCode(common.Hex2Bytes(command.Code))
-	
+	if command.Code != "" && receiver.GetCode() == nil{
+		receiver.SetCode(common.Hex2Bytes(command.Code))
+	}
 	fundbalance := common.JsonToBalance([]byte(command.Fund))
 	for k, v := range fundbalance{
 		self.vmenv.state.AddBalance(k, sender.Address(), v)
