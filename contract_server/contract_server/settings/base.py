@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/1.10/ref/settings/
 """
 
 import os
+import environ
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -18,15 +20,35 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '+4hliv57!%_ue20+wl%**y%twqjov$!jon8d5qr+*8w-9l^agv'
+# environ setting
+root = environ.Path(__file__) - 3  # three folder back
+env = environ.Env(DEBUG=(bool, False),)  # set default values and casting
+env.read_env(str(root.path('.env')))
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+SERVER_CONFIG_ENV = env("SERVER_CONFIG_ENV")
+SECRET_KEY = env("SECRET_KEY")
+CONTRACT_SERVER_API_URL = env("CONTRACT_SERVER_API_URL")
+OSS_API_URL = env("OSS_API_URL")
+
+DATABASES = {
+    "default": {
+        "NAME": env("CONTRACT_SERVER_DB"),
+        "ENGINE": "django.db.backends.mysql",
+        "HOST": env("MYSQL_HOST"),
+        "PORT": env("MYSQL_PORT"),
+        "USER": env("MYSQL_USER"),
+        "PASSWORD": env("MYSQL_PASSWORD"),
+        "OPTIONS": {
+            "autocommit": True
+        }
+    }
+}
 
 API_VERSION = "1.0.0"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=["*"])
+if len(ALLOWED_HOSTS) == 0:
+    ALLOWED_HOSTS = ["*"]
 
 # Application definition
 
@@ -75,29 +97,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'contract_server.wsgi.application'
 
 STATIC_URL = '/static/'
-CONTRACT_SERVER_API_URL = '<contract_server_url>'
-OSS_API_URL = '<oss_url>'
 
 GCOIN_BACKEND = 'gcoinbackend.backends.apibackend.GcoinAPIBackend'
 GCOIN_BACKEND_SETTINGS = {
     'BASE_URL': OSS_API_URL,
     'KEY_STORE_CLASS': None
-}
-
-# Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
-DATABASES = {
-    'default': {
-        'NAME': '<CONTRACT_SERVER_DB>',
-        'ENGINE': 'django.db.backends.mysql',
-        'HOST': '<MYSQL_HOST>',
-        'PORT': '<MYSQL_PORT>',
-        'USER': '<MYSQL_USER>',
-        'PASSWORD': '<MYSQL_PASSWORD>',
-        'OPTIONS': {
-            'autocommit': True,
-        },
-    }
 }
 
 # Password validation
@@ -138,7 +142,10 @@ USE_TZ = True
 
 
 # loggin related settings
-LOG_DIR = BASE_DIR + '/../../log/'
+LOG_DIR = env('LOG_PATH', default=BASE_DIR + '/../../log/')
+if len(LOG_DIR) == 0:
+    LOG_DIR = LOG_DIR = BASE_DIR + '/../../log/'
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
