@@ -61,7 +61,6 @@ class AddressNotified(APIView):
         if form.is_valid():
             tx_hash = form.cleaned_data['tx_hash']
         else:
-            response = {"error": form.errors}
             return error_response(httplib.NOT_ACCEPTABLE, form.errors, ERROR_CODE['invalid_form_error'])
 
         response = {}

@@ -18,7 +18,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 
 from app.views import (CheckContractCode, DumpContractState, GetBalance,
                        GetStorage, NewTxNotified, Proposes, ProposalList,
-                       Multisig_addr, Sign, SignNew, NewProposes)
+                       Multisig_addr, Sign, SignNew, NewProposes, AddressNotified)
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -35,7 +35,7 @@ urlpatterns = [
     url(r'^getcontract/(?P<multisig_address>[a-zA-Z0-9]+)/', CheckContractCode.as_view()),
     url(r'^notify/(?P<tx_hash>[a-zA-Z0-9]+)', NewTxNotified.as_view()),
     url(r'^states/', include('evm_manager.urls', namespace='evm_manager')),
-
+    url(r'^addressnotify/(?P<multisig_address>[a-zA-Z0-9]+)(|/)$', AddressNotified.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

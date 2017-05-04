@@ -86,7 +86,18 @@ class MultisigAddrTest(TestCase):
     def fake_make_multisig_address_file(self):
         pass
 
+    def fake_get_callback_url(request, multisig_address):
+        callback_url = "http://172.18.250.12:7788/addressnotify/" + multisig_address
+        return callback_url
+
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = "1"
+        created_time = "2017-03-15"
+        return subscription_id, created_time
+
     @mock.patch("evm_manager.deploy_contract_utils.make_multisig_address_file", fake_make_multisig_address_file)
+    @mock.patch("app.views.get_callback_url", fake_get_callback_url)
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def test_set_multisig_address(self):
         response = self.client.post(self.url, self.sample_form)
         self.assertEqual(response.status_code, httplib.OK)
