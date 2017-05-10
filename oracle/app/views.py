@@ -11,6 +11,7 @@ from gcoin import (multisign, deserialize, pubtoaddr,
 from django.http import HttpResponse, JsonResponse
 from django.utils.crypto import get_random_string
 from django.views.generic.edit import BaseFormView, ProcessFormView
+from django.conf import settings
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -18,7 +19,7 @@ from app.models import Proposal, Keystore, OraclizeContract, ProposalOraclizeLin
 from app.serializers import ProposalSerializer
 from evm_manager import deploy_contract_utils
 from evm_manager.utils import wallet_address_to_evm
-from .forms import MultisigAddrFrom, ProposeForm, SignForm
+from .forms import MultisigAddrFrom, ProposeForm, SignForm, NotifyForm
 from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
 from app import response_utils
@@ -57,6 +58,13 @@ def addressFromScriptPubKey(script_pub_key):
     hash3 = hashlib.sha256(hash2.digest())
     padded += hash3.digest()[:4]
     return base58.b58encode(padded)
+
+
+def get_callback_url(request, multisig_address):
+    callback_url = settings.ORACLE_API_URL + \
+        '/addressnotify/' + multisig_address
+    callback_url = ''.join(callback_url.split())
+    return callback_url
 
 
 class Proposes(CsrfExemptMixin, BaseFormView):
@@ -147,6 +155,18 @@ class Multisig_addr(CsrfExemptMixin, BaseFormView):
 
         p.multisig_address = multisig_address
         p.save()
+
+        callback_url = get_callback_url(self.request, multisig_address)
+        subscription_id = ""
+        created_time = ""
+
+        try:
+            subscription_id, created_time = gcoincore.subscribe_address_notification(
+                address=multisig_address,
+                callback_url=callback_url)
+        except Exception as e:
+            return response_utils.error_response(httplib.INTERNAL_SERVER_ERROR, str(e))
+
         response = {
             'status': 'success'
         }
@@ -379,6 +399,38 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
 
     def post(self, request, *args, **kwargs):
         tx_hash = self.kwargs['tx_hash']
+        response = {}
+        print('Received notify with tx_hash ' + tx_hash)
+        completed = deploy_contract_utils.deploy_contracts(tx_hash)
+        if completed is False:
+            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
+            return JsonResponse(response, status=httplib.OK)
+
+        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
+        return JsonResponse(response, status=httplib.OK)
+
+
+class AddressNotified(APIView):
+    def post(self, request, *args, **kwargs):
+        """ Receive Address Notification From OSS
+
+        Args:
+            multisig_address: multisig_address for contracts
+            tx_hash: the latest tx_hash of multisig_address
+            subscription_id: subscription_id of OSS
+            notification_id: notification_id of subscription_id
+
+        Returns:
+            status: State-Update is failed or completed
+        """
+        form = NotifyForm(request.POST)
+        tx_hash = ""
+
+        if form.is_valid():
+            tx_hash = form.cleaned_data['tx_hash']
+        else:
+            return response_utils.error_response(httplib.NOT_ACCEPTABLE, form.errors)
+
         response = {}
         print('Received notify with tx_hash ' + tx_hash)
         completed = deploy_contract_utils.deploy_contracts(tx_hash)

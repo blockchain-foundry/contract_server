@@ -28,6 +28,7 @@ env.read_env(str(root.path('.env')))
 SERVER_CONFIG_ENV = env("SERVER_CONFIG_ENV")
 SECRET_KEY = env("SECRET_KEY")
 OSS_API_URL = env("OSS_API_URL")
+ORACLE_API_URL = env("ORACLE_API_URL")
 
 DATABASES = {
     "default": {

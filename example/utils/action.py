@@ -19,87 +19,6 @@ from example.utils import api_helper
 
 headers = {'Content-type': 'application/json'}
 
-#
-# def accepts(*types):
-#     def decorator(f):
-#         def new_f(*args, **kwds):
-#             newargs = []
-#             for (a, t) in zip(args, types):
-#                 newargs.append(t(a))
-#             return f(*newargs, **kwds)
-#         return new_f
-#     return decorator
-
-
-# def apply_deploy_contract(contract_file, contract_name, function_inputs, sender_address, privkey):
-#     print('\n[Apply Deploy Contract] {}:{}({})'.format(contract_file, contract_name, function_inputs))
-#
-#     # 1. Create a contract
-#     source_code = loadContract(contract_file)
-#
-#     print('>>> Get oracle list')
-#     oracle_list = getOracleList().get('oracles')
-#     print(oracle_list)
-#
-#     if not oracle_list:
-#         raise ValueError('Empty oracle list')
-#
-#     print('>>> Create a contract')
-#     min_successes = 1
-#
-#     # without oraclize condition
-#     oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
-#
-#     r_json_createRawContract = prepareRawContract(source_code, sender_address, min_successes, oracle_list, oraclize_data, function_inputs)
-#     multisig_address = r_json_createRawContract['multisig_address']
-#     print('>>> raw_tx is created')
-#     print('>>> Obtain a contract address: ' + multisig_address)
-#
-#     # 2. Broadcast the transaction
-#     raw_tx = r_json_createRawContract['tx']
-#     print('>>> Create and broadcast a signed tx')
-#
-#     tx_id = signAndSendTx(raw_tx, privkey)
-#     print('>>> Unconfirmed Tx id: ' + tx_id)
-#
-#     # 3. Subscribe transaction
-#     r_json_subscribeTx = subscribeTx(tx_id)
-#     print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-#     print(">>> Mining transaction....")
-#
-#     # Check whether the contract is deployed or not
-#     deployed_list = []
-#     if is_contract_deployed(oracle_list, multisig_address, min_successes, deployed_list) is False:
-#         raise Exception('Deploy timeout exception')
-#     print('>>> Contract {} is deployed @ {}'.format(contract_name, multisig_address))
-#
-#     return multisig_address
-
-#
-# def apply_deploy_sub_contract(contract_file, contract_name, multisig_address, deploy_address, source_code, function_inputs, sender_address, privkey):
-#     print('\n[Apply Deploy SubContract] {}:{}({}) @{}/{}'.format(contract_file, contract_name, function_inputs, multisig_address, deploy_address))
-#     # 1. Create a contract
-#
-#     print('>>> Create a contract')
-#     min_successes = 1
-#
-#     # without oraclize condition
-#     oraclize_data = '{"conditions": [], "name": "' + contract_name + '"}'
-#     r_json_createRawContract = prepareRawSubContract(multisig_address, source_code, sender_address, deploy_address, oraclize_data, function_inputs)
-#     print('>>> raw_tx is created')
-#
-#     # 2. Broadcast the transaction
-#     raw_tx = r_json_createRawContract['raw_tx']
-#     print('>>> Create and broadcast a signed tx')
-#     tx_id = signAndSendTx(raw_tx, privkey)
-#     print('>>> Unconfirmed Tx id: ' + tx_id)
-#
-#     # 3. Subscribe transaction
-#     r_json_subscribeTx = subscribeTx(tx_id)
-#     print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-#     print(">>> Mining transaction....")
-#     return
-
 
 def apply_get_contract_status(multisig_address):
     """ Check contract status, but not necessary
@@ -113,85 +32,7 @@ def apply_get_contract_status(multisig_address):
     pprint(getABI(multisig_address))
     return
 
-#
-# def apply_transaction_call_contract(multisig_address, function_name, function_inputs, sender_address, privkey):
-#     print('\n[Call Contract Transaction Function] {}({}) @{}'.format(function_name, function_inputs, multisig_address))
-#
-#     data = {
-#         'function_name': function_name,
-#         'function_inputs': function_inputs,
-#         'sender_address': sender_address,
-#         'amount': '0',
-#         'color': '0',
-#     }
-#     r_json_apply_transaction_call_contract = callContractFunction(multisig_address, data)
-#     raw_tx = r_json_apply_transaction_call_contract['raw_tx']
-#     print('>>> Create and broadcast a signed tx')
-#     tx_id = signAndSendTx(raw_tx, privkey)
-#     print('>>> Unconfirmed Tx id: ' + tx_id)
-#
-#     r_json_subscribeTx = subscribeTx(tx_id)
-#     print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-#     print(">>> Mining transaction....")
-#     return
-#
-#
-# def apply_transaction_call_sub_contract(multisig_address, deploy_address, function_name, function_inputs, sender_address, privkey):
-#     print('\n[Call SubContract Transaction Function] {}({}) @{}/{}'.format(function_name, function_inputs, multisig_address, deploy_address))
-#     data = {
-#         'sender_address': sender_address,
-#         'amount': '0',
-#         'color': '0',
-#         'function_name': function_name,
-#         'function_inputs':function_inputs
-#     }
-#     r_json_apply_transaction_call_contract = callSubContractFunction(multisig_address, deploy_address, data)
-#     raw_tx = r_json_apply_transaction_call_contract['raw_tx']
-#     print('>>> raw_tx is created')
-#
-#     print('>>> Create and broadcast a signed tx')
-#     tx_id = signAndSendTx(raw_tx, privkey)
-#     print('>>> Unconfirmed Tx id: ' + tx_id)
-#
-#     r_json_subscribeTx = subscribeTx(tx_id)
-#     print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-#
-#
-# def apply_call_constant_contract(multisig_address, function_name, function_inputs, sender_address):
-#     """Return constant output (function_outputs)
-#     """
-#     print('\n[Call Contract Constant Function] {}({}) @{}'.format(function_name, function_inputs, multisig_address))
-#
-#     data = {
-#         'function_name': function_name,
-#         'function_inputs': function_inputs,
-#         'sender_address': sender_address,
-#         'amount': '0',
-#         'color': '0',
-#     }
-#     r_json_apply_call_constant_contract = callContractFunction(multisig_address, data)
-#     function_outputs = r_json_apply_call_constant_contract['function_outputs']
-#     return function_outputs
 
-#
-# def apply_call_constant_sub_contract(multisig_address, deploy_address, function_name, function_inputs, sender_address):
-#     """Return constant output (function_outputs)
-#     """
-#     print('\n[Call SubContract Constant Function] {}({}) @{}/{}'.format(function_name, function_inputs, multisig_address, deploy_address))
-#
-#     data = {
-#         'function_name': function_name,
-#         'function_inputs': function_inputs,
-#         'sender_address': sender_address,
-#         'amount': '0',
-#         'color': '0',
-#     }
-#     r_json_apply_call_constant_contract = callSubContractFunction(multisig_address, deploy_address, data)
-#     function_outputs = r_json_apply_call_constant_contract['function_outputs']
-#     return function_outputs
-
-
-# @accepts(str, str, str)
 def apply_watch_event(multisig_address, contract_address, event_name, conditions=""):
     """Apply watching event
 
@@ -262,15 +103,15 @@ def apply_deploy_contract(multisig_address, source_code, contract_name, function
     tx_hash = signAndSendTx(raw_tx, privkey)
     print('>>> Unconfirmed tx_hash: ' + tx_hash)
 
-    # 3. Subscribe transaction oracle
-    r_json_subscribeTx = subscribeTx(tx_hash)
-    print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-    print(">>> Mining transaction....")
-
-    # 4. Subscribe transaction for contract_server
-    r_json_subscribeTx = subscribeTx(tx_hash, CONTRACT_URL)
-    print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-    print(">>> Mining transaction....")
+    # # 3. Subscribe transaction oracle
+    # r_json_subscribeTx = subscribeTx(tx_hash)
+    # print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
+    # print(">>> Mining transaction....")
+    #
+    # # 4. Subscribe transaction for contract_server
+    # r_json_subscribeTx = subscribeTx(tx_hash, CONTRACT_URL)
+    # print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
+    # print(">>> Mining transaction....")
 
     return tx_hash
 
@@ -295,14 +136,14 @@ def apply_transaction_call_contract(multisig_address, contract_address, function
     tx_hash = signAndSendTx(raw_tx, privkey)
     print('>>> Unconfirmed tx_hash: ' + tx_hash)
 
-    # 3. Subscribe transaction oracle
-    r_json_subscribeTx = subscribeTx(tx_hash)
-    print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-
-    # 4. Subscribe transaction for contract_server
-    r_json_subscribeTx = subscribeTx(tx_hash, CONTRACT_URL)
-    print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
-    print(">>> Mining transaction....")
+    # # 3. Subscribe transaction oracle
+    # r_json_subscribeTx = subscribeTx(tx_hash)
+    # print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
+    #
+    # # 4. Subscribe transaction for contract_server
+    # r_json_subscribeTx = subscribeTx(tx_hash, CONTRACT_URL)
+    # print('>>> Subscribed transaction, subscription_id: {}'.format(r_json_subscribeTx['id']))
+    # print(">>> Mining transaction....")
 
     return tx_hash
 

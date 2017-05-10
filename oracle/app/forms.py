@@ -19,3 +19,9 @@ class SignForm(forms.Form):
 class MultisigAddrFrom(forms.Form):
     pubkey = forms.CharField(required=True)
     multisig_address = forms.CharField(required=True)
+
+
+class NotifyForm(forms.Form):
+    tx_hash = forms.CharField(max_length=100)
+    subscription_id = forms.CharField(max_length=100)
+    notification_id = forms.CharField(max_length=100)
