@@ -2,8 +2,7 @@
 **__pycache__
 **.pyc
 **.sqlite*
-solidity/solc/solc
-solidity/include/solidity/BuildInfo.h
+
 
 env/
 log/

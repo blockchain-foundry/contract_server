@@ -11,7 +11,6 @@ from eth_abi.abi import *
 from gcoin import *
 from subprocess import PIPE, STDOUT, CalledProcessError, Popen, check_call
 
-SOLIDITY_PATH = "../solidity/solc/solc"
 
 def _get_function_by_name(interface, function_name):
     '''
