@@ -23,6 +23,8 @@ def clear_evm_accounts(multisig_address):
         contract_addresses = [contract.contract_address for contract in contracts]
         contract_balance = gcoincore.get_address_balance(multisig_address)
 
+        participant_addresses = get_participants(multisig_address)
+
         balance_index = 1
         address_index = 0
 
@@ -36,8 +38,12 @@ def clear_evm_accounts(multisig_address):
                     if int(value) > max_value:
                         max_value = int(value)
                 if max_value > 0:
-                    addresses.append(evm_address_to_wallet(account[address_index], magicbyte=5))
-                    accounts.append(account)
+                    if evm_address_to_wallet(account[address_index]) in participant_addresses:
+                        addresses.append(evm_address_to_wallet(account[address_index]))
+                        accounts.append(account)
+                    else:
+                        addresses.append(evm_address_to_wallet(account[address_index], magicbyte=5))
+                        accounts.append(account)
 
         accounts_balance = [account[balance_index] for account in accounts]
         payouts = get_payouts_from_accounts(multisig_address, contract_balance, accounts_balance, addresses)
