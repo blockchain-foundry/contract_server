@@ -216,7 +216,6 @@ class MultisigAddressesView(APIView):
     FEE_COLOR = 1
     CONTRACT_TX_TYPE = 5
     """
-    SOLIDITY_PATH = "../solidity/solc/solc"
     serializer_class = CreateMultisigAddressSerializer
     queryset = MultisigAddress.objects.all()
     pagination_class = LimitOffsetPagination

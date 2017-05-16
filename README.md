@@ -43,7 +43,29 @@ and you'll get **rpcuser**, **rpcpassword**.
     $ make evm
 
 ## Install Solidity
+    $ git clone https://github.com/ethereum/solidity.git
     $ cd solidity
+    $ git checkout v0.4.7
+    $ git submodule update --init --recursive
+
+Need to add boost_1_54_0 in CMakeLists.txt
+
+    $ vim CMakeLists.txt
+
+    set(Boost_INCLUDE_DIR "/usr/local/boost_1_54_0/include")
+    set(BOOST_LIBRARYDIR "/usr/local/boost_1_54_0/lib")
+
+Install boost_1_54_0
+
+    $ wget https://cl.ly/i8pU/boost_1_54_0.tar.gz
+    $ tar -zxvf boost_1_54_0.tar.gz
+    $ cd boost_1_54_0
+    $ ./bootstrap.sh --prefix=/usr/local/boost_1_54_0
+    $ sudo ./b2 --with=all install
+    $ cd ..
+
+Compile solidity
+
     $ cmake3 .
     $ make
 
