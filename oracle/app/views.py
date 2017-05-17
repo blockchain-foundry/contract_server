@@ -410,10 +410,10 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
 
     def post(self, request, *args, **kwargs):
         tx_hash = self.kwargs['tx_hash']
-        response = {"message":'Received notify with tx_hash ' + tx_hash}
+        response = {"message": 'Received notify with tx_hash ' + tx_hash}
         print('Received notify with tx_hash ' + tx_hash)
 
-        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        t = threading.Thread(target=evm_deploy, args=[tx_hash, ])
         t.start()
         return JsonResponse(response, status=httplib.OK)
 
@@ -440,9 +440,9 @@ class AddressNotified(APIView):
         else:
             return response_utils.error_response(httplib.NOT_ACCEPTABLE, form.errors)
 
-        response = {"message":'Received notify with address ' + multisig_address +', tx_hash '+ tx_hash}
-        print('Received notify with address ' + multisig_address +', tx_hash '+ tx_hash)
-        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        response = {"message": 'Received notify with address ' + multisig_address + ', tx_hash ' + tx_hash}
+        print('Received notify with address ' + multisig_address + ', tx_hash ' + tx_hash)
+        t = threading.Thread(target=evm_deploy, args=[tx_hash, ])
         t.start()
         return JsonResponse(response, status=httplib.OK)
 
