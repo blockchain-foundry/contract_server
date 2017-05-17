@@ -114,3 +114,29 @@ class MultisigAddrTest(TestCase):
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data['errors'][0]["message"], 'Cannot find proposal with this pubkey.')
         self.assertEqual(response.status_code, httplib.BAD_REQUEST)
+
+
+class AddressNotifiedCase(TestCase):
+    def setUp(self):
+        self.url = "/addressnotify/339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4"
+
+        self.sample_form = {
+            "tx_hash": "1GmuEC3KHQgqtyT1oDceyxmD4RNtRsPRwq",
+            "subscription_id": '1',
+            "notification_id": '2'
+        }
+
+    def fake_deploy_contracts(tx_hash):
+        return True
+
+    def fake_deploy_contracts_failed(tx_hash):
+        return False
+
+    def test_address_notified_bad_request(self):
+        self.response = self.client.post(self.url, {})
+        self.assertEqual(self.response.status_code, httplib.NOT_ACCEPTABLE)
+
+    @mock.patch("evm_manager.deploy_contract_utils.deploy_contracts", fake_deploy_contracts)
+    def test_address_notified(self):
+        self.response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(self.response.status_code, httplib.OK)
