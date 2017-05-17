@@ -10,7 +10,22 @@ from contract_server import ERROR_CODE, error_response, data_response
 from .decorators import handle_uncaught_exception, handle_apiversion_apiview
 from .forms import NotifyForm
 
-from .cashout import clear_evm_accounts
+#from .cashout import clear_evm_accounts
+import threading
+
+
+def evm_deploy(tx_hash):
+    print('Deploy tx_hash ' + tx_hash)
+    completed = deploy_contract_utils.deploy_contracts(tx_hash)
+    if completed:
+        print('Deployed Success')
+    else:
+        print('Deployed Failed')
+    #
+    # Cash out function
+    # Modified in future
+    #multisig_address = deploy_contract_utils.get_multisig_address(tx_hash)
+    #response = clear_evm_accounts(multisig_address)
 
 
 class NewTxNotified(APIView):
@@ -26,17 +41,11 @@ class NewTxNotified(APIView):
         Returns:
             status: State-Update is failed or completed
         """
-        response = {}
+        response = {"message":'Received notify with tx_hash ' + tx_hash}
         print('Received notify with tx_hash ' + tx_hash)
 
-        completed = deploy_contract_utils.deploy_contracts(tx_hash)
-        if completed is False:
-            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return data_response(response)
-
-        multisig_address = deploy_contract_utils.get_multisig_address(tx_hash)
-        response = clear_evm_accounts(multisig_address)
-        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
+        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        t.start()
         return data_response(response)
 
 
@@ -63,13 +72,8 @@ class AddressNotified(APIView):
         else:
             return error_response(httplib.NOT_ACCEPTABLE, form.errors, ERROR_CODE['invalid_form_error'])
 
-        response = {}
-        print('Received notify with tx_hash ' + tx_hash)
-        completed = deploy_contract_utils.deploy_contracts(tx_hash)
-        if completed is False:
-            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return data_response(response)
-
-        response = clear_evm_accounts(multisig_address)
-        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
+        response = {"message":'Received notify with address ' + multisig_address +', tx_hash '+ tx_hash}
+        print('Received notify with address ' + multisig_address +', tx_hash '+ tx_hash)
+        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        t.start()
         return data_response(response)

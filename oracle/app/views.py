@@ -24,6 +24,8 @@ from oracle.mixins import CsrfExemptMixin
 from gcoinbackend import core as gcoincore
 from app import response_utils
 
+import threading
+
 pubkey_hash_re = re.compile(r'^76a914[a-f0-9]{40}88ac$')
 pubkey_re = re.compile(r'^21[a-f0-9]{66}ac$')
 script_hash_re = re.compile(r'^a914[a-f0-9]{40}87$')
@@ -65,6 +67,15 @@ def get_callback_url(request, multisig_address):
         '/addressnotify/' + multisig_address
     callback_url = ''.join(callback_url.split())
     return callback_url
+
+
+def evm_deploy(tx_hash):
+    print('Deploy tx_hash ' + tx_hash)
+    completed = deploy_contract_utils.deploy_contracts(tx_hash)
+    if completed:
+        print('Deployed Success')
+    else:
+        print('Deployed Failed')
 
 
 class Proposes(CsrfExemptMixin, BaseFormView):
@@ -399,14 +410,11 @@ class NewTxNotified(CsrfExemptMixin, ProcessFormView):
 
     def post(self, request, *args, **kwargs):
         tx_hash = self.kwargs['tx_hash']
-        response = {}
+        response = {"message":'Received notify with tx_hash ' + tx_hash}
         print('Received notify with tx_hash ' + tx_hash)
-        completed = deploy_contract_utils.deploy_contracts(tx_hash)
-        if completed is False:
-            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return JsonResponse(response, status=httplib.OK)
 
-        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
+        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        t.start()
         return JsonResponse(response, status=httplib.OK)
 
 
@@ -423,6 +431,7 @@ class AddressNotified(APIView):
         Returns:
             status: State-Update is failed or completed
         """
+        multisig_address = self.kwargs['multisig_address']
         form = NotifyForm(request.POST)
         tx_hash = ""
 
@@ -431,14 +440,10 @@ class AddressNotified(APIView):
         else:
             return response_utils.error_response(httplib.NOT_ACCEPTABLE, form.errors)
 
-        response = {}
-        print('Received notify with tx_hash ' + tx_hash)
-        completed = deploy_contract_utils.deploy_contracts(tx_hash)
-        if completed is False:
-            response['status'] = 'State-Update failed: tx_hash = ' + tx_hash
-            return JsonResponse(response, status=httplib.OK)
-
-        response['status'] = 'State-Update completed: tx_hash = ' + tx_hash
+        response = {"message":'Received notify with address ' + multisig_address +', tx_hash '+ tx_hash}
+        print('Received notify with address ' + multisig_address +', tx_hash '+ tx_hash)
+        t = threading.Thread(target = evm_deploy, args=[tx_hash,])
+        t.start()
         return JsonResponse(response, status=httplib.OK)
 
 
