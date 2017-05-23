@@ -43,4 +43,5 @@ before_script:
   - touch django.log
   - cd ..
 script:
-  - ./contract_server/manage.py test
+  - cd ./contract_server
+  - ./manage.py test
