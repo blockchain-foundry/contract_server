@@ -12,6 +12,7 @@ install:
   - export GOPATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace:$GOPATH"
   - export PATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace/bin:$PATH"
   - go version
+  - git clone git@github.com:OpenNetworking/go-ethereum.git
   - cd ./go-ethereum/ ; make evm
   - cd ..
   - pip install pep8
