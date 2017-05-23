@@ -9,6 +9,12 @@ services: mysql
 env:
   - DJANGO=1.8
 install:
+  - mkdir solidity
+  - cd solidity
+  - mkdir solc
+  - cd solc
+  - wget https://ipfs.io/ipfs/QmTNN5EismWnAxMpQZjt8rYEUc7RsyGxvep2KZnMMfUqah -O solc
+  - cd ../..
   - export GOPATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace:$GOPATH"
   - export PATH="${TRAVIS_BUILD_DIR}/Godeps/_workspace/bin:$PATH"
   - go version
