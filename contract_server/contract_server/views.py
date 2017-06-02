@@ -64,7 +64,7 @@ class AddressNotified(APIView):
             status: State-Update is failed or completed
         """
 
-        form = NotifyForm(request.POST)
+        form = NotifyForm(request.data)
         tx_hash = ""
 
         if form.is_valid():
