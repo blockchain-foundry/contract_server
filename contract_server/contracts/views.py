@@ -309,11 +309,13 @@ class MultisigAddressesView(APIView):
             callback_url = get_callback_url(self.request, multisig_address)
             subscription_id = ""
             created_time = ""
+            confirmation = settings.CONFIRMATION
 
             try:
                 subscription_id, created_time = OSSclient.subscribe_address_notification(
                     multisig_address,
-                    callback_url)
+                    callback_url,
+                    confirmation)
             except Exception as e:
                 raise SubscribeAddrsssNotificationError("SubscribeAddrsssNotificationError")
 

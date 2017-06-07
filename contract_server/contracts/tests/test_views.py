@@ -236,7 +236,7 @@ class MultisigAddressesViewTest(TestCase):
             test_interface = test_abi_file.read().replace('\n', '')
         return test_binary_code, test_interface
 
-    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+    def fake_subscribe_address_notification(self, multisig_address, callback_url, confirmation):
         subscription_id = "1"
         created_time = "2017-03-15"
         return subscription_id, created_time
