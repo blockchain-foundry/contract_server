@@ -112,32 +112,43 @@ class GcoinAPIClient(object):
         raw_tx = response.json()['raw_tx']
         return raw_tx
 
-    def prepare_smartcontract_raw_tx(self, from_address, to_address, non_diqi_amount, color_id, op_return, diqi_amount):
-        end_point = '/base/v1/smartcontract/prepare'
-        data = {
+    def prepare_smartcontract_raw_tx(self, from_address, state_multisig_address, contract_multisig_address, amount, color_id, op_return_data, contract_fee):
+        end_point = '/base/v1/general-transaction/prepare'
+        print(color_id)
+        tx_info = [{
             'from_address': from_address,
-            'to_address': to_address,
-            'amount': non_diqi_amount,
-            'color_id': color_id,
-            'code': op_return,
-            'contract_fee': diqi_amount,
+            'to_address': state_multisig_address,
+            'color_id': '1',
+            'amount': contract_fee,
+        }]
+        if contract_multisig_address:
+            tx_info.append({
+                'from_address': from_address,
+                'to_address': contract_multisig_address,
+                'color_id': color_id,
+                'amount': amount,
+            })
+
+        data = {
+            'tx_info': tx_info,
+            #'op_return_data': 'abv',
+            'op_return_data': op_return_data,
+            'tx_type': 'CONTRACT'
         }
-        response = self.request(end_point, 'POST', data=data)
+        try:
+            response = self.request(end_point, 'POST', json=data)
+        except Exception as e:
+            print(str(e))
+            raise e
+        print(response.json())
         raw_tx = response.json()['raw_tx']
         return raw_tx
 
-    def deploy_contract_raw_tx(self, from_address, to_address, compiled_code, contract_fee):
-        return self.prepare_smartcontract_raw_tx(from_address, to_address, 0, 0, compiled_code, contract_fee)
+    def deploy_contract_raw_tx(self, from_address, state_multisig_address, op_return_data, contract_fee):
+        return self.prepare_smartcontract_raw_tx(from_address, state_multisig_address, None, 0, 0, op_return_data, contract_fee)
 
-    def operate_contract_raw_tx(self, from_address, to_address, amount, color_id, compiled_code, contract_fee):
-        if color_id == 1:
-            diqi_amount = amount + contract_fee
-            non_diqi_amount = 0
-            color_id = 0
-        else:
-            diqi_amount = contract_fee
-            non_diqi_amount = amount
-        return self.prepare_smartcontract_raw_tx(from_address, to_address, non_diqi_amount, color_id, compiled_code, diqi_amount)
+    def operate_contract_raw_tx(self, from_address, state_multisig_address, contract_multisig_address, amount, color_id, op_return_data, contract_fee):
+        return self.prepare_smartcontract_raw_tx(from_address, state_multisig_address, contract_multisig_address, amount, color_id, op_return_data, contract_fee)
 
     def get_block_by_hash(self, block_hash):
         end_point = '/explorer/v1/blocks/{block_hash}'.format(block_hash=block_hash)

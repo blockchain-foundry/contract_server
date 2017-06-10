@@ -8,12 +8,13 @@ class CreateMultisigAddressSerializer(serializers.Serializer):
 
 
 class MultisigAddressSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = MultisigAddress
         fields = ('created', 'id', 'address', 'script', 'oracles', 'least_sign_number')
 
 
-class ContractSerializer(serializers.Serializer):
+class DeployContractSerializer(serializers.Serializer):
     sender_address = serializers.CharField()
     source_code = serializers.CharField()
     contract_name = serializers.CharField()
@@ -21,6 +22,8 @@ class ContractSerializer(serializers.Serializer):
     conditions = serializers.CharField(required=False)
     color = serializers.IntegerField()
     amount = serializers.IntegerField()
+    oracles = serializers.CharField()
+    m = serializers.IntegerField()
 
 
 class ContractFunctionSerializer(serializers.Serializer):

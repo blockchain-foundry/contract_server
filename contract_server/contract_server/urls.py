@@ -14,6 +14,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 from django.conf.urls import patterns, include, url
+from django.contrib import admin
+
 from .views import NewTxNotified, AddressNotified
 
 urlpatterns = [
@@ -22,6 +24,7 @@ urlpatterns = [
     url(r'^smart-contract/', include('contracts.urls')),
     url(r'^', include('contracts.urls')),
     url(r'^states/', include('evm_manager.urls')),
+    url(r'^admin/', include(admin.site.urls),),
 ]
 
 urlpatterns += patterns(

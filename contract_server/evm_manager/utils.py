@@ -8,16 +8,21 @@ except:
 
     def sha3_256(x):
         return _sha3.keccak_256(x).digest()
+import ast
 import os
 import json
 import rlp
 import copy
+
 from rlp.utils import decode_hex, ascii_chr
 from binascii import hexlify, unhexlify
-from .decorators import retry
+
 from gcoinbackend import core as gcoincore
-from gcoin import b58check_to_hex, hex_to_b58check
+from gcoin import b58check_to_hex, hex_to_b58check, scriptaddr, mk_multisig_script
+
+from .decorators import retry
 from .exceptions import TxNotFoundError, TxUnconfirmedError
+from .models import ContractInfo
 
 
 def is_numeric(x):
@@ -106,13 +111,18 @@ def sha3(seed):
 def get_nonce(multisig_address, sender_address):
     sender_evm_address = wallet_address_to_evm(sender_address)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
-    with open(contract_path, 'r') as f:
-        content = json.load(f)
-        if sender_evm_address in content['accounts']:
-            return content['accounts'][sender_evm_address]['nonce']
+    try:
+        with open(contract_path, 'r') as f:
+            content = json.load(f)
+            if sender_evm_address in content['accounts']:
+                return content['accounts'][sender_evm_address]['nonce']
+    except Exception as e:
+        print(str(e))
+        raise e
 
 
 def get_tx_info(tx_or_hash):
+    print('get tx info')
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     tx_hash = tx.get('txid') or tx.get('hash')
     blockhash = tx.get('blockhash') or tx.get('block_hash')
@@ -121,6 +131,14 @@ def get_tx_info(tx_or_hash):
     time = int(tx.get('time'))
     vins = _process_vins(tx)
     vouts = _process_vouts(tx)
+    state_multisig_address = get_multisig_address(tx)
+    print('state_multisig_address', state_multisig_address)
+    contract_multisig_address = get_contract_multisig_address(tx)
+    if contract_multisig_address is None:
+        print('contract_multisig_address is none')
+    else:
+        print('contract_multisig_address',contract_multisig_address)
+
     op_return = None if typ == 'NORMAL' else _process_op_return(tx)
     data = {}
     data['hash'] = tx_hash
@@ -131,6 +149,13 @@ def get_tx_info(tx_or_hash):
     data['blockhash'] = blockhash
     data['op_return'] = op_return
     data['confirmations'] = confirmations
+    data['state_multisig_address'] = state_multisig_address
+    data['contract_multisig_address'] = contract_multisig_address
+    try:
+        contract_info = ContractInfo.objects.get(multisig_address=contract_multisig_address)
+        data['contract_address'] = contract_info.contract_address
+    except:
+        data['contract_address'] = None
     return data
 
 
@@ -141,7 +166,8 @@ def _process_vouts(tx):
         vout['address'] = vout.get('address')
         vout['address'] = vout['address'] if vout['address'] is not None else \
             (vout.get('scriptPubKey').get('addresses') or '')
-        vout['address'] = vout['address'] if isinstance(vout['address'], str) else vout['address'][0]
+        vout['address'] = vout['address'] if isinstance(
+            vout['address'], str) else vout['address'][0]
         vout['amount'] = vout.get('value') if vout.get('value') is not None else vout.get('amount')
         vout['amount'] = int(vout['amount'])
         vout['color'] = int(vout['color'])
@@ -179,21 +205,18 @@ def _process_op_return(tx):
             data = unhexlify(op_return[begin:])
             data = data.decode('utf-8')
             data = json.loads(data)
-            multisig_address = data.get('multisig_address')
+            public_keys = ast.literal_eval(data.get('public_keys'))
             if data.get('source_code'):
                 is_deploy = True
-                contract_address = None
                 bytecode = data.get('source_code')
             elif data.get('function_inputs_hash'):
                 is_deploy = False
-                contract_address = data.get('contract_address')
                 bytecode = data.get('function_inputs_hash')
     data = {}
     data['hex'] = op_return
     data['bytecode'] = bytecode
     data['is_deploy'] = is_deploy
-    data['multisig_address'] = multisig_address
-    data['contract_address'] = contract_address
+    data['public_keys'] = public_keys
     return data
 
 
@@ -227,7 +250,43 @@ def get_multisig_address(tx_or_hash):
         multisig_address = sender_address if sender_address[0] == '3' else None
         return multisig_address
     elif tx.get('type') == 'CONTRACT':
-        multisig_address = _process_op_return(tx).get('multisig_address')
+        multisig_address, _, _ = get_state_multisig_info(tx_or_hash)
+        print(multisig_address)
         return multisig_address
     else:
         return None
+
+
+def get_state_multisig_info(tx_or_hash):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    vouts = _process_vouts(tx)
+    pubkeys = _process_op_return(tx).get('public_keys')
+    for vout in vouts:
+        if vout['address'][0] == '3':
+            for i in range(len(pubkeys)):
+                multisig_script = mk_multisig_script(pubkeys, i + 1)
+                multisig_address = scriptaddr(multisig_script)
+                if multisig_address == vout['address']:
+                    return multisig_address, multisig_script, i + 1
+    return None, None, None
+
+
+def get_contract_multisig_address(tx_or_hash):
+    state_multisig_address, _, _ = get_state_multisig_info(tx_or_hash)
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    vouts = _process_vouts(tx)
+    for vout in vouts:
+        if vout['address'] and vout['address'][0] == '3':
+                if state_multisig_address != vout['address']:
+                    return vout['address']
+    return None
+
+
+def make_contract_multisig_address(tx_or_hash, contract_address):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    pubkeys = _process_op_return(tx).get('public_keys')
+    _, _, m = get_state_multisig_info(tx_or_hash)
+    multisig_script = mk_multisig_script(pubkeys, m, contract_address)
+    multisig_address = scriptaddr(multisig_script)
+
+    return multisig_address, multisig_script, m

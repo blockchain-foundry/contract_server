@@ -16,7 +16,9 @@ import threading
 
 def evm_deploy(tx_hash):
     print('Deploy tx_hash ' + tx_hash)
+
     completed = deploy_contract_utils.deploy_contracts(tx_hash)
+
     if completed:
         print('Deployed Success')
     else:
@@ -29,7 +31,8 @@ def evm_deploy(tx_hash):
 
 
 class NewTxNotified(APIView):
-    @handle_uncaught_exception
+    # @handle_uncaught_exception
+
     def post(self, request, tx_hash):
         """ Receive Transaction Notification From OSS
 
@@ -50,6 +53,7 @@ class NewTxNotified(APIView):
 
 
 class AddressNotified(APIView):
+
     @handle_apiversion_apiview
     def post(self, request, multisig_address):
         """ Receive Address Notification From OSS
@@ -72,7 +76,8 @@ class AddressNotified(APIView):
         else:
             return error_response(httplib.NOT_ACCEPTABLE, form.errors, ERROR_CODE['invalid_form_error'])
 
-        response = {"message": 'Received notify with address ' + multisig_address + ', tx_hash ' + tx_hash}
+        response = {"message": 'Received notify with address ' +
+                    multisig_address + ', tx_hash ' + tx_hash}
         print('Received notify with address ' + multisig_address + ', tx_hash ' + tx_hash)
         t = threading.Thread(target=evm_deploy, args=[tx_hash, ])
         t.start()
