@@ -114,7 +114,6 @@ class GcoinAPIClient(object):
 
     def prepare_smartcontract_raw_tx(self, from_address, state_multisig_address, contract_multisig_address, amount, color_id, op_return_data, contract_fee):
         end_point = '/base/v1/general-transaction/prepare'
-        print(color_id)
         tx_info = [{
             'from_address': from_address,
             'to_address': state_multisig_address,
@@ -133,14 +132,12 @@ class GcoinAPIClient(object):
             'tx_info': tx_info,
             #'op_return_data': 'abv',
             'op_return_data': op_return_data,
-            'tx_type': 'CONTRACT'
         }
         try:
             response = self.request(end_point, 'POST', json=data)
         except Exception as e:
             print(str(e))
             raise e
-        print(response.json())
         raw_tx = response.json()['raw_tx']
         return raw_tx
 
@@ -158,7 +155,11 @@ class GcoinAPIClient(object):
 
     def subscribe_address_notification(self, address, callback_url, confirmation):
         end_point = '/notification/v1/address/subscription'
-        data = {'address': address, 'callback_url': callback_url, 'confirmation': confirmation}
+        data = {
+            'address': address,
+            'callback_url': callback_url,
+            'confirmation': confirmation
+        }
         response = self.request(end_point, 'POST', data=data)
         subscription_id = response.json()['id']
         created_time = response.json()['created_time']

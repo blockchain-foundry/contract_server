@@ -59,6 +59,7 @@ def get_evm_account_info(multisig_address):
         return accounts_info
     except Exception as e:
         print(e)
+        raise e
 
 
 def mk_contract_address(sender, nonce):
@@ -111,18 +112,14 @@ def sha3(seed):
 def get_nonce(multisig_address, sender_address):
     sender_evm_address = wallet_address_to_evm(sender_address)
     contract_path = os.path.dirname(os.path.abspath(__file__)) + '/../states/' + multisig_address
-    try:
-        with open(contract_path, 'r') as f:
-            content = json.load(f)
-            if sender_evm_address in content['accounts']:
-                return content['accounts'][sender_evm_address]['nonce']
-    except Exception as e:
-        print(str(e))
-        raise e
+    with open(contract_path, 'r') as f:
+        content = json.load(f)
+        if sender_evm_address in content['accounts']:
+            nonce = content['accounts'][sender_evm_address]['nonce']
+            return nonce
 
 
 def get_tx_info(tx_or_hash):
-    print('get tx info')
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     tx_hash = tx.get('txid') or tx.get('hash')
     blockhash = tx.get('blockhash') or tx.get('block_hash')
@@ -132,12 +129,7 @@ def get_tx_info(tx_or_hash):
     vins = _process_vins(tx)
     vouts = _process_vouts(tx)
     state_multisig_address = get_multisig_address(tx)
-    print('state_multisig_address', state_multisig_address)
     contract_multisig_address = get_contract_multisig_address(tx)
-    if contract_multisig_address is None:
-        print('contract_multisig_address is none')
-    else:
-        print('contract_multisig_address',contract_multisig_address)
 
     op_return = None if typ == 'NORMAL' else _process_op_return(tx)
     data = {}
@@ -251,7 +243,6 @@ def get_multisig_address(tx_or_hash):
         return multisig_address
     elif tx.get('type') == 'CONTRACT':
         multisig_address, _, _ = get_state_multisig_info(tx_or_hash)
-        print(multisig_address)
         return multisig_address
     else:
         return None
@@ -260,7 +251,7 @@ def get_multisig_address(tx_or_hash):
 def get_state_multisig_info(tx_or_hash):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     vouts = _process_vouts(tx)
-    pubkeys = _process_op_return(tx).get('public_keys')
+    pubkeys = get_public_keys(tx_or_hash)
     for vout in vouts:
         if vout['address'][0] == '3':
             for i in range(len(pubkeys)):
@@ -277,16 +268,22 @@ def get_contract_multisig_address(tx_or_hash):
     vouts = _process_vouts(tx)
     for vout in vouts:
         if vout['address'] and vout['address'][0] == '3':
-                if state_multisig_address != vout['address']:
-                    return vout['address']
+            if state_multisig_address != vout['address']:
+                return vout['address']
     return None
 
 
 def make_contract_multisig_address(tx_or_hash, contract_address):
     tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
-    pubkeys = _process_op_return(tx).get('public_keys')
+    pubkeys = get_public_keys(tx_or_hash)
     _, _, m = get_state_multisig_info(tx_or_hash)
     multisig_script = mk_multisig_script(pubkeys, m, contract_address)
     multisig_address = scriptaddr(multisig_script)
 
     return multisig_address, multisig_script, m
+
+
+def get_public_keys(tx_or_hash):
+    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
+    pubkeys = _process_op_return(tx).get('public_keys')
+    return pubkeys

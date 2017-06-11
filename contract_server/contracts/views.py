@@ -20,7 +20,7 @@ from solc import compile_source
 from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer, DeployContractSerializer, ContractFunctionSerializer
 from contract_server import response_utils, ERROR_CODE, data_response
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
-from contract_server.mixins import CsrfExemptMixin
+from contract_server.mixins import CsrfExemptMixin, MultisigAddressCreateMixin
 from evm_manager import deploy_contract_utils
 from evm_manager.utils import mk_contract_address, get_nonce, wallet_address_to_evm
 from gcoinapi.client import GcoinAPIClient
@@ -105,7 +105,83 @@ class ContractList(View):
         return data_response(response)
 
 
-class DeployContract(APIView):
+class MultisigAddressesView(APIView, MultisigAddressCreateMixin):
+    """
+    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
+    CONTRACT_FEE = 1 # 1 bitcoin
+    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
+    FEE_COLOR = 1
+    CONTRACT_TX_TYPE = 5
+    """
+    serializer_class = CreateMultisigAddressSerializer
+    queryset = MultisigAddress.objects.all()
+    pagination_class = LimitOffsetPagination
+
+    @handle_uncaught_exception
+    @handle_apiversion_apiview
+    def post(self, request):
+        """Create MultisigAddress
+
+        Args:
+            m: for m-of-n multisig_address, least m oracles sign
+            oracles: list of oracles
+
+        Returns:
+            multisig_address: multisig address
+        """
+        serializer = self.serializer_class(data=request.data)
+
+        if serializer.is_valid(raise_exception=False):
+            data = serializer.validated_data
+        else:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
+
+        m = data['m']
+        oracle_list = self.get_oracle_list(ast.literal_eval(data['oracles']))
+
+        # get multisig address object
+        try:
+            multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
+        except Multisig_error as e:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
+        except Exception as e:
+            raise e
+
+        try:
+            self.save_multisig_address(multisig_address, url_map_pubkeys, is_state_multisig=True)
+        except Exception as e:
+            raise OracleMultisigAddressError("OracleMultisigAddressError")
+
+        data = {
+            'multisig_address': multisig_address,
+        }
+
+        return response_utils.data_response(data)
+
+    def get(self, request, format=None):
+        """Get MultisigAddresses
+
+        Args:
+            limit: for pagination limit
+            offset: for pagination offset
+
+        Returns:
+            multisig_addresseses: list of MultisigAddress
+            query_time: query timestamp (timezome)
+        """
+        paginator = LimitOffsetPagination()
+        multisig_addresses = MultisigAddress.objects.all()
+        result_page = paginator.paginate_queryset(multisig_addresses, request)
+        serializer = MultisigAddressSerializer(result_page, many=True)
+        data = {
+            'multisig_addresses': serializer.data,
+            'query_time': timezone.now()
+        }
+
+        return response_utils.data_response(data)
+
+
+class DeployContract(APIView, MultisigAddressCreateMixin):
 
     def _compile_code_and_interface(self, source_code, contract_name):
         output = compile_source(source_code)
@@ -118,49 +194,8 @@ class DeployContract(APIView):
         vouts = deserialize(tx_hex)['outs']
         for vout in vouts:
             if vout['color'] == 0:
-                print('vout.script: ' + vout['script'])
                 return Contract.make_hash_op_return(vout['script'])
         raise Exception('tx_format_error')
-
-    def _get_oracle_list(self, oracle_list):
-        """Check oracle_list is matching oracles in database
-        """
-        if len(oracle_list) == 0:
-            oracle_list = []
-            for i in Oracle.objects.all():
-                oracle_list.append(
-                    {
-                        'name': i.name,
-                        'url': i.url
-                    }
-                )
-        return oracle_list
-
-    def _get_pubkey_from_oracle(self, url, pubkeys):
-        """Get public keys from an oracle
-        """
-        r = requests.get(url + '/proposals/')
-        pubkey = json.loads(r.text)['public_key']
-        logger.debug("get " + url + "'s pubkey.")
-        pubkeys.append(pubkey)
-
-    def _get_multisig_address(self, oracle_list, m):
-        """Get public keys and create multisig_address
-        """
-        if len(oracle_list) < m:
-            raise Multisig_error("The m in 'm of n' is bigger than n.")
-        pubkeys = []
-
-        for oracle in oracle_list:
-            self._get_pubkey_from_oracle(oracle['url'], pubkeys)
-
-        if len(pubkeys) != len(oracle_list):
-            raise Multisig_error('there are some oracles that did not response')
-
-        multisig_script = mk_multisig_script(pubkeys, m)
-        multisig_address = scriptaddr(multisig_script)
-
-        return multisig_address, multisig_script, pubkeys
 
     @handle_apiversion_apiview
     def post(self, request, format=None):
@@ -179,19 +214,15 @@ class DeployContract(APIView):
         m = data['m']
 
         # Gen multisig address by oracles
-        oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
-        multisig_address, multisig_script, pubkeys = self._get_multisig_address(oracle_list, m)
+        oracle_list = self.get_oracle_list(ast.literal_eval(oracles))
 
+        # get multisig address object
         try:
-            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
-        except MultisigAddress.DoesNotExist:
-            multisig_address_object = MultisigAddress.objects.create(
-                address=multisig_address, script=multisig_script, least_sign_number=m, is_state_multisig=True)
-
-            deploy_contract_utils.make_multisig_address_file(multisig_address)
-
-            for i in oracle_list:
-                multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
+            multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
+        except Multisig_error as e:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
+        except Exception as e:
+            raise e
 
         try:
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
@@ -219,6 +250,12 @@ class DeployContract(APIView):
                 input_value.append(i['value'])
             function = get_constructor_function(interface)
             evm_input_code = make_evm_constructor_code(function, input_value)
+
+        multisig_address = multisig_address_object.address
+        print('get pubkeys')
+        pubkeys = []
+        for oracle in oracle_list:
+            pubkeys.append(self.get_pubkey_from_oracle(oracle))
 
         code = json.dumps({
             'source_code': compiled_code + evm_input_code,
@@ -252,163 +289,6 @@ def _handle_payment_parameter_error(form):
         elif not form.cleaned_data.get(i):
             errors.append({i: 'require parameter {}'.format(i)})
     return {'errors': errors}
-
-
-class MultisigAddressesView(APIView):
-    """
-    BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
-    CONTRACT_FEE = 1 # 1 bitcoin
-    TX_FEE = 1 # 1 bitcoin, either 0 or 1 is okay.
-    FEE_COLOR = 1
-    CONTRACT_TX_TYPE = 5
-    """
-    serializer_class = CreateMultisigAddressSerializer
-    queryset = MultisigAddress.objects.all()
-    pagination_class = LimitOffsetPagination
-
-    def _get_pubkey_from_oracle(self, url, url_map_pubkeys):
-        """Get public keys from an oracle
-        """
-        r = requests.post(url + '/newproposals/')
-        pubkey = json.loads(r.text)['public_key']
-        url_map_pubkey = {
-            "url": url,
-            "pubkey": pubkey
-        }
-        logger.debug("get " + url + "'s pubkey.")
-        url_map_pubkeys.append(url_map_pubkey)
-
-    def _get_multisig_address(self, oracle_list, m):
-        """Get public keys and create multisig_address
-        """
-        if len(oracle_list) < m:
-            raise Multisig_error("The m in 'm of n' is bigger than n.")
-        url_map_pubkeys = []
-        pubkeys = []
-
-        for oracle in oracle_list:
-            self._get_pubkey_from_oracle(oracle['url'], url_map_pubkeys)
-        for url_map_pubkey in url_map_pubkeys:
-            pubkeys.append(url_map_pubkey["pubkey"])
-        if len(pubkeys) != len(oracle_list):
-            raise Multisig_error('there are some oracles that did not response')
-        print(pubkeys, m)
-        multisig_script = mk_multisig_script(pubkeys, m)
-        multisig_address = scriptaddr(multisig_script)
-        return multisig_address, multisig_script, url_map_pubkeys
-
-    def _get_oracle_list(self, oracle_list):
-        """Check oracle_list is matching oracles in database
-        """
-        if len(oracle_list) == 0:
-            oracle_list = []
-            for i in Oracle.objects.all():
-                oracle_list.append(
-                    {
-                        'name': i.name,
-                        'url': i.url
-                    }
-                )
-        return oracle_list
-
-    def _save_multisig_address(self, multisig_address, url_map_pubkeys):
-        """Save multisig_address at Oracle
-        """
-        for url_map_pubkey in url_map_pubkeys:
-            url = url_map_pubkey["url"]
-            data = {
-                "pubkey": url_map_pubkey["pubkey"],
-                "multisig_address": multisig_address
-            }
-            requests.post(url + "/multisigaddress/", data=data)
-
-    @handle_uncaught_exception
-    @handle_apiversion_apiview
-    def post(self, request):
-        """Create MultisigAddress
-
-        Args:
-            m: for m-of-n multisig_address, least m oracles sign
-            oracles: list of oracles
-
-        Returns:
-            multisig_address: multisig address
-        """
-        serializer = self.serializer_class(data=request.data)
-
-        if serializer.is_valid(raise_exception=False):
-            m = serializer.validated_data['m']
-            oracles = serializer.validated_data['oracles']
-        else:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
-
-        try:
-            oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
-            multisig_address, multisig_script, url_map_pubkeys = self._get_multisig_address(
-                oracle_list, m)
-        except Multisig_error as e:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
-        except Exception as e:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
-
-        try:
-            callback_url = get_callback_url(self.request, multisig_address)
-            subscription_id = ""
-            created_time = ""
-            confirmation = settings.CONFIRMATION
-
-            try:
-                subscription_id, created_time = OSSclient.subscribe_address_notification(
-                    multisig_address,
-                    callback_url,
-                    confirmation)
-            except Exception as e:
-                raise SubscribeAddrsssNotificationError("SubscribeAddrsssNotificationError")
-
-            try:
-                self._save_multisig_address(multisig_address, url_map_pubkeys)
-            except Exception as e:
-                raise OracleMultisigAddressError("OracleMultisigAddressError")
-
-            multisig_address_object = MultisigAddress(
-                address=multisig_address,
-                script=multisig_script,
-                least_sign_number=m
-            )
-
-            deploy_contract_utils.make_multisig_address_file(multisig_address)
-
-            multisig_address_object.save()
-            for i in oracle_list:
-                multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
-
-        except Exception as e:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
-
-        data = {
-            'multisig_address': multisig_address,
-        }
-
-        return response_utils.data_response(data)
-
-    def get(self, request, format=None):
-        """Get MultisigAddresses
-
-        Args:
-            limit: for pagination limit
-            offset: for pagination offset
-
-        Returns:
-            multisig_addresseses: list of MultisigAddress
-            query_time: query timestamp (timezome)
-        """
-        paginator = LimitOffsetPagination()
-        multisig_addresses = MultisigAddress.objects.all()
-        result_page = paginator.paginate_queryset(multisig_addresses, request)
-        serializer = MultisigAddressSerializer(result_page, many=True)
-        data = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
-
-        return response_utils.data_response(data)
 
 
 class ContractAddressList(APIView):
@@ -500,7 +380,8 @@ class ContractFunction(APIView):
                 input_value.append(i['value'])
             evm_input_code = make_evm_input_code(function, input_value)
 
-            oracles = MultisigAddress.objects.get(address=contract.contract_multisig_address.address).oracles.all()
+            oracles = MultisigAddress.objects.get(
+                address=contract.contract_multisig_address.address).oracles.all()
             pubkeys = self._get_pubkey_from_oracles(oracles)
 
             code = json.dumps({

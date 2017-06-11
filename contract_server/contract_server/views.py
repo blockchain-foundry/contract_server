@@ -21,6 +21,7 @@ def evm_deploy(tx_hash):
 
     if completed:
         print('Deployed Success')
+        # if is first deploy, cashout from state_multisig_address to contract_multisig_address.
     else:
         print('Deployed Failed')
     #

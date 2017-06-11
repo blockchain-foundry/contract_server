@@ -1,7 +1,9 @@
+import requests
+
 from contracts.models import Contract, MultisigAddress
 
 from .models import StateInfo, ContractInfo
-from .utils import wallet_address_to_evm, make_contract_multisig_address
+from .utils import wallet_address_to_evm, make_contract_multisig_address, get_public_keys
 
 
 def set_contract_address(state_multisig_address, contract_address, sender_address, tx_info):
@@ -11,22 +13,31 @@ def set_contract_address(state_multisig_address, contract_address, sender_addres
     contract_multisig_address, contract_multisig_script, m = make_contract_multisig_address(
         tx_info['hash'], contract_address)
 
-    print(contract_multisig_address)
-    print(contract_multisig_script)
-
     try:
         contract_multisig_address_object = MultisigAddress.objects.get(
             address=contract_multisig_address)
     except MultisigAddress.DoesNotExist:
         # New contract
         contract_multisig_address_object = MultisigAddress.objects.create(address=contract_multisig_address,
-                                                                          script=contract_multisig_address, least_sign_number=m, is_state_multisig=False)
+                                                                          script=contract_multisig_script, least_sign_number=m, is_state_multisig=False)
         state_info = StateInfo.objects.get(multisig_address=state_multisig_address)
-        ContractInfo.objects.create(state_info=state_info, multisig_address=contract_multisig_address, contract_address=contract_address)
-        # init oracles for new contract multisig address object
+        ContractInfo.objects.create(
+            state_info=state_info, multisig_address=contract_multisig_address, contract_address=contract_address)
+
+        # Init oracles for new contract multisig address object
         oracles = MultisigAddress.objects.get(address=state_multisig_address).oracles.all()
+        pubkey_list = get_public_keys(tx_info['hash'])
+
         for oracle in oracles:
             contract_multisig_address_object.oracles.add(oracle)
+            # Save multisig/public at oracle server
+            url = oracle.url
+            data = {
+                'pubkey_list': pubkey_list,
+                'multisig_address': contract_multisig_address,
+                'is_state_multisig': False
+            }
+            requests.post(url + '/multisigaddress/', data=data)
 
     try:
         c = Contract.objects.filter(
@@ -48,7 +59,6 @@ def set_contract_address(state_multisig_address, contract_address, sender_addres
     except Exception as e:
         print(str(e))
         raise e
-    print('set_contract_address end')
 
 
 def _get_op_return_hex_and_hash(tx_info):

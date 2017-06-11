@@ -4,7 +4,7 @@ from subprocess import check_call, PIPE, STDOUT, Popen
 import json
 import os
 from gcoinbackend import core as gcoincore
-from .utils import (wallet_address_to_evm, get_tx_info,
+from .utils import (wallet_address_to_evm, get_tx_info, get_nonce,
                     get_sender_address, make_contract_multisig_address,
                     get_state_multisig_info, get_multisig_address, make_contract_address)
 from .decorators import retry, write_lock, handle_exception
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 MAX_RETRY = 10
 
 
-@handle_exception
+#@handle_exception
 def deploy_contracts(tx_hash, rebuild=False):
     """
         May be slow when one block contains seas of transactions.
@@ -45,7 +45,6 @@ def deploy_contracts(tx_hash, rebuild=False):
     logger.info('---------- Start  updating ----------')
     logger.info('/notify/' + tx_hash)
     tx = get_tx(tx_hash)
-    tx_info = get_tx_info(tx)
     state_multisig_address, state_multisig_script, m = get_state_multisig_info(tx)
 
     if tx['type'] == 'NORMAL' and state_multisig_address is None:
@@ -76,10 +75,8 @@ def deploy_contracts(tx_hash, rebuild=False):
 
 def deploy_single_tx(tx, ex_tx_hash, multisig_address):
     tx_info = get_tx_info(tx)
-    print('dfs')
     sender_address = get_sender_address(tx)
     if tx['type'] == 'CONTRACT':
-        print('deploy contract tx ')
         update_contract_type(tx_info, ex_tx_hash, multisig_address, sender_address)
     elif tx['type'] == 'NORMAL' and sender_address == multisig_address:
         update_cashout_type(tx_info, ex_tx_hash, multisig_address)
@@ -88,11 +85,7 @@ def deploy_single_tx(tx, ex_tx_hash, multisig_address):
 
 
 def update_contract_type(tx_info, ex_tx_hash, multisig_address, sender_address):
-    try :
-        command, contract_address, is_deploy = get_command(tx_info, sender_address)
-    except Exception as e:
-        print(str(e))
-        raise e
+    command, contract_address, is_deploy = get_command(tx_info, sender_address)
     write_state_contract_type(tx_info, ex_tx_hash, multisig_address,
                               sender_address, command, contract_address, is_deploy)
 
@@ -108,7 +101,6 @@ def update_other_type(tx_info, ex_tx_hash, multisig_address):
 @write_lock
 def write_state_contract_type(tx_info, ex_tx_hash, state_multisig_address, sender_address, command, contract_address, is_deploy):
     if is_deploy:
-        print('is deploy')
         check_call(command, shell=True)
         inc_nonce(state_multisig_address, sender_address)
 
@@ -117,7 +109,6 @@ def write_state_contract_type(tx_info, ex_tx_hash, state_multisig_address, sende
         if IN_CONTRACT_SERVER:
             set_contract_address(state_multisig_address, contract_address, sender_address, tx_info)
     else:
-        print('is not deploy')
         if IN_ORACLE_SERVER:
             set_var_to_oraclize_contract(state_multisig_address, tx_info)
         check_call(command, shell=True)
@@ -178,6 +169,7 @@ def get_license_info(color):
 def get_txs_by_address(multisig_address, since, included=None):
     response = gcoincore.get_txs_by_address(multisig_address, since=since)
     txs = response.get('txs')
+
     if txs is None:
         raise TxNotFoundError
     if included is None:
@@ -207,7 +199,6 @@ def get_unexecuted_txs(multisig_address, tx_hash, _time):
 
 
 def get_command(tx_info, sender_address):
-    print('get command')
     _time = tx_info['time']
     tx_hash = tx_info['hash']
     state_multisig_address = tx_info['state_multisig_address']
@@ -305,7 +296,6 @@ def call_constant_function(sender_address, multisig_address, byte_code, value, c
         contract_address = wallet_address_to_evm(contract_address)
     sender_evm_address = wallet_address_to_evm(sender_address)
     contract_path = CONTRACT_PATH_FORMAT.format(multisig_address=multisig_address)
-    print("Contract path: ", contract_path)
 
     command = '{EVM_PATH} --sender {sender_evm_address} --fund {value} --value {value} \
         --write {contract_path} --input {byte_code} --receiver {contract_address} --read {contract_path}'.format(
