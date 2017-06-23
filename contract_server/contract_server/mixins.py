@@ -28,13 +28,14 @@ class CsrfExemptMixin(View):
 
 class MultisigAddressCreateMixin():
 
-    def get_pubkey_from_oracle(self, oracle):
+    def get_pubkey_from_oracle(self, oracle, multisig_address=''):
         """Get public keys from an oracle
         """
         url = oracle['url']
-        r = requests.get(url + '/proposals/')
+        r = requests.get(url + '/proposals/' + multisig_address)
         pubkey = json.loads(r.text)['public_key']
-        logger.debug("get " + url + "'s pubkey.")
+        logger.debug('get ' + url + '\'s pubkey.')
+        print('get ' + url + '\'s pubkey.')
 
         return pubkey
 
@@ -85,26 +86,27 @@ class MultisigAddressCreateMixin():
             for i in oracle_list:
                 multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
             multisig_address_object.save()
-            print('dfdsfsds')
 
             deploy_contract_utils.make_multisig_address_file(multisig_address)
 
             # save multisig address at oracle server
             url_map_pubkeys = []
-            print('dfs')
             for oracle in oracle_list:
                 url_map_pubkeys.append({
                     'public_key': self.get_pubkey_from_oracle(oracle),
                     'url': oracle['url']
                 })
-            self.save_multisig_address(multisig_address, url_map_pubkeys, is_state_multisig=True)
+            self._save_multisig_address(multisig_address, url_map_pubkeys, is_state_multisig=True)
 
         return multisig_address_object
 
-    def save_multisig_address(self, multisig_address, url_map_pubkeys, is_state_multisig=False):
+    def get_multisig_address_object(self, multisig_address):
+        multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
+        return multisig_address_object
+
+    def _save_multisig_address(self, multisig_address, url_map_pubkeys, is_state_multisig=False):
         """Save multisig_address at Oracle
         """
-        print('save_multisig_address')
         for url_map_pubkey in url_map_pubkeys:
             url = url_map_pubkey['url']
             data = {
@@ -113,8 +115,7 @@ class MultisigAddressCreateMixin():
                 'is_state_multisig': is_state_multisig
             }
             response = requests.post(url + '/multisigaddress/', data=data)
-            print(response.content)
-            
+
     def _get_callback_url(self, address):
         callback_url = settings.CONTRACT_SERVER_API_URL + \
             '/addressnotify/' + address

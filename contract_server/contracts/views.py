@@ -117,7 +117,7 @@ class MultisigAddressesView(APIView, MultisigAddressCreateMixin):
     queryset = MultisigAddress.objects.all()
     pagination_class = LimitOffsetPagination
 
-    @handle_uncaught_exception
+    #@handle_uncaught_exception
     @handle_apiversion_apiview
     def post(self, request):
         """Create MultisigAddress
@@ -146,11 +146,7 @@ class MultisigAddressesView(APIView, MultisigAddressCreateMixin):
             return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
         except Exception as e:
             raise e
-
-        try:
-            self.save_multisig_address(multisig_address, url_map_pubkeys, is_state_multisig=True)
-        except Exception as e:
-            raise OracleMultisigAddressError("OracleMultisigAddressError")
+        multisig_address = multisig_address_object.address
 
         data = {
             'multisig_address': multisig_address,
@@ -198,7 +194,7 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
         raise Exception('tx_format_error')
 
     @handle_apiversion_apiview
-    def post(self, request, format=None):
+    def post(self, request, format=None, *args, **kwargs):
         serializer = DeployContractSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.data
@@ -213,12 +209,19 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
         oracles = data['oracles']
         m = data['m']
 
+        multisig_address = ''
+        if 'multisig_address' in kwargs:
+            multisig_address = kwargs['multisig_address']
+
         # Gen multisig address by oracles
         oracle_list = self.get_oracle_list(ast.literal_eval(oracles))
 
-        # get multisig address object
+        # Get multisig address object
         try:
-            multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
+            if multisig_address:
+                multisig_address_object = self.get_multisig_address_object(multisig_address)
+            else:
+                multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
         except Multisig_error as e:
             return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
         except Exception as e:
@@ -238,7 +241,6 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
             interface=interface,
             state_multisig_address=multisig_address_object,
             sender_evm_address=wallet_address_to_evm(sender_address),
-            sender_nonce_predicted=nonce,
             color=color,
             amount=amount)
 
@@ -255,7 +257,7 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
         print('get pubkeys')
         pubkeys = []
         for oracle in oracle_list:
-            pubkeys.append(self.get_pubkey_from_oracle(oracle))
+            pubkeys.append(self.get_pubkey_from_oracle(oracle, multisig_address))
 
         code = json.dumps({
             'source_code': compiled_code + evm_input_code,
@@ -264,7 +266,7 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
 
         try:
             tx_hex = OSSclient.operate_contract_raw_tx(
-                sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
+                sender_address, multisig_address, None, amount, color, code, CONTRACT_FEE)
         except Exception as e:
             print('exception...')
             return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))

@@ -29,15 +29,16 @@ def set_contract_address(state_multisig_address, contract_address, sender_addres
         pubkey_list = get_public_keys(tx_info['hash'])
 
         for oracle in oracles:
+            print('save contract multisig address.')
             contract_multisig_address_object.oracles.add(oracle)
             # Save multisig/public at oracle server
             url = oracle.url
             data = {
-                'pubkey_list': pubkey_list,
+                'pubkey_list': str(pubkey_list),
                 'multisig_address': contract_multisig_address,
                 'is_state_multisig': False
             }
-            requests.post(url + '/multisigaddress/', data=data)
+            r = requests.post(url + '/multisigaddress/', data=data)
 
     try:
         c = Contract.objects.filter(
