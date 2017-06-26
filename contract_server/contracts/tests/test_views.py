@@ -96,6 +96,16 @@ class ContractFunctionViewTest(TestCase):
         self.assertEqual(response.status_code, httplib.OK)
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
+    def test_make_non_constant_function_call_tx_with_abi(self):
+        self.sample_form['function_name'] = 'setAttributes'
+        sample_form = self.sample_form
+        sample_form['interface'] = self.interface
+        url = '/smart-contract/multisig-addresses/' + self.multisig_address + '/contracts/'\
+              + 'abc123' + '/function/'
+        response = self.client.post(url, sample_form)
+        self.assertEqual(response.status_code, httplib.OK)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
     @mock.patch("evm_manager.deploy_contract_utils.call_constant_function", fake_call_constant_function)
     @mock.patch("contracts.views.decode_evm_output", fake_decode_evm_output)
     def test_make_constant_function_call_tx(self):
