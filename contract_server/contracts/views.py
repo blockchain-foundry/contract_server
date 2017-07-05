@@ -419,14 +419,18 @@ class ContractFunction(APIView):
         amount = data['amount']
         color = data['color']
         try:
-            try:
-                contract = Contract.objects.get(contract_address=contract_address, multisig_address__address=multisig_address, is_deployed=True)
-            except MultipleObjectsReturned as e:
-                return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'found_multiple_contract', ERROR_CODE['found_multiple_contract'])
-            except Exception as e:
-                raise ObjectDoesNotExist(str(e))
+            if 'interface' in data:
+                interface = data['interface']
+            else:
+                try:
+                    contract = Contract.objects.get(contract_address=contract_address, multisig_address__address=multisig_address, is_deployed=True)
+                    interface = contract.interface
+                except MultipleObjectsReturned as e:
+                    return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'found_multiple_contract', ERROR_CODE['found_multiple_contract'])
+                except Exception as e:
+                    raise ObjectDoesNotExist(str(e))
 
-            function, is_constant = get_function_by_name(contract.interface, function_name)
+            function, is_constant = get_function_by_name(interface, function_name)
             if not function:
                 return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
 
@@ -449,7 +453,7 @@ class ContractFunction(APIView):
                 data = deploy_contract_utils.call_constant_function(
                     sender_address, multisig_address, evm_input_code, amount, contract_address)
                 out = data['out']
-                function_outputs = decode_evm_output(contract.interface, function_name, out)
+                function_outputs = decode_evm_output(interface, function_name, out)
                 data['function_outputs'] = function_outputs
             return response_utils.data_response(data)
 
