@@ -19,6 +19,8 @@ class ContractSerializer(serializers.Serializer):
     contract_name = serializers.CharField()
     function_inputs = serializers.CharField(required=False)
     conditions = serializers.CharField(required=False)
+    color = serializers.IntegerField()
+    amount = serializers.IntegerField()
 
 
 class ContractFunctionSerializer(serializers.Serializer):

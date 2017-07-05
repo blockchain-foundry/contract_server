@@ -18,7 +18,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from gcoin import scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
-                            get_constructor_function,  make_evm_input_code, get_abi_list)
+                            get_constructor_function, make_evm_input_code, get_abi_list)
 
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
 from contract_server import response_utils
@@ -147,6 +147,8 @@ class DeployContract(APIView):
         sender_address = data['sender_address']
         multisig_address = multisig_address
         source_code = data['source_code']
+        amount = data['amount']
+        color = data['color']
         try:
             compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
         except Exception as e:
@@ -173,8 +175,8 @@ class DeployContract(APIView):
             multisig_address=multisig_address_object,
             sender_evm_address=wallet_address_to_evm(sender_address),
             sender_nonce_predicted=nonce,
-            color=1,
-            amount=0)
+            color=color,
+            amount=amount)
         evm_input_code = ''
         if 'function_inputs' in data:
             function_inputs = ast.literal_eval(data['function_inputs'])
@@ -187,8 +189,13 @@ class DeployContract(APIView):
         code = json.dumps({'source_code': compiled_code + evm_input_code,
                            'multisig_address': multisig_address, 'contract_address': contract_address})
 
-        tx_hex = OSSclient.deploy_contract_raw_tx(
-            sender_address, multisig_address, code, CONTRACT_FEE)
+        try:
+            tx_hex = OSSclient.operate_contract_raw_tx(
+                sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
+        except Exception as e:
+            print('exception...')
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
+
         contract.hash_op_return = self._hash_op_return(tx_hex)
         contract.save()
         data = {'raw_tx': tx_hex}
@@ -242,7 +249,6 @@ class MultisigAddressesView(APIView):
 
         for oracle in oracle_list:
             self._get_pubkey_from_oracle(oracle['url'], url_map_pubkeys)
-
         for url_map_pubkey in url_map_pubkeys:
             pubkeys.append(url_map_pubkey["pubkey"])
         if len(pubkeys) != len(oracle_list):
