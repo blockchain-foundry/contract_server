@@ -38,7 +38,7 @@ def set_contract_address(state_multisig_address, contract_address, sender_addres
                 'multisig_address': contract_multisig_address,
                 'is_state_multisig': False
             }
-            r = requests.post(url + '/multisigaddress/', data=data)
+            requests.post(url + '/multisigaddress/', data=data)
 
     try:
         c = Contract.objects.filter(

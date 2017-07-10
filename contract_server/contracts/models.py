@@ -34,7 +34,7 @@ class MultisigAddress(models.Model):
                     self.address, callback_url)
             except Exception as e:
                 print(str(e) + ', SubscribeAddrsssNotificationError')
-                # raise SubscribeAddrsssNotificationError('SubscribeAddrsssNotificationError')
+                raise SubscribeAddrsssNotificationError('SubscribeAddrsssNotificationError')
 
         return super(MultisigAddress, self).save(*args, **kwargs)
 
@@ -71,3 +71,12 @@ class Contract(models.Model):
             raise IntegrityError('Deployed contract must have a contract multisig address.')
 
         return super(Contract, self).save(*args, **kwargs)
+
+    def as_dict(self):
+        return {
+            'state_multisig_address': self.state_multisig_address.address,
+            'contract_multisig_address': self.contract_multisig_address.address,
+            'contract_address': self.contract_address,
+            'source_code': self.source_code,
+            'is_deployed': self.is_deployed,
+        }

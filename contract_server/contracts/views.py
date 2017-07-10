@@ -2,7 +2,6 @@ import ast
 import json
 import logging
 import requests
-from binascii import hexlify
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -22,14 +21,14 @@ from contract_server import response_utils, ERROR_CODE, data_response
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
 from contract_server.mixins import CsrfExemptMixin, MultisigAddressCreateMixin
 from evm_manager import deploy_contract_utils
-from evm_manager.utils import mk_contract_address, get_nonce, wallet_address_to_evm
+from evm_manager.utils import wallet_address_to_evm
 from gcoinapi.client import GcoinAPIClient
 from oracles.models import Oracle
 
 from .config import CONTRACT_FEE
 from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
                             get_constructor_function,  make_evm_input_code, get_abi_list)
-from .exceptions import Multisig_error, SubscribeAddrsssNotificationError, OracleMultisigAddressError, MultisigNotFoundError, ContractNotFoundError, OssError
+from .exceptions import Multisig_error, MultisigNotFoundError, ContractNotFoundError, OssError
 from .forms import BindForm
 from .models import Contract, MultisigAddress
 
@@ -100,8 +99,10 @@ class ContractList(View):
 
     def get(self, request, format=None):
         contracts = Contract.objects.all()
-        serializer = ContractSerializer(contracts, many=True)
-        response = {'contracts': serializer.data}
+        data = []
+        for contract in contracts:
+            data.append(contract.as_dict())
+        response = {'contracts': data}
         return data_response(response)
 
 
@@ -117,7 +118,7 @@ class MultisigAddressesView(APIView, MultisigAddressCreateMixin):
     queryset = MultisigAddress.objects.all()
     pagination_class = LimitOffsetPagination
 
-    #@handle_uncaught_exception
+    @handle_uncaught_exception
     @handle_apiversion_apiview
     def post(self, request):
         """Create MultisigAddress
@@ -254,7 +255,6 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
             evm_input_code = make_evm_constructor_code(function, input_value)
 
         multisig_address = multisig_address_object.address
-        print('get pubkeys')
         pubkeys = []
         for oracle in oracle_list:
             pubkeys.append(self.get_pubkey_from_oracle(oracle, multisig_address))
@@ -482,7 +482,7 @@ class Bind(BaseFormView, CsrfExemptMixin):
 
                 contract_multisig_address_object = MultisigAddress.objects.create(
                     address=contract_multisig_address, script=contract_multisig_script, least_sign_number=m)
-                
+
                 for oracle in oracles:
                     contract_multisig_address_object.oracles.add(oracle)
 

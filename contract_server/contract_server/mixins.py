@@ -7,7 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from contracts.exceptions import Multisig_error, SubscribeAddrsssNotificationError
+from contracts.exceptions import Multisig_error
 from contracts.models import MultisigAddress
 from evm_manager import deploy_contract_utils
 from gcoin import scriptaddr, mk_multisig_script
@@ -114,7 +114,7 @@ class MultisigAddressCreateMixin():
                 'multisig_address': multisig_address,
                 'is_state_multisig': is_state_multisig
             }
-            response = requests.post(url + '/multisigaddress/', data=data)
+            requests.post(url + '/multisigaddress/', data=data)
 
     def _get_callback_url(self, address):
         callback_url = settings.CONTRACT_SERVER_API_URL + \

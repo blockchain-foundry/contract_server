@@ -32,8 +32,8 @@ def evm_deploy(tx_hash):
 
 
 class NewTxNotified(APIView):
-    # @handle_uncaught_exception
 
+    @handle_uncaught_exception
     def post(self, request, tx_hash):
         """ Receive Transaction Notification From OSS
 

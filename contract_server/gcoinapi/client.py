@@ -127,10 +127,17 @@ class GcoinAPIClient(object):
                 'color_id': color_id,
                 'amount': amount,
             })
+        else:
+            tx_info.append({
+                'from_address': from_address,
+                'to_address': state_multisig_address,
+                'color_id': color_id,
+                'amount': amount,
+            })
 
         data = {
             'tx_info': tx_info,
-            #'op_return_data': 'abv',
+            # 'op_return_data': 'abv',
             'op_return_data': op_return_data,
         }
         try:

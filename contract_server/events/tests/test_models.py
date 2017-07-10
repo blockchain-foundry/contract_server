@@ -1,4 +1,5 @@
 import sha3
+import mock
 from django.test import TestCase
 from django.utils import timezone
 
@@ -12,6 +13,12 @@ EVENT_NAME = "AttributesSet2"
 
 class ModelWatchTestCase(TestCase):
 
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
+        return subscription_id, created_time
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def setUp(self):
         multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
         multisig_script = '51210224015f5f489cf8c7d558ed306daa23448a69c645aaa835981189699a143a4f5751ae'
@@ -85,8 +92,10 @@ class ModelWatchTestCase(TestCase):
 
     def test_contract_address(self):
         watch = Watch.objects.get(event_name=EVENT_NAME)
-        self.assertEqual(watch.contract.contract_address, "0000000000000000000000000000000000000157")
+        self.assertEqual(watch.contract.contract_address,
+                         "0000000000000000000000000000000000000157")
 
     def test_conditions_list(self):
         watch = Watch.objects.get(event_name=EVENT_NAME)
-        self.assertEqual(watch.conditions_list[0]["value"], "4f8c35f1ca068863047fcdb4a3c4f82f565aadb8")
+        self.assertEqual(watch.conditions_list[0]["value"],
+                         "4f8c35f1ca068863047fcdb4a3c4f82f565aadb8")

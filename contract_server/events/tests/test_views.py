@@ -13,6 +13,12 @@ except ImportError:
 
 class WatchCase(TestCase):
 
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
+        return subscription_id, created_time
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def setUp(self):
         self.url = '/contracts/'
         multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'

@@ -4,17 +4,16 @@ from subprocess import check_call, PIPE, STDOUT, Popen
 import json
 import os
 from gcoinbackend import core as gcoincore
-from .utils import (wallet_address_to_evm, get_tx_info, get_nonce,
-                    get_sender_address, make_contract_multisig_address,
-                    get_state_multisig_info, get_multisig_address, make_contract_address)
+from .utils import (wallet_address_to_evm, get_tx_info,
+                    get_sender_address,
+                    get_state_multisig_info, make_contract_address)
 from .decorators import retry, write_lock, handle_exception
-from .models import StateInfo, ContractInfo
+from .models import StateInfo
 import logging
 from .exceptions import TxNotFoundError, DoubleSpendingError, UnsupportedTxTypeError, TxUnconfirmedError
 try:
     from events import state_log_utils
     from .contract_server_utils import set_contract_address, unset_all_contract_addresses
-    from contracts.models import MultisigAddress
     IN_CONTRACT_SERVER = True
 except:
     IN_CONTRACT_SERVER = False
@@ -34,7 +33,7 @@ logger = logging.getLogger(__name__)
 MAX_RETRY = 10
 
 
-#@handle_exception
+@handle_exception
 def deploy_contracts(tx_hash, rebuild=False):
     """
         May be slow when one block contains seas of transactions.

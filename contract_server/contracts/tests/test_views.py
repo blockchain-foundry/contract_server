@@ -30,9 +30,9 @@ class ContractFunctionViewTest(TestCase):
             'function_outputs': 'fake funciton output'
         }
 
-    def fake_subscribe_address_notification(self, multisig_address, callback_url, confirmation=1):
-        subscription_id = "1"
-        created_time = "2017-03-15"
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
         return subscription_id, created_time
 
     def fake_get_public_key(self, oracles, multisig_address):
@@ -222,19 +222,14 @@ class DeployContractViewTest(TestCase):
             test_interface = test_abi_file.read().replace('\n', '')
         return test_binary_code, test_interface
 
-    def fake_get_nonce(multisig_address, sender_address):
-        return 1
-
     def fake_get_public_key(self, oracles, multisig_address):
         return ['047a94e3d9e0940eedd1271aac6156d7df203fecd248e2861b16bf8acaf3219fdcd7fe80db3c17f95a6c4c188fa024ad586de7fe41648c7c5cb8d3e8c277aa739a']
 
     @mock.patch("gcoinapi.client.GcoinAPIClient.operate_contract_raw_tx", fake_operate_contract_raw_tx)
     @mock.patch("contracts.views.DeployContract._compile_code_and_interface", fake_compile_code_and_interface)
-    @mock.patch("contracts.views.get_nonce", fake_get_nonce)
     @mock.patch('contracts.views.DeployContract.get_pubkey_from_oracle', fake_get_public_key)
     def test_create_contract(self):
         response = self.client.post(self.url, self.sample_form)
-        print(response.content)
         self.assertEqual(response.status_code, httplib.OK)
 
     def test_miss_field_form(self):
@@ -302,9 +297,9 @@ class MultisigAddressesViewTest(TestCase):
             test_interface = test_abi_file.read().replace('\n', '')
         return test_binary_code, test_interface
 
-    def fake_subscribe_address_notification(self, multisig_address, callback_url, confirmation):
-        subscription_id = "1"
-        created_time = "2017-03-15"
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
         return subscription_id, created_time
 
     def fake_save_multisig_address(self, multisig_addr, url_map_pubkeys, is_state_multisig=False):
@@ -348,6 +343,23 @@ class MultisigAddressesViewTest(TestCase):
 
 class ContractBindTest(TestCase):
 
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
+        return subscription_id, created_time
+
+    def fake_get_public_key(self, oracles, multisig_address=''):
+        return ['047a94e3d9e0940eedd1271aac6156d7df203fecd248e2861b16bf8acaf3219fdcd7fe80db3c17f95a6c4c188fa024ad586de7fe41648c7c5cb8d3e8c277aa739a']
+
+    def fake_get_contract_multisig_address(self, pubkeys, multisig_address, contract_address):
+        return '3LpjTaxKyYd1N7CjKSSV2UYUpwkFxMgMf5', 'script', 1
+
+    def test_wrong_apiversion(self):
+        self.sample_form['apiVersion'] = 'wrong_api_version'
+        response = self.client.post(self.url, self.sample_form)
+        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def setUp(self):
         # monk contract
         self.state_multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
@@ -399,22 +411,10 @@ class ContractBindTest(TestCase):
             'apiVersion': settings.API_VERSION
         }
 
-    def fake_get_public_key(self, oracles, multisig_address=''):
-        return ['047a94e3d9e0940eedd1271aac6156d7df203fecd248e2861b16bf8acaf3219fdcd7fe80db3c17f95a6c4c188fa024ad586de7fe41648c7c5cb8d3e8c277aa739a']
-
-    def fake_get_contract_multisig_address(self, pubkeys, multisig_address, contract_address):
-        return '3LpjTaxKyYd1N7CjKSSV2UYUpwkFxMgMf5', 'script', 1
-
-    def test_wrong_apiversion(self):
-        self.sample_form['apiVersion'] = 'wrong_api_version'
-        response = self.client.post(self.url, self.sample_form)
-        self.assertEqual(response.status_code, httplib.NOT_ACCEPTABLE)
-
     @mock.patch('contracts.views.Bind._get_pubkey_from_oracles', fake_get_public_key)
     @mock.patch('contracts.views.Bind._get_contract_multisig_address', fake_get_contract_multisig_address)
     def test_bind(self):
         response = self.client.post(self.url, self.sample_form)
-        print(response.content)
         self.assertEqual(response.status_code, httplib.OK)
         contract = Contract.objects.get(
             contract_address='a76c04b0cf9adfdf012222347c18c9445a8fa6f2',

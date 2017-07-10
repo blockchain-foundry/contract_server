@@ -274,7 +274,6 @@ def get_contract_multisig_address(tx_or_hash):
 
 
 def make_contract_multisig_address(tx_or_hash, contract_address):
-    tx = get_tx(tx_or_hash) if isinstance(tx_or_hash, str) else tx_or_hash
     pubkeys = get_public_keys(tx_or_hash)
     _, _, m = get_state_multisig_info(tx_or_hash)
     multisig_script = mk_multisig_script(pubkeys, m, contract_address)
