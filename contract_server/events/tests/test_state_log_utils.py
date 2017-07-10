@@ -37,7 +37,7 @@ class StateLogUtilsTest(TestCase):
             script=self.multisig_script)
 
         contract = Contract.objects.create(
-            multisig_address=multisig_address_object,
+            state_multisig_address=multisig_address_object,
             contract_address="bd841c963c498133d26596859144042ae186738f",
             source_code=source_code,
             color=1,

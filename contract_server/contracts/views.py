@@ -319,17 +319,31 @@ class ContractAddressList(APIView):
 
 class ContractFunction(APIView):
 
-    def _get_pubkey_from_oracles(self, oracles):
+    def _get_pubkey_from_oracles(self, oracles, multisig_address):
         """Get public keys from an oracle
         """
         pubkeys = []
         for oracle in oracles:
             url = oracle.url
-            r = requests.get(url + '/proposals/')
+            r = requests.get(url + '/proposals/' + multisig_address)
             pubkey = json.loads(r.text)['public_key']
             logger.debug("get " + url + "'s pubkey.")
             pubkeys.append(pubkey)
         return pubkeys
+
+    def _get_contract_multisig_address(self, pubkeys, state_multisig_address, contract_address):
+        m = 0
+        for i in range(len(pubkeys)):
+            multisig_script = mk_multisig_script(pubkeys, i + 1)
+            multisig_address = scriptaddr(multisig_script)
+            if multisig_address == state_multisig_address:
+                m = i + 1
+                break
+        if m == 0:
+            raise Exception('Compute contract multisig error')
+        multisig_script = mk_multisig_script(pubkeys, m, contract_address)
+        multisig_address = scriptaddr(multisig_script)
+        return multisig_address
 
     def get(self, request, multisig_address, contract_address, format=None):
         data = {}
@@ -362,6 +376,7 @@ class ContractFunction(APIView):
         try:
             if 'interface' in data:
                 interface = data['interface']
+
             else:
                 try:
                     contract = Contract.objects.get(
@@ -372,8 +387,7 @@ class ContractFunction(APIView):
                     return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'found_multiple_contract', ERROR_CODE['found_multiple_contract'])
                 except Exception as e:
                     raise ObjectDoesNotExist(str(e))
-
-            function, is_constant = get_function_by_name(contract.interface, function_name)
+            function, is_constant = get_function_by_name(interface, function_name)
             if not function:
                 return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
 
@@ -382,14 +396,22 @@ class ContractFunction(APIView):
                 input_value.append(i['value'])
             evm_input_code = make_evm_input_code(function, input_value)
 
-            oracles = MultisigAddress.objects.get(
-                address=contract.contract_multisig_address.address).oracles.all()
-            pubkeys = self._get_pubkey_from_oracles(oracles)
+            if 'interface' in data:
+                if 'oracles' not in data:
+                    return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'Please give oracles if calling by interface.')
+                oracles = []
+                oracle_list = ast.literal_eval(data['oracles'])
 
-            code = json.dumps({
-                "function_inputs_hash": evm_input_code,
-                'public_keys': json.dumps(pubkeys),
-            })
+                for oracle in oracle_list:
+                    oracles.append(Oracle.objects.get(url=oracle['url']))
+
+                pubkeys = self._get_pubkey_from_oracles(oracles, state_multisig_address)
+                contract_multisig_address = self._get_contract_multisig_address(
+                    pubkeys, state_multisig_address, contract_address)
+            else:
+                oracles = MultisigAddress.objects.get(
+                    address=contract_multisig_address).oracles.all()
+                pubkeys = self._get_pubkey_from_oracles(oracles, state_multisig_address)
 
             if is_constant:
                 data = deploy_contract_utils.call_constant_function(
@@ -398,6 +420,10 @@ class ContractFunction(APIView):
                 function_outputs = decode_evm_output(interface, function_name, out)
                 data['function_outputs'] = function_outputs
             else:
+                code = json.dumps({
+                    "function_inputs_hash": evm_input_code,
+                    'public_keys': json.dumps(pubkeys),
+                })
                 tx_hex = OSSclient.operate_contract_raw_tx(
                     sender_address, state_multisig_address, contract_multisig_address, amount, color, code, CONTRACT_FEE)
                 data = {'raw_tx': tx_hex}
@@ -412,6 +438,32 @@ class ContractFunction(APIView):
 
 class Bind(BaseFormView, CsrfExemptMixin):
 
+    def _get_pubkey_from_oracles(self, oracles, multisig_address):
+        """Get public keys from an oracle
+        """
+        pubkeys = []
+        for oracle in oracles:
+            url = oracle.url
+            r = requests.get(url + '/proposals/' + multisig_address)
+            pubkey = json.loads(r.text)['public_key']
+            logger.debug("get " + url + "'s pubkey.")
+            pubkeys.append(pubkey)
+        return pubkeys
+
+    def _get_contract_multisig_address(self, pubkeys, state_multisig_address, contract_address):
+        m = 0
+        for i in range(len(pubkeys)):
+            multisig_script = mk_multisig_script(pubkeys, i + 1)
+            multisig_address = scriptaddr(multisig_script)
+            if multisig_address == state_multisig_address:
+                m = i + 1
+                break
+        if m == 0:
+            raise Exception('Compute contract multisig error')
+        multisig_script = mk_multisig_script(pubkeys, m, contract_address)
+        multisig_address = scriptaddr(multisig_script)
+        return multisig_address, multisig_script, m
+
     @handle_uncaught_exception
     @handle_apiversion_apiview
     def post(self, request, multisig_address):
@@ -420,11 +472,23 @@ class Bind(BaseFormView, CsrfExemptMixin):
         if form.is_valid():
             new_contract_address = form.cleaned_data['new_contract_address']
             original_contract_address = form.cleaned_data['original_contract_address']
-
             try:
                 original_contract = Contract.objects.get(
-                    contract_address=original_contract_address, multisig_address__address=multisig_address, is_deployed=True)
+                    contract_address=original_contract_address, state_multisig_address__address=multisig_address, is_deployed=True)
+                oracles = original_contract.state_multisig_address.oracles.all()
+                pubkeys = self._get_pubkey_from_oracles(oracles, multisig_address)
+                contract_multisig_address, contract_multisig_script, m = self._get_contract_multisig_address(
+                    pubkeys, original_contract.state_multisig_address.address, original_contract_address)
+
+                contract_multisig_address_object = MultisigAddress.objects.create(
+                    address=contract_multisig_address, script=contract_multisig_script, least_sign_number=m)
+                
+                for oracle in oracles:
+                    contract_multisig_address_object.oracles.add(oracle)
+
+                contract_multisig_address_object.save()
             except Exception as e:
+                print('except: ' + str(e))
                 # Todo
                 return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
 
@@ -435,7 +499,8 @@ class Bind(BaseFormView, CsrfExemptMixin):
                     amount=original_contract.amount,
                     interface=original_contract.interface,
                     contract_address=new_contract_address,
-                    multisig_address=original_contract.multisig_address,
+                    state_multisig_address=original_contract.state_multisig_address,
+                    contract_multisig_address=contract_multisig_address_object,
                     is_deployed=True,
                     hash_op_return=original_contract.hash_op_return
                 )

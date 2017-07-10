@@ -44,7 +44,7 @@ class WatchCase(TestCase):
             "name": "AttributesSet2", "type": "event", "anonymous": false}]'
 
         contract = Contract.objects.create(
-            multisig_address=multisig_address_object,
+            state_multisig_address=multisig_address_object,
             contract_address="0000000000000000000000000000000000000157",
             source_code=contract_source_code,
             color=1,
@@ -98,7 +98,7 @@ class WatchCase(TestCase):
 
         is_matched, contract = Watches()._event_exists(multisig_address, contract_address, event_name)
         self.assertTrue(is_matched)
-        self.assertEqual(contract.multisig_address.address, multisig_address)
+        self.assertEqual(contract.state_multisig_address.address, multisig_address)
         self.assertEqual(contract.contract_address, contract_address)
 
     @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)

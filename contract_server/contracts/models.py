@@ -29,7 +29,6 @@ class MultisigAddress(models.Model):
         # Subscribe notification
         if self.is_state_multisig:
             callback_url = self._get_callback_url(self.address)
-            print(self.address, callback_url)
             try:
                 _, _ = OSSclient.subscribe_address_notification(
                     self.address, callback_url)

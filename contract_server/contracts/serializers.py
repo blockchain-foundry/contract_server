@@ -33,3 +33,4 @@ class ContractFunctionSerializer(serializers.Serializer):
     color = serializers.IntegerField()
     amount = serializers.IntegerField()
     interface = serializers.CharField(required=False)
+    oracles = serializers.CharField(required=False)

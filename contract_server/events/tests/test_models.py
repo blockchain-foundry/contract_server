@@ -42,7 +42,7 @@ class ModelWatchTestCase(TestCase):
             "name": "AttributesSet2", "type": "event", "anonymous": false}]'
 
         contract = Contract.objects.create(
-            multisig_address=multisig_address_object,
+            state_multisig_address=multisig_address_object,
             contract_address="0000000000000000000000000000000000000157",
             source_code=contract_source_code,
             color=1,

@@ -94,7 +94,7 @@ class Watches(APIView):
 
         try:
             contracts = Contract.objects.filter(
-                multisig_address__address=multisig_address,
+                state_multisig_address__address=multisig_address,
                 contract_address=contract_address)
             contract = contracts[0]
         except Exception as e:
