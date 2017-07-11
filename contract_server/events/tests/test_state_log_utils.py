@@ -1,5 +1,7 @@
 import os
 import json
+import mock
+
 from django.test import TestCase
 from events import state_log_utils
 from events.models import Watch
@@ -9,6 +11,13 @@ EVENT_NAME = "TestEvent"
 
 
 class StateLogUtilsTest(TestCase):
+
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
+        return subscription_id, created_time
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def setUp(self):
         self.logs = [{
             "address": "bd841c963c498133d26596859144042ae186738f",
@@ -37,7 +46,7 @@ class StateLogUtilsTest(TestCase):
             script=self.multisig_script)
 
         contract = Contract.objects.create(
-            multisig_address=multisig_address_object,
+            state_multisig_address=multisig_address_object,
             contract_address="bd841c963c498133d26596859144042ae186738f",
             source_code=source_code,
             color=1,
@@ -70,24 +79,30 @@ class StateLogUtilsTest(TestCase):
                 {'value': 'hello world', 'type': 'string', 'name': 'event_string', 'indexed': False},
                 {'value': '0x5566000000000000000000000000001255660000000000000000000000000012452544', 'type': 'bytes', 'name': 'event_bytes', 'indexed': False},
                 {'value': '0x1134', 'type': 'bytes2', 'name': 'event_bytes2', 'indexed': False},
-                {'value': '0x0000000000000000000000000000000000000000000000000000000000001234', 'type': 'bytes32', 'name': 'event_bytes32', 'indexed': True},
+                {'value': '0x0000000000000000000000000000000000000000000000000000000000001234',
+                    'type': 'bytes32', 'name': 'event_bytes32', 'indexed': True},
                 {'value': 12345, 'type': 'uint256', 'name': 'event_uint', 'indexed': False},
                 {'value': -123, 'type': 'int256', 'name': 'event_int', 'indexed': False},
-                {'value': True, 'type': 'bool', 'name': 'event_bool', 'indexed': False}, {'value': '0000000000000000000000000000000000000171', 'type': 'address', 'name': 'event_address', 'indexed': True},
-                {'value': ['0000000000000000000000000000000000000157', '0000000000000000000000000000000000000158'], 'type': 'address[]', 'name': 'event_address_array_dynamic', 'indexed': False},
-                {'value': [[1, 2], [3, 4]], 'type': 'int256[2][2]', 'name': 'event_int_array_2d', 'indexed': False}
+                {'value': True, 'type': 'bool', 'name': 'event_bool', 'indexed': False}, {
+                    'value': '0000000000000000000000000000000000000171', 'type': 'address', 'name': 'event_address', 'indexed': True},
+                {'value': ['0000000000000000000000000000000000000157', '0000000000000000000000000000000000000158'],
+                    'type': 'address[]', 'name': 'event_address_array_dynamic', 'indexed': False},
+                {'value': [[1, 2], [3, 4]], 'type': 'int256[2][2]',
+                    'name': 'event_int_array_2d', 'indexed': False}
             ]
         }
         self.assertEqual(event['args'], expect_event['args'])
 
     def test_search_watch(self):
-        matching_watch_list = state_log_utils._search_watch(self.logs, "3By64hdBQ6cYh34ucqW6Dsv9ctiuX2krcn")
+        matching_watch_list = state_log_utils._search_watch(
+            self.logs, "3By64hdBQ6cYh34ucqW6Dsv9ctiuX2krcn")
 
         self.assertEqual(len(matching_watch_list), 2)
 
     def test_check_watch(self):
         tx_hash = "TEST_TX_HASH"
-        log_path = os.path.dirname(os.path.abspath(__file__)) + '/../../states/' + self.multisig_address + "_" + tx_hash + "_log"
+        log_path = os.path.dirname(os.path.abspath(__file__)) + \
+            '/../../states/' + self.multisig_address + "_" + tx_hash + "_log"
         logs_str = json.dumps({"logs": self.logs})
         with open(log_path, 'w+') as f:
             f.write(logs_str)

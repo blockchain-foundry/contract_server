@@ -2,7 +2,6 @@ import ast
 import json
 import logging
 import requests
-from binascii import hexlify
 
 from django.conf import settings
 from django.http import JsonResponse
@@ -11,34 +10,27 @@ from django.views.generic.edit import BaseFormView
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 
-
+from gcoin import scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
 from rest_framework.views import APIView, status
 from rest_framework.pagination import LimitOffsetPagination
+from solc import compile_source
 
-from gcoin import scriptaddr, apply_multisignatures, deserialize, mk_multisig_script
-from gcoinapi.client import GcoinAPIClient
-from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
-                            get_constructor_function, make_evm_input_code, get_abi_list)
 
+from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer, DeployContractSerializer, ContractFunctionSerializer
+from contract_server import response_utils, ERROR_CODE, data_response
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
-from contract_server import response_utils
-
-from .models import Contract, MultisigAddress
+from contract_server.mixins import CsrfExemptMixin, MultisigAddressCreateMixin
+from evm_manager import deploy_contract_utils
+from evm_manager.utils import wallet_address_to_evm
+from gcoinapi.client import GcoinAPIClient
 from oracles.models import Oracle
 
-from evm_manager.utils import mk_contract_address, get_nonce, wallet_address_to_evm
-
-from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer, ContractSerializer, ContractFunctionSerializer
-
 from .config import CONTRACT_FEE
-from .exceptions import Multisig_error, SubscribeAddrsssNotificationError, OracleMultisigAddressError, MultisigNotFoundError, ContractNotFoundError, OssError
+from .evm_abi_utils import (decode_evm_output, get_function_by_name, make_evm_constructor_code,
+                            get_constructor_function,  make_evm_input_code, get_abi_list)
+from .exceptions import Multisig_error, MultisigNotFoundError, ContractNotFoundError, OssError
 from .forms import BindForm
-
-from contract_server import ERROR_CODE, data_response
-from contract_server.mixins import CsrfExemptMixin
-
-from solc import compile_source
-from evm_manager import deploy_contract_utils
+from .models import Contract, MultisigAddress
 
 try:
     import http.client as httplib
@@ -103,119 +95,18 @@ def create_multisig_payment(from_address, to_address, color_id, amount):
         raise OssError('OssError')
 
 
-def get_callback_url(request, multisig_address):
-    callback_url = settings.CONTRACT_SERVER_API_URL + \
-        '/addressnotify/' + multisig_address
-    callback_url = ''.join(callback_url.split())
-    return callback_url
-
-
 class ContractList(View):
 
     def get(self, request, format=None):
         contracts = Contract.objects.all()
-        serializer = ContractSerializer(contracts, many=True)
-        response = {'contracts': serializer.data}
+        data = []
+        for contract in contracts:
+            data.append(contract.as_dict())
+        response = {'contracts': data}
         return data_response(response)
 
 
-class DeployContract(APIView):
-
-    def _compile_code_and_interface(self, source_code, contract_name):
-        output = compile_source(source_code)
-        byte_code = output[contract_name]['bin']
-        interface = output[contract_name]['abi']
-        interface = json.dumps(interface)
-        return byte_code, interface
-
-    def _hash_op_return(self, tx_hex):
-        vouts = deserialize(tx_hex)['outs']
-        for vout in vouts:
-            if vout['color'] == 0:
-                return Contract.make_hash_op_return(vout['script'])
-        raise Exception('tx_format_error')
-
-    @handle_apiversion_apiview
-    def post(self, request, multisig_address, format=None):
-        serializer = ContractSerializer(data=request.data)
-        if serializer.is_valid():
-            data = serializer.data
-        else:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors), ERROR_CODE['invalid_form_error'])
-
-        contract_name = data['contract_name']
-        sender_address = data['sender_address']
-        multisig_address = multisig_address
-        source_code = data['source_code']
-        amount = data['amount']
-        color = data['color']
-        try:
-            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
-        except Exception as e:
-            response = {
-                'code:': ERROR_CODE['compiled_error'],
-                'message': str(e)
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-        try:
-            multisig_address_object = MultisigAddress.objects.get(address=multisig_address)
-        except:
-            response = {
-                'code:': ERROR_CODE['multisig_address_not_found_error'],
-                'message': 'multisig_address_not_found_error'
-            }
-            return JsonResponse(response, status=httplib.BAD_REQUEST)
-        nonce = get_nonce(multisig_address, sender_address)
-        nonce = nonce if nonce else 0
-        contract_address_byte = mk_contract_address(wallet_address_to_evm(sender_address), nonce)
-        contract_address = hexlify(contract_address_byte).decode("utf-8")
-        contract = Contract(
-            source_code=source_code,
-            interface=interface,
-            multisig_address=multisig_address_object,
-            sender_evm_address=wallet_address_to_evm(sender_address),
-            sender_nonce_predicted=nonce,
-            color=color,
-            amount=amount)
-        evm_input_code = ''
-        if 'function_inputs' in data:
-            function_inputs = ast.literal_eval(data['function_inputs'])
-            input_value = []
-            for i in function_inputs:
-                input_value.append(i['value'])
-            function = get_constructor_function(interface)
-            evm_input_code = make_evm_constructor_code(function, input_value)
-
-        code = json.dumps({'source_code': compiled_code + evm_input_code,
-                           'multisig_address': multisig_address, 'contract_address': contract_address})
-
-        try:
-            tx_hex = OSSclient.operate_contract_raw_tx(
-                sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
-        except Exception as e:
-            print('exception...')
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
-
-        contract.hash_op_return = self._hash_op_return(tx_hex)
-        contract.save()
-        data = {'raw_tx': tx_hex}
-        return response_utils.data_response(data)
-
-
-def _handle_payment_parameter_error(form):
-    # the payment should at least takes the following inputs
-    # from_address, to_address, amount, color
-    inputs = ['sender_address', 'to_address', 'amount', 'color']
-    errors = []
-    for i in inputs:
-        if i in form.errors:
-            errors.append(form.errors[i])
-        elif not form.cleaned_data.get(i):
-            errors.append({i: 'require parameter {}'.format(i)})
-    return {'errors': errors}
-
-
-class MultisigAddressesView(APIView):
+class MultisigAddressesView(APIView, MultisigAddressCreateMixin):
     """
     BITCOIN = 100000000 # 1 bitcoin == 100000000 satoshis
     CONTRACT_FEE = 1 # 1 bitcoin
@@ -226,61 +117,6 @@ class MultisigAddressesView(APIView):
     serializer_class = CreateMultisigAddressSerializer
     queryset = MultisigAddress.objects.all()
     pagination_class = LimitOffsetPagination
-
-    def _get_pubkey_from_oracle(self, url, url_map_pubkeys):
-        """Get public keys from an oracle
-        """
-        r = requests.post(url + '/newproposals/')
-        pubkey = json.loads(r.text)['public_key']
-        url_map_pubkey = {
-            "url": url,
-            "pubkey": pubkey
-        }
-        logger.debug("get " + url + "'s pubkey.")
-        url_map_pubkeys.append(url_map_pubkey)
-
-    def _get_multisig_address(self, oracle_list, m):
-        """Get public keys and create multisig_address
-        """
-        if len(oracle_list) < m:
-            raise Multisig_error("The m in 'm of n' is bigger than n.")
-        url_map_pubkeys = []
-        pubkeys = []
-
-        for oracle in oracle_list:
-            self._get_pubkey_from_oracle(oracle['url'], url_map_pubkeys)
-        for url_map_pubkey in url_map_pubkeys:
-            pubkeys.append(url_map_pubkey["pubkey"])
-        if len(pubkeys) != len(oracle_list):
-            raise Multisig_error('there are some oracles that did not response')
-        multisig_script = mk_multisig_script(pubkeys, m)
-        multisig_address = scriptaddr(multisig_script)
-        return multisig_address, multisig_script, url_map_pubkeys
-
-    def _get_oracle_list(self, oracle_list):
-        """Check oracle_list is matching oracles in database
-        """
-        if len(oracle_list) == 0:
-            oracle_list = []
-            for i in Oracle.objects.all():
-                oracle_list.append(
-                    {
-                        'name': i.name,
-                        'url': i.url
-                    }
-                )
-        return oracle_list
-
-    def _save_multisig_address(self, multisig_address, url_map_pubkeys):
-        """Save multisig_address at Oracle
-        """
-        for url_map_pubkey in url_map_pubkeys:
-            url = url_map_pubkey["url"]
-            data = {
-                "pubkey": url_map_pubkey["pubkey"],
-                "multisig_address": multisig_address
-            }
-            requests.post(url + "/multisigaddress/", data=data)
 
     @handle_uncaught_exception
     @handle_apiversion_apiview
@@ -297,53 +133,21 @@ class MultisigAddressesView(APIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid(raise_exception=False):
-            m = serializer.validated_data['m']
-            oracles = serializer.validated_data['oracles']
+            data = serializer.validated_data
         else:
             return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors))
 
+        m = data['m']
+        oracle_list = self.get_oracle_list(ast.literal_eval(data['oracles']))
+
+        # get multisig address object
         try:
-            oracle_list = self._get_oracle_list(ast.literal_eval(oracles))
-            multisig_address, multisig_script, url_map_pubkeys = self._get_multisig_address(
-                oracle_list, m)
+            multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
         except Multisig_error as e:
             return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
         except Exception as e:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
-
-        try:
-            callback_url = get_callback_url(self.request, multisig_address)
-            subscription_id = ""
-            created_time = ""
-            confirmation = settings.CONFIRMATION
-
-            try:
-                subscription_id, created_time = OSSclient.subscribe_address_notification(
-                    multisig_address,
-                    callback_url,
-                    confirmation)
-            except Exception as e:
-                raise SubscribeAddrsssNotificationError("SubscribeAddrsssNotificationError")
-
-            try:
-                self._save_multisig_address(multisig_address, url_map_pubkeys)
-            except Exception as e:
-                raise OracleMultisigAddressError("OracleMultisigAddressError")
-
-            multisig_address_object = MultisigAddress(
-                address=multisig_address,
-                script=multisig_script,
-                least_sign_number=m
-            )
-
-            deploy_contract_utils.make_multisig_address_file(multisig_address)
-
-            multisig_address_object.save()
-            for i in oracle_list:
-                multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
-
-        except Exception as e:
-            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
+            raise e
+        multisig_address = multisig_address_object.address
 
         data = {
             'multisig_address': multisig_address,
@@ -366,22 +170,141 @@ class MultisigAddressesView(APIView):
         multisig_addresses = MultisigAddress.objects.all()
         result_page = paginator.paginate_queryset(multisig_addresses, request)
         serializer = MultisigAddressSerializer(result_page, many=True)
-        data = {'multisig_addresses': serializer.data, 'query_time': timezone.now()}
+        data = {
+            'multisig_addresses': serializer.data,
+            'query_time': timezone.now()
+        }
 
         return response_utils.data_response(data)
 
 
+class DeployContract(APIView, MultisigAddressCreateMixin):
+
+    def _compile_code_and_interface(self, source_code, contract_name):
+        output = compile_source(source_code)
+        byte_code = output[contract_name]['bin']
+        interface = output[contract_name]['abi']
+        interface = json.dumps(interface)
+        return byte_code, interface
+
+    def _hash_op_return(self, tx_hex):
+        vouts = deserialize(tx_hex)['outs']
+        for vout in vouts:
+            if vout['color'] == 0:
+                return Contract.make_hash_op_return(vout['script'])
+        raise Exception('tx_format_error')
+
+    @handle_apiversion_apiview
+    def post(self, request, format=None, *args, **kwargs):
+        serializer = DeployContractSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.data
+        else:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(serializer.errors), ERROR_CODE['invalid_form_error'])
+
+        contract_name = data['contract_name']
+        sender_address = data['sender_address']
+        source_code = data['source_code']
+        amount = data['amount']
+        color = data['color']
+        oracles = data['oracles']
+        m = data['m']
+
+        multisig_address = ''
+        if 'multisig_address' in kwargs:
+            multisig_address = kwargs['multisig_address']
+
+        # Gen multisig address by oracles
+        oracle_list = self.get_oracle_list(ast.literal_eval(oracles))
+
+        # Get multisig address object
+        try:
+            if multisig_address:
+                multisig_address_object = self.get_multisig_address_object(multisig_address)
+            else:
+                multisig_address_object = self.get_or_create_multisig_address_object(oracle_list, m)
+        except Multisig_error as e:
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e), ERROR_CODE['multisig_error'])
+        except Exception as e:
+            raise e
+
+        try:
+            compiled_code, interface = self._compile_code_and_interface(source_code, contract_name)
+        except Exception as e:
+            response = {
+                'code:': ERROR_CODE['compiled_error'],
+                'message': str(e)
+            }
+            return JsonResponse(response, status=httplib.BAD_REQUEST)
+
+        contract = Contract(
+            source_code=source_code,
+            interface=interface,
+            state_multisig_address=multisig_address_object,
+            sender_evm_address=wallet_address_to_evm(sender_address),
+            color=color,
+            amount=amount)
+
+        evm_input_code = ''
+        if 'function_inputs' in data:
+            function_inputs = ast.literal_eval(data['function_inputs'])
+            input_value = []
+            for i in function_inputs:
+                input_value.append(i['value'])
+            function = get_constructor_function(interface)
+            evm_input_code = make_evm_constructor_code(function, input_value)
+
+        multisig_address = multisig_address_object.address
+        pubkeys = []
+        for oracle in oracle_list:
+            pubkeys.append(self.get_pubkey_from_oracle(oracle, multisig_address))
+
+        code = json.dumps({
+            'source_code': compiled_code + evm_input_code,
+            'public_keys': json.dumps(pubkeys),
+        })
+
+        try:
+            tx_hex = OSSclient.operate_contract_raw_tx(
+                sender_address, multisig_address, None, amount, color, code, CONTRACT_FEE)
+        except Exception as e:
+            print('exception...')
+            return response_utils.error_response(status.HTTP_400_BAD_REQUEST, str(e))
+
+        contract.hash_op_return = self._hash_op_return(tx_hex)
+        contract.save()
+        data = {
+            'raw_tx': tx_hex,
+            'state_multisig_address': multisig_address
+        }
+        return response_utils.data_response(data)
+
+
+def _handle_payment_parameter_error(form):
+    # the payment should at least takes the following inputs
+    # from_address, to_address, amount, color
+    inputs = ['sender_address', 'to_address', 'amount', 'color']
+    errors = []
+    for i in inputs:
+        if i in form.errors:
+            errors.append(form.errors[i])
+        elif not form.cleaned_data.get(i):
+            errors.append({i: 'require parameter {}'.format(i)})
+    return {'errors': errors}
+
+
 class ContractAddressList(APIView):
+
     def get(self, request, multisig_address, contract_address, format=None):
         data = []
         try:
-            contract_address_list = Contract.objects.filter(multisig_address__address=multisig_address, contract_address=contract_address)
+            contract_address_list = Contract.objects.filter(
+                multisig_address__address=multisig_address, contract_address=contract_address)
         except Contract.DoesNotExist:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
         for contract in contract_address_list:
             interface = contract.interface
             interface = json.loads(interface.replace("'", '"'))
-            sender_nonce_predicted = contract.sender_nonce_predicted
             tx_hash_init = contract.tx_hash_init
             hash_op_return = contract.hash_op_return
             sender_evm_address = contract.sender_evm_address
@@ -390,17 +313,43 @@ class ContractAddressList(APIView):
                          'tx_hash_init': tx_hash_init,
                          'hash_op_return': hash_op_return,
                          'sender_evm_address': sender_evm_address,
-                         'sender_nonce_predicted': sender_nonce_predicted,
                          'is_deployed': is_deployed})
         return response_utils.data_response(data)
 
 
 class ContractFunction(APIView):
 
+    def _get_pubkey_from_oracles(self, oracles, multisig_address):
+        """Get public keys from an oracle
+        """
+        pubkeys = []
+        for oracle in oracles:
+            url = oracle.url
+            r = requests.get(url + '/proposals/' + multisig_address)
+            pubkey = json.loads(r.text)['public_key']
+            logger.debug("get " + url + "'s pubkey.")
+            pubkeys.append(pubkey)
+        return pubkeys
+
+    def _get_contract_multisig_address(self, pubkeys, state_multisig_address, contract_address):
+        m = 0
+        for i in range(len(pubkeys)):
+            multisig_script = mk_multisig_script(pubkeys, i + 1)
+            multisig_address = scriptaddr(multisig_script)
+            if multisig_address == state_multisig_address:
+                m = i + 1
+                break
+        if m == 0:
+            raise Exception('Compute contract multisig error')
+        multisig_script = mk_multisig_script(pubkeys, m, contract_address)
+        multisig_address = scriptaddr(multisig_script)
+        return multisig_address
+
     def get(self, request, multisig_address, contract_address, format=None):
         data = {}
         try:
-            contract = Contract.objects.get(multisig_address__address=multisig_address, contract_address=contract_address, is_deployed=True)
+            contract = Contract.objects.get(
+                multisig_address__address=multisig_address, contract_address=contract_address, is_deployed=True)
         except Contract.DoesNotExist:
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
         except Exception as e:
@@ -413,7 +362,7 @@ class ContractFunction(APIView):
 
     @handle_uncaught_exception
     @handle_apiversion_apiview
-    def post(self, request, multisig_address, contract_address, format=None):
+    def post(self, request, state_multisig_address, contract_address, format=None):
         serializer = ContractFunctionSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.data
@@ -427,15 +376,17 @@ class ContractFunction(APIView):
         try:
             if 'interface' in data:
                 interface = data['interface']
+
             else:
                 try:
-                    contract = Contract.objects.get(contract_address=contract_address, multisig_address__address=multisig_address, is_deployed=True)
+                    contract = Contract.objects.get(
+                        contract_address=contract_address, state_multisig_address__address=state_multisig_address, is_deployed=True)
+                    contract_multisig_address = contract.contract_multisig_address.address
                     interface = contract.interface
                 except MultipleObjectsReturned as e:
                     return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'found_multiple_contract', ERROR_CODE['found_multiple_contract'])
                 except Exception as e:
                     raise ObjectDoesNotExist(str(e))
-
             function, is_constant = get_function_by_name(interface, function_name)
             if not function:
                 return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'function not found')
@@ -445,32 +396,74 @@ class ContractFunction(APIView):
                 input_value.append(i['value'])
             evm_input_code = make_evm_input_code(function, input_value)
 
-            code = json.dumps({
-                "function_inputs_hash": evm_input_code,
-                "multisig_address": multisig_address,
-                "contract_address": contract_address
-            })
+            if 'interface' in data:
+                if 'oracles' not in data:
+                    return response_utils.error_response(status.HTTP_400_BAD_REQUEST, 'Please give oracles if calling by interface.')
+                oracles = []
+                oracle_list = ast.literal_eval(data['oracles'])
 
-            if not is_constant:
-                tx_hex = OSSclient.operate_contract_raw_tx(
-                    sender_address, multisig_address, amount, color, code, CONTRACT_FEE)
-                data = {'raw_tx': tx_hex}
+                for oracle in oracle_list:
+                    oracles.append(Oracle.objects.get(url=oracle['url']))
+
+                pubkeys = self._get_pubkey_from_oracles(oracles, state_multisig_address)
+                contract_multisig_address = self._get_contract_multisig_address(
+                    pubkeys, state_multisig_address, contract_address)
             else:
+                oracles = MultisigAddress.objects.get(
+                    address=contract_multisig_address).oracles.all()
+                pubkeys = self._get_pubkey_from_oracles(oracles, state_multisig_address)
+
+            if is_constant:
                 data = deploy_contract_utils.call_constant_function(
-                    sender_address, multisig_address, evm_input_code, amount, contract_address)
+                    sender_address, state_multisig_address, evm_input_code, amount, contract_address)
                 out = data['out']
                 function_outputs = decode_evm_output(interface, function_name, out)
                 data['function_outputs'] = function_outputs
+            else:
+                code = json.dumps({
+                    "function_inputs_hash": evm_input_code,
+                    'public_keys': json.dumps(pubkeys),
+                })
+                tx_hex = OSSclient.operate_contract_raw_tx(
+                    sender_address, state_multisig_address, contract_multisig_address, amount, color, code, CONTRACT_FEE)
+                data = {'raw_tx': tx_hex}
             return response_utils.data_response(data)
 
         except ObjectDoesNotExist as e:
             return response_utils.error_response(status.HTTP_404_NOT_FOUND, str(e))
         except Exception as e:
-            print('exception...')
+            print('exception... ' + str(e))
             return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, str(e))
 
 
 class Bind(BaseFormView, CsrfExemptMixin):
+
+    def _get_pubkey_from_oracles(self, oracles, multisig_address):
+        """Get public keys from an oracle
+        """
+        pubkeys = []
+        for oracle in oracles:
+            url = oracle.url
+            r = requests.get(url + '/proposals/' + multisig_address)
+            pubkey = json.loads(r.text)['public_key']
+            logger.debug("get " + url + "'s pubkey.")
+            pubkeys.append(pubkey)
+        return pubkeys
+
+    def _get_contract_multisig_address(self, pubkeys, state_multisig_address, contract_address):
+        m = 0
+        for i in range(len(pubkeys)):
+            multisig_script = mk_multisig_script(pubkeys, i + 1)
+            multisig_address = scriptaddr(multisig_script)
+            if multisig_address == state_multisig_address:
+                m = i + 1
+                break
+        if m == 0:
+            raise Exception('Compute contract multisig error')
+        multisig_script = mk_multisig_script(pubkeys, m, contract_address)
+        multisig_address = scriptaddr(multisig_script)
+        return multisig_address, multisig_script, m
+
     @handle_uncaught_exception
     @handle_apiversion_apiview
     def post(self, request, multisig_address):
@@ -479,10 +472,23 @@ class Bind(BaseFormView, CsrfExemptMixin):
         if form.is_valid():
             new_contract_address = form.cleaned_data['new_contract_address']
             original_contract_address = form.cleaned_data['original_contract_address']
-
             try:
-                original_contract = Contract.objects.get(contract_address=original_contract_address, multisig_address__address=multisig_address, is_deployed=True)
+                original_contract = Contract.objects.get(
+                    contract_address=original_contract_address, state_multisig_address__address=multisig_address, is_deployed=True)
+                oracles = original_contract.state_multisig_address.oracles.all()
+                pubkeys = self._get_pubkey_from_oracles(oracles, multisig_address)
+                contract_multisig_address, contract_multisig_script, m = self._get_contract_multisig_address(
+                    pubkeys, original_contract.state_multisig_address.address, original_contract_address)
+
+                contract_multisig_address_object = MultisigAddress.objects.create(
+                    address=contract_multisig_address, script=contract_multisig_script, least_sign_number=m)
+
+                for oracle in oracles:
+                    contract_multisig_address_object.oracles.add(oracle)
+
+                contract_multisig_address_object.save()
             except Exception as e:
+                print('except: ' + str(e))
                 # Todo
                 return response_utils.error_response(status.HTTP_500_INTERNAL_SERVER_ERROR, 'contract_not_found_error', 'A000')
 
@@ -493,7 +499,8 @@ class Bind(BaseFormView, CsrfExemptMixin):
                     amount=original_contract.amount,
                     interface=original_contract.interface,
                     contract_address=new_contract_address,
-                    multisig_address=original_contract.multisig_address,
+                    state_multisig_address=original_contract.state_multisig_address,
+                    contract_multisig_address=contract_multisig_address_object,
                     is_deployed=True,
                     hash_op_return=original_contract.hash_op_return
                 )

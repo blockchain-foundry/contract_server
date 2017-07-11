@@ -85,7 +85,7 @@ class CheckUpdate(APIView):
         try:
             if contract_server_completed:
                 contract_address = Contract.objects.get(
-                    multisig_address__address=multisig_address,
+                    state_multisig_address__address=multisig_address,
                     tx_hash_init=tx_hash,
                     is_deployed=True
                 ).contract_address

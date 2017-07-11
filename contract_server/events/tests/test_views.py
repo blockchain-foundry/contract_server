@@ -13,6 +13,12 @@ except ImportError:
 
 class WatchCase(TestCase):
 
+    def fake_subscribe_address_notification(self, multisig_address, callback_url):
+        subscription_id = '1'
+        created_time = '2017-03-15'
+        return subscription_id, created_time
+
+    @mock.patch("gcoinapi.client.GcoinAPIClient.subscribe_address_notification", fake_subscribe_address_notification)
     def setUp(self):
         self.url = '/contracts/'
         multisig_address = '339AXdNwaL8FJ3Pw8mkwbnJnY8CetBbUP4'
@@ -44,7 +50,7 @@ class WatchCase(TestCase):
             "name": "AttributesSet2", "type": "event", "anonymous": false}]'
 
         contract = Contract.objects.create(
-            multisig_address=multisig_address_object,
+            state_multisig_address=multisig_address_object,
             contract_address="0000000000000000000000000000000000000157",
             source_code=contract_source_code,
             color=1,
@@ -98,7 +104,7 @@ class WatchCase(TestCase):
 
         is_matched, contract = Watches()._event_exists(multisig_address, contract_address, event_name)
         self.assertTrue(is_matched)
-        self.assertEqual(contract.multisig_address.address, multisig_address)
+        self.assertEqual(contract.state_multisig_address.address, multisig_address)
         self.assertEqual(contract.contract_address, contract_address)
 
     @mock.patch("events.views.wait_for_notification", fake_wait_for_notification)

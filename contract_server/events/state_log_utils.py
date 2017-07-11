@@ -24,7 +24,7 @@ def _search_watch(logs, multisig_address):
     for log in logs:
         for watch in watches:
             if (
-                watch.contract.multisig_address.address == multisig_address and
+                watch.contract.state_multisig_address.address == multisig_address and
                 log['address'] == watch.contract.contract_address and
                 _check_event_interface(watch, log["topics"][0])
             ):

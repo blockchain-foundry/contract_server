@@ -12,7 +12,6 @@ def get_gcoin_backend():
     global _backend
     if not _backend:
         path = getattr(settings, 'GCOIN_BACKEND', 'gcoinbackend.backends.base.BaseGcoinBackend')
-        print(path)
         klass = import_string(path)
         _backend = klass()
     return _backend
@@ -95,5 +94,4 @@ def subscribe_tx_notification(tx_hash, confirmation_count, callback_url):
 
 def subscribe_address_notification(multisig_address, callback_url):
     backend = get_gcoin_backend()
-    print('multisig_address:{}, callback_url:{}'.format(multisig_address, callback_url))
     return backend.subscribe_address_notification(multisig_address, callback_url)
