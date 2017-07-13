@@ -8,7 +8,6 @@
 #     ./setup_venv.sh
 #
 ORIGIN=$(dirname "$0")
-PATH_gcoin_rpc=$ORIGIN/gcoin-rpc
 PATH_pygcointools=$ORIGIN/pygcointools
 
 # check whether venv works
@@ -36,5 +35,4 @@ fi
 
 # install required packages
 pip install -e $PATH_pygcointools
-pip install -e $PATH_gcoin_rpc
 pip install -r requirements.txt
