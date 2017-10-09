@@ -18,7 +18,8 @@ RETRY = 1
 
 def clear_evm_accounts(multisig_address):
     for i in range(RETRY):
-        contracts = Contract.objects.filter(multisig_address__address=multisig_address, is_deployed=True)
+        contracts = Contract.objects.filter(
+            multisig_address__address=multisig_address, is_deployed=True)
 
         contract_addresses = [contract.contract_address for contract in contracts]
         contract_balance = gcoincore.get_address_balance(multisig_address)
@@ -46,9 +47,12 @@ def clear_evm_accounts(multisig_address):
                         accounts.append(account)
 
         accounts_balance = [account[balance_index] for account in accounts]
-        payouts = get_payouts_from_accounts(multisig_address, contract_balance, accounts_balance, addresses)
+        payouts = get_payouts_from_accounts(
+            multisig_address, contract_balance, accounts_balance, addresses)
         if payouts == []:
-            return {'payouts': payouts}
+            return {
+                'payouts': payouts
+            }
         raw_tx = gcoincore.prepare_general_raw_tx(payouts)
         '''
         before cashout.
@@ -69,7 +73,13 @@ def clear_evm_accounts(multisig_address):
             balance = gcoincore.get_address_balance(address)
             balances_after[address] = balance
 
-        return {"addresses": addresses, "evm_accounts_of_addresses": accounts, "payouts": payouts, "balances_before": balances_before, "balances_after": balances_after}
+        return {
+            "addresses": addresses,
+            "evm_accounts_of_addresses": accounts,
+            "payouts": payouts,
+            "balances_before": balances_before,
+            "balances_after": balances_after
+        }
 
 
 def get_surplus(contract_balance, accounts):

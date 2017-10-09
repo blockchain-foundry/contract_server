@@ -70,7 +70,7 @@ class AddressNotified(APIView):
         """
 
         form = NotifyForm(request.data)
-        tx_hash = ""
+        tx_hash = ''
 
         if form.is_valid():
             tx_hash = form.cleaned_data['tx_hash']
