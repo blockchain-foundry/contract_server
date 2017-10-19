@@ -18,6 +18,10 @@ from oracles.models import Oracle
 logger = logging.getLogger(__name__)
 OSSclient = GcoinAPIClient(settings.OSS_API_URL)
 
+ORACLE_API_VERSION = '/api/v1'
+PROPOSAL_URL_PATTERN = ORACLE_API_VERSION + '/proposals/'
+MULTISIG_URL_PATTERN = ORACLE_API_VERSION + '/multisigaddress/'
+
 
 class CsrfExemptMixin(View):
 
@@ -32,7 +36,7 @@ class MultisigAddressCreateMixin():
         """Get public keys from an oracle
         """
         url = oracle['url']
-        r = requests.get(url + '/proposals/' + multisig_address)
+        r = requests.get(url + PROPOSAL_URL_PATTERN + multisig_address)
         pubkey = json.loads(r.text)['public_key']
         logger.debug('get ' + url + '\'s pubkey.')
         print('get ' + url + '\'s pubkey.')
@@ -114,7 +118,7 @@ class MultisigAddressCreateMixin():
                 'multisig_address': multisig_address,
                 'is_state_multisig': is_state_multisig
             }
-            requests.post(url + '/multisigaddress/', data=data)
+            requests.post(url + MULTISIG_URL_PATTERN, data=data)
 
     def _get_callback_url(self, address):
         callback_url = settings.CONTRACT_SERVER_API_URL + \
