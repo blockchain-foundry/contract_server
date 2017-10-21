@@ -23,7 +23,7 @@ urlpatterns = [
     url(r'^oracles/', include('oracles.urls')),
     url(r'^smart-contract/', include('contracts.urls')),
     url(r'^', include('contracts.urls')),
-    url(r'^states/', include('evm_manager.urls')),
+    url(r'^states/', include('smart_contract_utils.urls')),
     url(r'^admin/', include(admin.site.urls),),
 ]
 
