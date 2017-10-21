@@ -3,7 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
 from contracts.models import MultisigAddress, Contract
 from evm_manager.models import StateInfo
-from evm_manager import deploy_contract_utils
+from evm_manager import deploy_contract_utils, utils
 from gcoinbackend import core as gcoincore
 
 import requests
@@ -44,7 +44,7 @@ def check_state(multisig_address, tx_hash):
     if latest_tx_hash == no_data:
         return False
 
-    if multisig_address != deploy_contract_utils.get_multisig_address(tx_hash):
+    if multisig_address != utils.get_multisig_address(tx_hash):
         return False
 
     try:

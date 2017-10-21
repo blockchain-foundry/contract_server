@@ -325,7 +325,7 @@ class ContractFunction(APIView):
         pubkeys = []
         for oracle in oracles:
             url = oracle.url
-            r = requests.get(url + '/proposals/' + multisig_address)
+            r = requests.get(url + '/api/v1/proposals/' + multisig_address)
             pubkey = json.loads(r.text)['public_key']
             logger.debug("get " + url + "'s pubkey.")
             pubkeys.append(pubkey)
