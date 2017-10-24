@@ -42,9 +42,6 @@ before_script:
   - cd log
   - touch django.log
   - cd ..
-  - git submodule init
-  - git submodule update
-  - echo "submodule done"
 script:
   - cd ./contract_server
   - ./manage.py test

@@ -442,7 +442,7 @@ class Bind(BaseFormView, CsrfExemptMixin):
         pubkeys = []
         for oracle in oracles:
             url = oracle.url
-            r = requests.get(url + '/proposals/' + multisig_address)
+            r = requests.get(url + '/api/v1/proposals/' + multisig_address)
             pubkey = json.loads(r.text)['public_key']
             logger.debug("get " + url + "'s pubkey.")
             pubkeys.append(pubkey)
@@ -480,7 +480,6 @@ class Bind(BaseFormView, CsrfExemptMixin):
 
                 contract_multisig_address_object = MultisigAddress.objects.create(
                     address=contract_multisig_address, script=contract_multisig_script, least_sign_number=m)
-
                 for oracle in oracles:
                     contract_multisig_address_object.oracles.add(oracle)
 

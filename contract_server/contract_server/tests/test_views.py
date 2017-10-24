@@ -30,7 +30,7 @@ class AddressNotifiedCase(TestCase):
     def fake_check_watch(tx_hash, multisig_address):
         return True
 
-    @mock.patch('evm_manager.deploy_contract_utils.deploy_contracts', fake_deploy_contracts)
+    @mock.patch('contract_server.views.evm_deploy', fake_deploy_contracts)
     @mock.patch('events.state_log_utils.check_watch', fake_check_watch)
     def test_address_notified(self):
         self.response = self.client.post(self.url, self.sample_form)
