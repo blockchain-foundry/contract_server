@@ -31,6 +31,7 @@ CONTRACT_SERVER_API_URL = env("CONTRACT_SERVER_API_URL")
 OSS_API_URL = env("OSS_API_URL")
 CONFIRMATION = env("CONFIRMATION")
 
+"""
 DATABASES = {
     "default": {
         "NAME": env("CONTRACT_SERVER_DB"),
@@ -42,6 +43,14 @@ DATABASES = {
         "OPTIONS": {
             "autocommit": True
         }
+    }
+}
+"""
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
 
@@ -63,8 +72,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'oracles',
     'contracts',
-    'evm_manager',
     'events',
+    'smart_contract_utils'
 ]
 
 MIDDLEWARE_CLASSES = [

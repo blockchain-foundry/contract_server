@@ -9,7 +9,6 @@ from django.views.generic import View
 
 from contracts.exceptions import Multisig_error
 from contracts.models import MultisigAddress
-from evm_manager import deploy_contract_utils
 from gcoin import scriptaddr, mk_multisig_script
 from gcoinapi.client import GcoinAPIClient
 from oracles.models import Oracle
@@ -90,8 +89,6 @@ class MultisigAddressCreateMixin():
             for i in oracle_list:
                 multisig_address_object.oracles.add(Oracle.objects.get(url=i["url"]))
             multisig_address_object.save()
-
-            deploy_contract_utils.make_multisig_address_file(multisig_address)
 
             # save multisig address at oracle server
             url_map_pubkeys = []

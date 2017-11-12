@@ -302,8 +302,8 @@ def decode_single(typ, data):
         if len(sub):
             return data[:int(sub)]
         else:
-            l = big_endian_to_int(data[0:32])
-            return data[32:][:l]
+            index = big_endian_to_int(data[0:32])
+            return data[32:][:index]
     elif base == 'uint':
         return big_endian_to_int(data)
     elif base == 'int':

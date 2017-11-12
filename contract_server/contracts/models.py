@@ -13,7 +13,7 @@ OSSclient = GcoinAPIClient(settings.OSS_API_URL)
 
 class MultisigAddress(models.Model):
     created = models.DateTimeField(auto_now_add=True)
-    address = models.CharField(max_length=100, blank=True, default='')
+    address = models.CharField(max_length=100, blank=True, unique=True)
     script = models.CharField(max_length=4096, blank=True, default='')
     oracles = models.ManyToManyField(Oracle)
     least_sign_number = models.PositiveIntegerField(default=1)
@@ -51,8 +51,10 @@ class Contract(models.Model):
     amount = models.PositiveIntegerField()
     interface = models.TextField(default='')
     contract_address = models.CharField(max_length=100, blank=True, default='')
-    contract_multisig_address = models.ForeignKey(MultisigAddress, blank=True, null=True, related_name='contract')
-    state_multisig_address = models.ForeignKey(MultisigAddress, related_name='contract_set', null=True)
+    contract_multisig_address = models.ForeignKey(
+        MultisigAddress, blank=True, null=True, related_name='contract')
+    state_multisig_address = models.ForeignKey(
+        MultisigAddress, related_name='contract_set', null=True)
     tx_hash_init = models.CharField(max_length=200, blank=True, default='')
     hash_op_return = models.IntegerField(default=-1)
     sender_evm_address = models.CharField(max_length=100, blank=True, default='')

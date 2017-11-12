@@ -15,13 +15,11 @@ from rest_framework.views import APIView, status
 from rest_framework.pagination import LimitOffsetPagination
 from solc import compile_source
 
-
 from contracts.serializers import CreateMultisigAddressSerializer, MultisigAddressSerializer, DeployContractSerializer, ContractFunctionSerializer
 from contract_server import response_utils, ERROR_CODE, data_response
 from contract_server.decorators import handle_uncaught_exception, handle_apiversion_apiview
 from contract_server.mixins import CsrfExemptMixin, MultisigAddressCreateMixin
-from evm_manager import deploy_contract_utils
-from evm_manager.utils import wallet_address_to_evm
+from smart_contract_utils.utils import call_constant_function, wallet_address_to_evm
 from gcoinapi.client import GcoinAPIClient
 from oracles.models import Oracle
 
@@ -237,7 +235,7 @@ class DeployContract(APIView, MultisigAddressCreateMixin):
             }
             return JsonResponse(response, status=httplib.BAD_REQUEST)
 
-        contract = Contract(
+        contract = Contract.objects.create(
             source_code=source_code,
             interface=interface,
             state_multisig_address=multisig_address_object,
@@ -414,7 +412,7 @@ class ContractFunction(APIView):
                 pubkeys = self._get_pubkey_from_oracles(oracles, state_multisig_address)
 
             if is_constant:
-                data = deploy_contract_utils.call_constant_function(
+                data = call_constant_function(
                     sender_address, state_multisig_address, evm_input_code, amount, contract_address)
                 out = data['out']
                 function_outputs = decode_evm_output(interface, function_name, out)
@@ -444,7 +442,7 @@ class Bind(BaseFormView, CsrfExemptMixin):
         pubkeys = []
         for oracle in oracles:
             url = oracle.url
-            r = requests.get(url + '/proposals/' + multisig_address)
+            r = requests.get(url + '/api/v1/proposals/' + multisig_address)
             pubkey = json.loads(r.text)['public_key']
             logger.debug("get " + url + "'s pubkey.")
             pubkeys.append(pubkey)
@@ -482,7 +480,6 @@ class Bind(BaseFormView, CsrfExemptMixin):
 
                 contract_multisig_address_object = MultisigAddress.objects.create(
                     address=contract_multisig_address, script=contract_multisig_script, least_sign_number=m)
-
                 for oracle in oracles:
                     contract_multisig_address_object.oracles.add(oracle)
 

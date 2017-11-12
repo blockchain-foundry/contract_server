@@ -5,7 +5,7 @@ from django.conf import settings
 from gcoinapi.client import GcoinAPIClient
 from gcoinbackend import core as gcoincore
 from contracts.models import MultisigAddress, Contract
-from evm_manager.utils import get_evm_account_info, evm_address_to_wallet
+from smart_contract_utils.utils import get_evm_account_info, evm_address_to_wallet
 from gcoin import apply_multisignatures, deserialize
 
 OSS = GcoinAPIClient(settings.OSS_API_URL)

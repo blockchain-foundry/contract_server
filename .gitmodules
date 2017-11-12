@@ -1,0 +1,3 @@
+[submodule "contract_server/smart_contract_utils"]
+	path = contract_server/smart_contract_utils
+	url = git@github.com:OpenNetworking/Smart-Contract-utils.git
